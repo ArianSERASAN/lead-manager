@@ -119,22 +119,48 @@ export function LeadDetail({ lead, onClose, onUpdateStatus, onUpdateNotes, onDel
           </div>
 
           {/* Details Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <InfoItem icon={Clock} label="Capturado el" value={formatDate(lead.createdAt)} />
-            <InfoItem icon={Globe} label="Origen" value={lead.source.replace('-', ' ')} className="capitalize" />
+          <div className="grid grid-cols-2 gap-y-6 gap-x-4 border-t border-gray-100 pt-6">
+            <DetailItem label="Origen" value={lead.source.replace('-', ' ')} icon={Globe} />
+            <DetailItem label="Fecha" value={formatDate(lead.createdAt)} icon={Clock} />
             
-            {lead.phone && <InfoItem icon={Phone} label="Teléfono" value={lead.phone} />}
-            {lead.company && <InfoItem icon={Building} label="Empresa" value={lead.company} />}
-            {lead.resource && <InfoItem icon={Download} label="Recurso solicitado" value={lead.resource} />}
-            {lead.data?.surface && <InfoItem icon={CreditCard} label="Superficie" value={`${lead.data.surface} m²`} />}
-            {lead.data?.locality && <InfoItem icon={MapPin} label="Localidad" value={lead.data.locality} />}
+            {/* Dynamic Metadata from lead.data */}
+            {Object.entries(lead.data || {}).map(([key, value]) => {
+              // Skip fields already shown or internal ID
+              const skipFields = [
+                'id', 'name', 'nombre', 'email', 'phone', 'telefono', 
+                'status', 'status_lead', 'createdAt', 'fecha', 'notes', 'notas',
+                'source', 'source_lead', 'recurso', 'mensaje', 'message', 'company', 'empresa'
+              ];
+              if (skipFields.includes(key) || typeof value === 'object') return null;
+              
+              return (
+                <DetailItem 
+                  key={key} 
+                  label={key.replace(/_/g, ' ')} 
+                  value={String(value)} 
+                  icon={Building} 
+                />
+              );
+            })}
           </div>
 
-          {/* Message/Comments */}
-          {(lead.message || lead.data?.mensaje) && (
-            <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100">
-               <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Mensaje del cliente</label>
-               <p className="text-gray-700 text-sm whitespace-pre-wrap">{lead.message || lead.data?.mensaje}</p>
+          {/* Message / Resource section */}
+          {(lead.message || lead.resource) && (
+            <div className="border-t border-gray-100 pt-6 space-y-4">
+              {lead.resource && (
+                <div className="bg-blue-50/50 rounded-xl p-3 flex items-center space-x-3 text-blue-700">
+                  <Download size={18} />
+                  <span className="text-sm font-bold">Recurso: {lead.resource}</span>
+                </div>
+              )}
+              {lead.message && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-0.5">Mensaje del cliente</label>
+                  <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 italic border border-gray-100">
+                    "{lead.message}"
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -143,15 +169,14 @@ export function LeadDetail({ lead, onClose, onUpdateStatus, onUpdateNotes, onDel
   );
 }
 
-function InfoItem({ icon: Icon, label, value, className = "" }: { icon: any, label: string, value: string, className?: string }) {
+function DetailItem({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
+  if (!value || value === '—') return null;
   return (
-    <div className="flex space-x-3">
-      <div className="text-gray-300">
-         <Icon size={18} />
-      </div>
-      <div>
-        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
-        <div className={`text-sm text-gray-700 font-medium ${className}`}>{value}</div>
+    <div className="space-y-1">
+      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block px-0.5 truncate">{label}</label>
+      <div className="flex items-center space-x-2 text-gray-700">
+        <Icon size={14} className="text-gray-300 shrink-0" />
+        <span className="text-sm font-medium truncate capitalize">{value}</span>
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
-import { auth, db } from './firebase'
+import { db, auth } from './firebase'
 import { Login } from './components/Login'
 import { LeadTable } from './components/LeadTable'
 import { LeadDetail } from './components/LeadDetail'
 import { ExportButton } from './components/ExportButton'
+import { FilterBar } from './components/FilterBar'
 import { useLeads } from './hooks/useLeads'
 import { Lead } from './types'
 import { 
@@ -27,6 +28,12 @@ function App() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'landing' | 'web-download' | 'web-contact'>('dashboard')
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
+  
+  // Filter States
+  const [searchTerm, setSearchTerm] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sourceFilter, setSourceFilter] = useState('all')
+  
   const { leads, loading: leadsLoading } = useLeads()
 
   useEffect(() => {
@@ -102,9 +109,40 @@ function App() {
     return <Login />
   }
 
-  const filteredLeads = activeTab === 'dashboard' 
-    ? leads 
-    : leads.filter(l => l.source === activeTab)
+  // Improved Filtering Logic
+  const filteredLeads = leads.filter(lead => {
+    // 1. Tab Navigation Filter
+    if (activeTab !== 'dashboard' && lead.source !== activeTab) return false;
+    
+    // 2. Status Filter
+    if (statusFilter !== 'all' && lead.status !== statusFilter) return false;
+
+    // 3. Source Filter (within dashboard)
+    if (activeTab === 'dashboard' && sourceFilter !== 'all' && lead.source !== sourceFilter) return false;
+
+    // 4. Search Filter (Deep Search)
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      const inBasicInfo = (
+        lead.name.toLowerCase().includes(search) ||
+        lead.email.toLowerCase().includes(search) ||
+        (lead.phone || '').toLowerCase().includes(search) || // Added phone
+        (lead.company || '').toLowerCase().includes(search) ||
+        (lead.notes || '').toLowerCase().includes(search)
+      );
+      
+      if (inBasicInfo) return true;
+
+      // Deep data search
+      const inData = Object.values(lead.data || {}).some(val => 
+        String(val).toLowerCase().includes(search)
+      );
+
+      return inData;
+    }
+
+    return true;
+  });
 
   const stats = {
     total: leads.length,
@@ -205,6 +243,16 @@ function App() {
                </div>
             </div>
           </header>
+
+          <FilterBar 
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            statusFilter={statusFilter}
+            onStatusChange={setStatusFilter}
+            sourceFilter={sourceFilter}
+            onSourceChange={setSourceFilter}
+            leads={leads}
+          />
 
           {/* Stats Cards */}
           {activeTab === 'dashboard' && (
