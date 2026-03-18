@@ -13,8 +13,8 @@ export function SelectionHUD({ selectedLeads, onClear, onBulkStatusUpdate, onBul
   if (selectedLeads.length === 0) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-2rem)] max-w-2xl animate-in slide-in-from-bottom-12 duration-300">
-      <div className="bg-gray-900 border border-white/10 shadow-2xl rounded-3xl p-3 md:p-4 flex items-center justify-between backdrop-blur-md">
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-4rem)] max-w-4xl animate-in slide-in-from-bottom-12 duration-500 ease-out">
+      <div className="bg-gray-900/80 backdrop-blur-2xl border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] rounded-[40px] p-4 md:p-5 flex items-center justify-between">
         
         {/* Selection Info */}
         <div className="flex items-center space-x-3 md:space-x-4 pl-2">

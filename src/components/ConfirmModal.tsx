@@ -28,16 +28,16 @@ export function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl w-full max-w-sm overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="p-6 text-center">
-          <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-             <AlertTriangle size={32} className="text-red-500" />
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="bg-white/90 backdrop-blur-2xl w-full max-w-md rounded-[32px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] border border-white overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="p-8 text-center">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-lg shadow-red-500/10">
+             <AlertTriangle size={32} />
           </div>
-          
+
           <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
           <p className="text-sm text-gray-500 mb-8 px-2">{message}</p>
-          
+
           <div className="flex flex-col space-y-3">
             <button
               onClick={() => {

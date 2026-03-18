@@ -61,13 +61,14 @@ export function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onT
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {leads.map((lead) => {
+            {leads.map((lead, index) => {
               const isSelected = selectedIds.includes(lead.id);
               return (
                 <tr 
                   key={lead.id} 
+                  style={{ animationDelay: `${index * 50}ms` }}
                   className={cn(
-                    "hover:bg-gray-50 transition-all group border-l-4", 
+                    "hover:bg-gray-50 transition-all group border-l-4 animate-in fade-in slide-in-from-left-4 duration-500 fill-mode-backwards", 
                     isSelected ? "bg-blue-50/50 border-blue-500 shadow-sm" : "border-transparent"
                   )}
                 >

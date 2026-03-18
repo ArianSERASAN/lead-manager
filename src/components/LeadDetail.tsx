@@ -1,6 +1,6 @@
 import { Lead } from '../types';
 import { useState, useEffect } from 'react';
-import { X, Phone, Mail, Building, Clock, MapPin, Globe, CreditCard, Download, Trash2, Save, Loader2 } from 'lucide-react';
+import { X, Phone, Mail, Building, Clock, MapPin, Globe, CreditCard, Download, Trash2, Save, Loader2, Copy } from 'lucide-react';
 
 interface LeadDetailProps {
   lead: Lead;
@@ -34,13 +34,33 @@ export function LeadDetail({ lead, onClose, onUpdateStatus, onUpdateNotes, onDel
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-md overflow-y-auto">
+      <div className="bg-white/90 backdrop-blur-2xl w-full max-w-2xl rounded-[40px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.15)] border border-white overflow-hidden animate-in fade-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="p-6 border-b border-gray-100 flex justify-between items-start">
-          <div>
-             <h3 className="text-xl font-bold text-gray-900">{lead.name}</h3>
-             <p className="text-gray-500 text-sm mt-0.5">{lead.email}</p>
+        <div className="p-10 pb-8 flex justify-between items-start">
+          <div className="flex-1 min-w-0">
+             <div className="flex items-center space-x-3 mb-1">
+                <h3 className="text-3xl font-black text-gray-900 tracking-tight truncate">{lead.name}</h3>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(lead.name);
+                    // could show a mini-toast or change icon
+                  }}
+                  className="p-1.5 text-gray-300 hover:text-blue-500 transition-colors"
+                  title="Copiar nombre"
+                >
+                  <Copy size={16} />
+                </button>
+             </div>
+             <div className="flex items-center space-x-2">
+                <p className="text-blue-500 font-bold text-sm truncate">{lead.email}</p>
+                <button 
+                  onClick={() => navigator.clipboard.writeText(lead.email)}
+                  className="p-1 text-gray-300 hover:text-blue-500 transition-colors"
+                >
+                  <Copy size={12} />
+                </button>
+             </div>
           </div>
           <div className="flex items-center space-x-2">
             <button 
