@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db, auth } from './firebase'
@@ -7,6 +7,8 @@ import { LeadTable } from './components/LeadTable'
 import { LeadDetail } from './components/LeadDetail'
 import { ExportButton } from './components/ExportButton'
 import { FilterBar } from './components/FilterBar'
+import { ConfirmModal } from './components/ConfirmModal'
+import { ToastContainer } from './components/Toast'
 import { useLeads } from './hooks/useLeads'
 import { Lead } from './types'
 import { 
@@ -19,7 +21,9 @@ import {
   TrendingUp,
   Clock,
   CheckCircle2,
-  Trash2
+  Trash2,
+  Filter,
+  Check
 } from 'lucide-react'
 
 function App() {
@@ -33,7 +37,13 @@ function App() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [sourceFilter, setSourceFilter] = useState('all')
+  const [dateFilter, setDateFilter] = useState('all')
   
+  // UX States
+  const [toasts, setToasts] = useState<any[]>([])
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean, onConfirm: () => void, title: string, message: string } | null>(null)
+  
+  const pendingDeletes = useRef<Map<string, any>>(new Map());
   const { leads, loading: leadsLoading } = useLeads()
 
   useEffect(() => {
@@ -43,6 +53,14 @@ function App() {
     })
     return () => unsubscribe()
   }, [])
+
+  const addToast = (message: string, type: 'success' | 'error' | 'undo', id?: string) => {
+    const toastId = id || Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id: toastId, message, type }]);
+    return toastId;
+  }
+
+  const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const handleLogout = () => signOut(auth)
 
@@ -57,8 +75,9 @@ function App() {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
       await updateDoc(doc(db, getCollectionName(lead), id), { status });
+      addToast(`Estado actualizado a ${status}`, 'success');
     } catch (err) {
-      console.error("Error updating status:", err);
+      addToast('Error al actualizar estado', 'error');
     }
   }
 
@@ -67,34 +86,84 @@ function App() {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
       await updateDoc(doc(db, getCollectionName(lead), id), { notes });
+      addToast('Notas guardadas', 'success');
     } catch (err) {
-      console.error("Error updating notes:", err);
+      addToast('Error al guardar notas', 'error');
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const handleBulkStatusUpdate = async (status: Lead['status']) => {
+    if (selectedIds.length === 0) return;
     try {
-      const lead = leads.find(l => l.id === id);
-      if (!lead) return;
-      await deleteDoc(doc(db, getCollectionName(lead), id));
-      if (selectedLead?.id === id) setSelectedLead(null);
-      setSelectedIds(prev => prev.filter(i => i !== id));
+      for (const id of selectedIds) {
+        const lead = leads.find(l => l.id === id);
+        if (lead) {
+           await updateDoc(doc(db, getCollectionName(lead), id), { status });
+        }
+      }
+      setSelectedIds([]);
+      addToast(`${selectedIds.length} leads actualizados`, 'success');
     } catch (err) {
-      console.error("Error deleting lead:", err);
-      alert("Error al eliminar el lead.");
+      addToast('Error en actualización masiva', 'error');
     }
   }
 
-  const handleDeleteSelected = async () => {
-    if (!window.confirm(`¿Estás seguro de que quieres eliminar ${selectedIds.length} leads?`)) return;
-    
-    for (const id of selectedIds) {
-      const lead = leads.find(l => l.id === id);
-      if (lead) {
-        await deleteDoc(doc(db, getCollectionName(lead), id));
+  const handleDelete = (id: string) => {
+    const lead = leads.find(l => l.id === id);
+    if (!lead) return;
+
+    setConfirmModal({
+      isOpen: true,
+      title: '¿Eliminar lead?',
+      message: `Esta acción ocultará a ${lead.name} y lo borrará permanentemente en 5 segundos.`,
+      onConfirm: () => {
+        const timeout = setTimeout(async () => {
+          try {
+            await deleteDoc(doc(db, getCollectionName(lead), id));
+            pendingDeletes.current.delete(id);
+            addToast(`${lead.name} eliminado definitivamente`, 'success');
+          } catch (err) {
+            addToast('Error al eliminar', 'error');
+          }
+        }, 5000);
+
+        pendingDeletes.current.set(id, { timeout, lead });
+        addToast(`Eliminando a ${lead.name}...`, 'undo', id);
+        if (selectedLead?.id === id) setSelectedLead(null);
+        setSelectedIds(prev => prev.filter(i => i !== id));
       }
+    });
+  }
+
+  const handleUndoDelete = (id: string) => {
+    const pending = pendingDeletes.current.get(id);
+    if (pending) {
+      clearTimeout(pending.timeout);
+      pendingDeletes.current.delete(id);
+      addToast('Acción cancelada', 'success');
+      removeToast(id);
     }
-    setSelectedIds([]);
+  }
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.length === 0) return;
+    setConfirmModal({
+      isOpen: true,
+      title: '¿Eliminar seleccionados?',
+      message: `Vas a eliminar ${selectedIds.length} leads. Esta acción NO se puede deshacer de forma masiva.`,
+      onConfirm: async () => {
+        try {
+          for (const id of selectedIds) {
+            const lead = leads.find(l => l.id === id);
+            if (lead) await deleteDoc(doc(db, getCollectionName(lead), id));
+          }
+          setSelectedIds([]);
+          addToast(`${selectedIds.length} leads eliminados`, 'success');
+        } catch (err) {
+          addToast('Error al eliminar leads', 'error');
+        }
+      }
+    });
   }
 
   if (authLoading) {
@@ -111,34 +180,34 @@ function App() {
 
   // Improved Filtering Logic
   const filteredLeads = leads.filter(lead => {
-    // 1. Tab Navigation Filter
-    if (activeTab !== 'dashboard' && lead.source !== activeTab) return false;
-    
-    // 2. Status Filter
-    if (statusFilter !== 'all' && lead.status !== statusFilter) return false;
+    if (pendingDeletes.current.has(lead.id)) return false;
 
-    // 3. Source Filter (within dashboard)
+    if (activeTab !== 'dashboard' && lead.source !== activeTab) return false;
+    if (statusFilter !== 'all' && lead.status !== statusFilter) return false;
     if (activeTab === 'dashboard' && sourceFilter !== 'all' && lead.source !== sourceFilter) return false;
 
-    // 4. Search Filter (Deep Search)
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const leadDate = lead.createdAt?.toDate ? lead.createdAt.toDate() : new Date();
+      const diffTime = Math.abs(now.getTime() - leadDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (dateFilter === 'today' && diffDays > 1) return false;
+      if (dateFilter === 'yesterday' && (diffDays < 1 || diffDays > 2)) return false;
+      if (dateFilter === 'week' && diffDays > 7) return false;
+      if (dateFilter === 'month' && diffDays > 30) return false;
+    }
+
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
-      const inBasicInfo = (
+      return (
         lead.name.toLowerCase().includes(search) ||
         lead.email.toLowerCase().includes(search) ||
-        (lead.phone || '').toLowerCase().includes(search) || // Added phone
+        (lead.phone || '').toLowerCase().includes(search) ||
         (lead.company || '').toLowerCase().includes(search) ||
-        (lead.notes || '').toLowerCase().includes(search)
+        (lead.notes || '').toLowerCase().includes(search) ||
+        Object.values(lead.data || {}).some(val => String(val).toLowerCase().includes(search))
       );
-      
-      if (inBasicInfo) return true;
-
-      // Deep data search
-      const inData = Object.values(lead.data || {}).some(val => 
-        String(val).toLowerCase().includes(search)
-      );
-
-      return inData;
     }
 
     return true;
@@ -153,7 +222,7 @@ function App() {
 
   return (
     <div className="flex h-screen bg-gray-50 flex-col md:flex-row overflow-hidden">
-      {/* Sidebar / Bottom Navigation */}
+      {/* Sidebar */}
       <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-200 flex flex-col shrink-0">
         <div className="p-6 border-b border-gray-100 hidden md:block">
           <div className="flex items-center space-x-3 mb-1">
@@ -199,7 +268,7 @@ function App() {
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto bg-gray-50/50 relative">
         <div className="max-w-6xl mx-auto p-4 md:p-8">
-          <header className="flex justify-between items-end mb-10">
+          <header className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-10 gap-4">
             <div>
               <h2 className="text-2xl font-black text-gray-900 tracking-tight">
                 {activeTab === 'dashboard' ? 'Panel de Control' : 
@@ -212,12 +281,22 @@ function App() {
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 w-full sm:w-auto">
                {selectedIds.length > 0 && (
-                 <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-right-4">
-                    <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-                      {selectedIds.length} seleccionados
-                    </span>
+                 <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 w-full sm:w-auto bg-white p-2 rounded-2xl border border-gray-200 shadow-sm">
+                    <div className="flex items-center space-x-1 px-2">
+                       <select 
+                         onChange={(e) => handleBulkStatusUpdate(e.target.value as any)}
+                         className="text-xs font-bold text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 outline-none"
+                       >
+                         <option value="">Cambiar Estado...</option>
+                         <option value="nuevo">Marcar Nuevo</option>
+                         <option value="contactado">Marcar Contactado</option>
+                         <option value="en-progreso">En Progreso</option>
+                         <option value="cerrado">Cerrar Leads</option>
+                       </select>
+                    </div>
+
                     <button 
                       onClick={handleDeleteSelected}
                       className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all border border-red-100"
@@ -251,7 +330,10 @@ function App() {
             onStatusChange={setStatusFilter}
             sourceFilter={sourceFilter}
             onSourceChange={setSourceFilter}
+            dateFilter={dateFilter}
+            onDateChange={setDateFilter}
             leads={leads}
+            activeTab={activeTab}
           />
 
           {/* Stats Cards */}
@@ -319,6 +401,21 @@ function App() {
           onDelete={handleDelete}
         />
       )}
+
+      {/* Confirm Modal */}
+      {confirmModal && (
+        <ConfirmModal 
+          {...confirmModal}
+          onClose={() => setConfirmModal(null)}
+        />
+      )}
+
+      {/* Toasts */}
+      <ToastContainer 
+        toasts={toasts}
+        onClose={removeToast}
+        onUndo={handleUndoDelete}
+      />
     </div>
   )
 }

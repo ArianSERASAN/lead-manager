@@ -9,7 +9,10 @@ interface FilterBarProps {
   onStatusChange: (value: string) => void;
   sourceFilter: string;
   onSourceChange: (value: string) => void;
+  dateFilter: string;
+  onDateChange: (value: string) => void;
   leads: Lead[];
+  activeTab: string;
 }
 
 export function FilterBar({ 
@@ -19,7 +22,10 @@ export function FilterBar({
   onStatusChange, 
   sourceFilter, 
   onSourceChange,
-  leads
+  dateFilter,
+  onDateChange,
+  leads,
+  activeTab
 }: FilterBarProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -54,24 +60,38 @@ export function FilterBar({
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}
-            className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer"
+            className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
           >
-            <option value="all">Todos los Estados</option>
+            <option value="all">Cualquier Estado</option>
             <option value="nuevo">Nuevos</option>
             <option value="contactado">Contactados</option>
             <option value="en-progreso">En Progreso</option>
             <option value="cerrado">Cerrados</option>
           </select>
 
+          {activeTab === 'dashboard' && (
+            <select
+              value={sourceFilter}
+              onChange={(e) => onSourceChange(e.target.value)}
+              className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+            >
+              <option value="all">Todos los Orígenes</option>
+              <option value="landing">Landing Page</option>
+              <option value="web-download">Web (Descargas)</option>
+              <option value="web-contact">Web (Contacto)</option>
+            </select>
+          )}
+
           <select
-            value={sourceFilter}
-            onChange={(e) => onSourceChange(e.target.value)}
-            className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer"
+            value={dateFilter}
+            onChange={(e) => onDateChange(e.target.value)}
+            className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
           >
-            <option value="all">Todos los Orígenes</option>
-            <option value="landing">Landing Page</option>
-            <option value="web-download">Web (Descargas)</option>
-            <option value="web-contact">Web (Contacto)</option>
+            <option value="all">Cualquier Fecha</option>
+            <option value="today">Hoy</option>
+            <option value="yesterday">Ayer</option>
+            <option value="week">Esta Semana</option>
+            <option value="month">Este Mes</option>
           </select>
 
           <button
@@ -79,8 +99,9 @@ export function FilterBar({
                 onSearchChange('');
                 onStatusChange('all');
                 onSourceChange('all');
+                onDateChange('all');
             }}
-            className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
+            className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all shrink-0"
             title="Limpiar Filtros"
           >
             <X size={20} />
