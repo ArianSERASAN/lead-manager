@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "serasan-web"
+  },
+  "targets": {
+    "serasan-web": {
+      "hosting": {
+        "manager": [
+          "lead-manager-serasan"
+        ]
+      }
+    }
+  }
+}

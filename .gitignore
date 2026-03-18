@@ -1,0 +1,21 @@
+# node_modules
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.*
+
+# Editor folders
+.vscode/
+.idea/
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# Misc
+.DS_Store
+*.pem
