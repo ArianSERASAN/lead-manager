@@ -4,25 +4,26 @@ import { Lead } from '../types';
 interface ExportButtonProps {
   selectedLeads: Lead[];
   onExported?: () => void;
+  variant?: 'light' | 'dark';
 }
 
-export function ExportButton({ selectedLeads, onExported }: ExportButtonProps) {
+export function ExportButton({ selectedLeads, onExported, variant = 'light' }: ExportButtonProps) {
   const downloadCSV = () => {
     if (selectedLeads.length === 0) return;
 
     // Define CSV headers
-    const headers = ['Nombre', 'Email', 'Teléfono', 'Origen', 'Estado', 'Fecha', 'Mensaje', 'Notas'];
+    const headers = ['Nombre', 'Email', 'Teléfono', 'Origen', 'Estado', 'Fecha', 'Notas', 'Datos Adicionales'];
     
     // Map leads to rows
     const rows = selectedLeads.map(lead => [
       lead.name,
       lead.email,
-      lead.phone,
+      lead.phone || '',
       lead.source,
       lead.status,
       lead.createdAt?.toDate ? lead.createdAt.toDate().toLocaleString('es-ES') : '',
-      `"${(lead.message || '').replace(/"/g, '""')}"`,
-      `"${(lead.notes || '').replace(/"/g, '""')}"`
+      `"${(lead.notes || '').replace(/"/g, '""')}"`,
+      `"${JSON.stringify(lead.data || {}).replace(/"/g, '""')}"`
     ]);
 
     // Combine headers and rows
@@ -31,7 +32,7 @@ export function ExportButton({ selectedLeads, onExported }: ExportButtonProps) {
       ...rows.map(row => row.join(','))
     ].join('\n');
 
-    // Create a blob and download
+    // Create a blob and download (with BOM for Excel UTF-8)
     const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -44,13 +45,18 @@ export function ExportButton({ selectedLeads, onExported }: ExportButtonProps) {
     if (onExported) onExported();
   };
 
+  const buttonStyles = variant === 'dark' 
+    ? "p-2.5 bg-white/10 hover:bg-white text-white hover:text-gray-900 rounded-2xl transition-all border border-white/5 flex items-center space-x-2"
+    : "p-2.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-all border border-blue-100 flex items-center space-x-2";
+
   return (
     <button
       onClick={downloadCSV}
-      className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 text-sm"
+      className={buttonStyles}
+      title="Exportar seleccionados a CSV"
     >
-      <Download size={18} />
-      <span>Exportar CSV</span>
+      <Download size={20} />
+      <span className="text-xs font-bold hidden md:inline">Exportar</span>
     </button>
   );
 }

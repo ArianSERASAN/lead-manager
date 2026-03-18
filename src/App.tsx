@@ -9,6 +9,7 @@ import { ExportButton } from './components/ExportButton'
 import { FilterBar } from './components/FilterBar'
 import { ConfirmModal } from './components/ConfirmModal'
 import { ToastContainer } from './components/Toast'
+import { SelectionHUD } from './components/SelectionHUD'
 import { useLeads } from './hooks/useLeads'
 import { Lead } from './types'
 import { 
@@ -282,36 +283,7 @@ function App() {
             </div>
 
             <div className="flex items-center space-x-3 w-full sm:w-auto">
-               {selectedIds.length > 0 && (
-                 <div className="flex items-center space-x-2 animate-in fade-in slide-in-from-right-4 w-full sm:w-auto bg-white p-2 rounded-2xl border border-gray-200 shadow-sm">
-                    <div className="flex items-center space-x-1 px-2">
-                       <select 
-                         onChange={(e) => handleBulkStatusUpdate(e.target.value as any)}
-                         className="text-xs font-bold text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 outline-none"
-                       >
-                         <option value="">Cambiar Estado...</option>
-                         <option value="nuevo">Marcar Nuevo</option>
-                         <option value="contactado">Marcar Contactado</option>
-                         <option value="en-progreso">En Progreso</option>
-                         <option value="cerrado">Cerrar Leads</option>
-                       </select>
-                    </div>
-
-                    <button 
-                      onClick={handleDeleteSelected}
-                      className="p-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl transition-all border border-red-100"
-                      title="Eliminar seleccionados"
-                    >
-                      <Trash2 size={20} />
-                    </button>
-                    <ExportButton 
-                      selectedLeads={leads.filter(l => selectedIds.includes(l.id))} 
-                      onExported={() => setSelectedIds([])}
-                    />
-                 </div>
-               )}
-               
-               <div className="hidden sm:flex items-center space-x-3 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-sm">
+               <div className="hidden sm:flex items-center space-x-3 bg-white p-1.5 rounded-2xl border border-gray-200 shadow-sm ml-auto">
                   <div className="px-4 py-1.5">
                       <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Admin</p>
                       <p className="text-xs font-bold text-gray-900 truncate max-w-[120px]">{user.email}</p>
@@ -409,6 +381,13 @@ function App() {
           onClose={() => setConfirmModal(null)}
         />
       )}
+
+      <SelectionHUD 
+        selectedLeads={leads.filter(l => selectedIds.includes(l.id))}
+        onClear={() => setSelectedIds([])}
+        onBulkStatusUpdate={handleBulkStatusUpdate}
+        onBulkDelete={handleDeleteSelected}
+      />
 
       {/* Toasts */}
       <ToastContainer 

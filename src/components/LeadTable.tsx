@@ -64,11 +64,17 @@ export function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onT
             {leads.map((lead) => {
               const isSelected = selectedIds.includes(lead.id);
               return (
-                <tr key={lead.id} className={cn("hover:bg-gray-50 transition-colors group", isSelected && "bg-blue-50/30")}>
+                <tr 
+                  key={lead.id} 
+                  className={cn(
+                    "hover:bg-gray-50 transition-all group border-l-4", 
+                    isSelected ? "bg-blue-50/50 border-blue-500 shadow-sm" : "border-transparent"
+                  )}
+                >
                   <td className="px-6 py-4">
                     <button 
                       onClick={() => onToggleSelection(lead.id)}
-                      className={cn("transition-colors", isSelected ? "text-blue-600" : "text-gray-300 group-hover:text-gray-400")}
+                      className={cn("transition-all duration-200 transform", isSelected ? "text-blue-600 scale-110" : "text-gray-300 group-hover:text-gray-400")}
                     >
                       {isSelected ? <CheckSquare size={20} /> : <Square size={20} />}
                     </button>
