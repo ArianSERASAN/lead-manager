@@ -1,6 +1,5 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import nodemailer from 'nodemailer';
@@ -8,11 +7,9 @@ import nodemailer from 'nodemailer';
 initializeApp();
 const db = getFirestore();
 
-// Gmail credentials — set via:
-//   firebase functions:secrets:set GMAIL_USER       (tu email de Gmail)
-//   firebase functions:secrets:set GMAIL_APP_PASS   (App Password de Google)
-const gmailUser = defineSecret('GMAIL_USER');
-const gmailAppPass = defineSecret('GMAIL_APP_PASS');
+// Gmail credentials — loaded from .env file (created by CI from GitHub secrets)
+const GMAIL_USER = process.env.GMAIL_USER;
+const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS;
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -88,7 +85,7 @@ const sourceByCollection = { leads: 'landing', leads_descargas: 'web-download', 
 export const onNewLead = onDocumentCreated(
   {
     document: '{collection}/{docId}',
-    secrets: [gmailUser, gmailAppPass],
+
     region: 'europe-west1',
   },
   async (event) => {
@@ -123,7 +120,7 @@ export const onNewLead = onDocumentCreated(
             <tr><td style="padding:8px 0;color:#6b7280">Origen</td><td style="padding:8px 0">${sourceLabel(source)}</td></tr>
             ${message ? `<tr><td style="padding:8px 0;color:#6b7280;vertical-align:top">Mensaje</td><td style="padding:8px 0">${message}</td></tr>` : ''}
           </table>`;
-        await sendEmail(gmailUser.value(), gmailAppPass.value(), nl.recipients, `Nuevo lead: ${name}`, emailTemplate('Nuevo Lead', body));
+        await sendEmail(GMAIL_USER, GMAIL_APP_PASS, nl.recipients, `Nuevo lead: ${name}`, emailTemplate('Nuevo Lead', body));
       }
     }
 
@@ -134,7 +131,7 @@ export const onNewLead = onDocumentCreated(
         <h2 style="color:#111;margin:0 0 16px;font-size:16px">🔥 Lead caliente detectado</h2>
         <p style="font-size:14px;color:#374151"><strong>${name}</strong> (${email}) tiene un score de <span style="color:#ea580c;font-weight:700">${score}</span>, por encima del umbral de ${hl.scoreThreshold}.</p>
         <p style="font-size:13px;color:#6b7280;margin-top:8px">Origen: ${sourceLabel(source)}${company ? ` · Empresa: ${company}` : ''}</p>`;
-      await sendEmail(gmailUser.value(), gmailAppPass.value(), hl.recipients, `🔥 Lead caliente: ${name} (score ${score})`, emailTemplate('Lead Caliente', body));
+      await sendEmail(GMAIL_USER, GMAIL_APP_PASS, hl.recipients, `🔥 Lead caliente: ${name} (score ${score})`, emailTemplate('Lead Caliente', body));
     }
   }
 );
@@ -144,7 +141,7 @@ export const onNewLead = onDocumentCreated(
 export const checkUnattendedLeads = onSchedule(
   {
     schedule: 'every 1 hours',
-    secrets: [gmailUser, gmailAppPass],
+
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
@@ -188,7 +185,7 @@ export const checkUnattendedLeads = onSchedule(
         ${rows}
       </table>`;
 
-    await sendEmail(gmailUser.value(), gmailAppPass.value(), config.unattended.recipients, `⏰ ${unattended.length} lead${unattended.length > 1 ? 's' : ''} sin atender`, emailTemplate('Leads Sin Atender', body));
+    await sendEmail(GMAIL_USER, GMAIL_APP_PASS, config.unattended.recipients, `⏰ ${unattended.length} lead${unattended.length > 1 ? 's' : ''} sin atender`, emailTemplate('Leads Sin Atender', body));
 
     const batch = db.batch();
     for (const l of unattended) {
@@ -203,7 +200,7 @@ export const checkUnattendedLeads = onSchedule(
 export const checkStaleLeads = onSchedule(
   {
     schedule: 'every day 10:00',
-    secrets: [gmailUser, gmailAppPass],
+
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
@@ -244,7 +241,7 @@ export const checkStaleLeads = onSchedule(
         ${rows}
       </table>`;
 
-    await sendEmail(gmailUser.value(), gmailAppPass.value(), config.stale.recipients, `⚠️ ${staleLeads.length} lead${staleLeads.length > 1 ? 's' : ''} estancado${staleLeads.length > 1 ? 's' : ''}`, emailTemplate('Leads Estancados', body));
+    await sendEmail(GMAIL_USER, GMAIL_APP_PASS, config.stale.recipients, `⚠️ ${staleLeads.length} lead${staleLeads.length > 1 ? 's' : ''} estancado${staleLeads.length > 1 ? 's' : ''}`, emailTemplate('Leads Estancados', body));
   }
 );
 
@@ -253,7 +250,7 @@ export const checkStaleLeads = onSchedule(
 export const dailyDigest = onSchedule(
   {
     schedule: 'every day 09:00',
-    secrets: [gmailUser, gmailAppPass],
+
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
@@ -333,6 +330,6 @@ export const dailyDigest = onSchedule(
       ? `📊 Resumen semanal: ${newLeadsCount} nuevos leads, ${totalLeads} total`
       : `📊 Resumen diario: ${newLeadsCount} nuevos leads`;
 
-    await sendEmail(gmailUser.value(), gmailAppPass.value(), config.digest.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
+    await sendEmail(GMAIL_USER, GMAIL_APP_PASS, config.digest.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
   }
 );
