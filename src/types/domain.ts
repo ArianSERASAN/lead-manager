@@ -101,5 +101,47 @@ export interface FilterState {
   dateRange?: { start: string; end: string };
 }
 
+// ─── Alert Configuration ──────────────────────────────────────────
+
+export interface AlertNewLead {
+  enabled: boolean;
+  recipients: string[];
+  sources: LeadSource[];
+}
+
+export interface AlertHotLead {
+  enabled: boolean;
+  recipients: string[];
+  scoreThreshold: number;
+}
+
+export interface AlertUnattended {
+  enabled: boolean;
+  recipients: string[];
+  hoursThreshold: number;
+}
+
+export interface AlertStale {
+  enabled: boolean;
+  recipients: string[];
+  daysThreshold: number;
+}
+
+export interface AlertDigest {
+  enabled: boolean;
+  recipients: string[];
+  frequency: 'daily' | 'weekly';
+}
+
+export interface AlertConfig {
+  newLead: AlertNewLead;
+  hotLead: AlertHotLead;
+  unattended: AlertUnattended;
+  stale: AlertStale;
+  digest: AlertDigest;
+  updatedAt?: any;
+  updatedBy?: string;
+}
+
 // Legacy type alias for backward compatibility
 export type { Lead as LeadLegacy };

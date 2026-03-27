@@ -1,4 +1,4 @@
-import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -7,6 +7,7 @@ import { AppUser, UserRole } from '../types/domain';
 import { RoleGuard } from '../components/User/RoleGuard';
 import { useToast } from '../contexts/ToastContext';
 import * as UserService from '../services/UserService';
+import { AlertSettings } from '../components/Settings/AlertSettings';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; color: string; bgColor: string; description: string }[] = [
   { value: 'admin', label: 'Administrador', color: 'text-red-700', bgColor: 'bg-red-50 border-red-200', description: 'Acceso completo: gestión de usuarios, leads, configuración' },
@@ -214,6 +215,17 @@ export function SettingsPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </RoleGuard>
+
+        {/* Alert Configuration — Admin only */}
+        <RoleGuard requires="canManageUsers">
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
+            <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Bell size={20} />
+              Alertas y Notificaciones
+            </h2>
+            <AlertSettings />
           </div>
         </RoleGuard>
 

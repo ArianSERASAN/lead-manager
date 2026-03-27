@@ -19,3 +19,4 @@ ui-debug.log*
 # Misc
 .DS_Store
 *.pem
+functions/node_modules

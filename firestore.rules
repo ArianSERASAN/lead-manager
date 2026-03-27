@@ -70,5 +70,11 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isAdminOrComercial();
     }
+
+    // Configuración global (alertas, etc.) — solo admin
+    match /settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
   }
 }
