@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { auth } from '../../lib/firebase';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export function Login() {
@@ -13,7 +13,7 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    
+
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err: any) {

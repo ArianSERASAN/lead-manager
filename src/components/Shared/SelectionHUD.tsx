@@ -1,25 +1,24 @@
-import { Trash2, FileOutput, X, CheckSquare, MoreVertical, CheckCircle2, Clock, Loader2, Users } from 'lucide-react';
-import { ExportButton } from './ExportButton';
-import { Lead } from '../types';
+import { Trash2, X, CheckCircle2 } from 'lucide-react';
+import { LeadStatus } from '../../types/domain';
 
 interface SelectionHUDProps {
-  selectedLeads: Lead[];
-  onClear: () => void;
-  onBulkStatusUpdate: (status: Lead['status']) => void;
+  selectedCount: number;
+  onClearSelection: () => void;
+  onBulkStatusUpdate: (status: LeadStatus) => void;
   onBulkDelete: () => void;
 }
 
-export function SelectionHUD({ selectedLeads, onClear, onBulkStatusUpdate, onBulkDelete }: SelectionHUDProps) {
-  if (selectedLeads.length === 0) return null;
+export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpdate, onBulkDelete }: SelectionHUDProps) {
+  if (selectedCount === 0) return null;
 
   return (
     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-4rem)] max-w-4xl animate-in slide-in-from-bottom-12 duration-500 ease-out">
       <div className="bg-gray-900/80 backdrop-blur-2xl border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] rounded-[40px] p-4 md:p-5 flex items-center justify-between">
-        
+
         {/* Selection Info */}
         <div className="flex items-center space-x-3 md:space-x-4 pl-2">
           <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center text-white font-black shadow-lg shadow-blue-500/30">
-            {selectedLeads.length}
+            {selectedCount}
           </div>
           <div className="hidden sm:block">
             <p className="text-white font-bold text-sm">Leads seleccionados</p>
@@ -31,8 +30,8 @@ export function SelectionHUD({ selectedLeads, onClear, onBulkStatusUpdate, onBul
         <div className="flex items-center space-x-2">
           {/* Status Dropdown */}
           <div className="relative group">
-            <select 
-              onChange={(e) => onBulkStatusUpdate(e.target.value as any)}
+            <select
+              onChange={(e) => onBulkStatusUpdate(e.target.value as LeadStatus)}
               className="appearance-none bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2.5 pl-4 pr-10 rounded-2xl border border-white/5 outline-none transition-all cursor-pointer"
             >
               <option value="" className="bg-gray-900">Cambiar Estado...</option>
@@ -42,17 +41,11 @@ export function SelectionHUD({ selectedLeads, onClear, onBulkStatusUpdate, onBul
               <option value="cerrado" className="bg-gray-900">Cerrar Leads</option>
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">
-               <CheckCircle2 size={14} />
+              <CheckCircle2 size={14} />
             </div>
           </div>
 
-          <ExportButton 
-            selectedLeads={selectedLeads} 
-            onExported={onClear} 
-            variant="dark"
-          />
-
-          <button 
+          <button
             onClick={onBulkDelete}
             className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-500/20"
             title="Eliminar permanentemente"
@@ -62,8 +55,8 @@ export function SelectionHUD({ selectedLeads, onClear, onBulkStatusUpdate, onBul
 
           <div className="w-px h-8 bg-white/10 mx-1 hidden xs:block" />
 
-          <button 
-            onClick={onClear}
+          <button
+            onClick={onClearSelection}
             className="p-2.5 text-white/40 hover:text-white hover:bg-white/10 rounded-2xl transition-all"
             title="Cancelar selección"
           >

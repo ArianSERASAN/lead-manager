@@ -1,7 +1,7 @@
 import { X, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-export type ToastType = 'success' | 'error' | 'undo';
+export type ToastType = 'success' | 'error' | 'undo' | 'info';
 
 interface ToastProps {
   id: string;
@@ -21,7 +21,7 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 100 - (elapsed / duration) * 100);
       setProgress(remaining);
-      
+
       if (remaining === 0) {
         clearInterval(interval);
         onClose(id);
@@ -34,10 +34,11 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
   const colors = {
     success: 'bg-green-600',
     error: 'bg-red-600',
-    undo: 'bg-gray-900'
+    undo: 'bg-gray-900',
+    info: 'bg-blue-600'
   };
 
-  const Icon = type === 'success' ? CheckCircle2 : type === 'error' ? AlertCircle : RotateCcw;
+  const Icon = type === 'success' ? CheckCircle2 : type === 'error' ? AlertCircle : type === 'undo' ? RotateCcw : CheckCircle2;
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] w-[calc(100%-3rem)] max-w-sm animate-in slide-in-from-bottom-10">
@@ -49,7 +50,7 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
 
         <div className="flex items-center space-x-3">
           {type === 'undo' && onUndo && (
-            <button 
+            <button
               onClick={() => {
                 onUndo();
                 onClose(id);
@@ -63,10 +64,10 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
             <X size={18} />
           </button>
         </div>
-        
+
         {/* Progress Bar */}
         <div className="absolute bottom-0 left-4 right-4 h-1 bg-white/20 rounded-full overflow-hidden mb-1">
-          <div 
+          <div
             className="h-full bg-white/60 rounded-full transition-all duration-75"
             style={{ width: `${progress}%` }}
           />
@@ -77,23 +78,23 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
 }
 
 // Container for managing multiple toasts
-export function ToastContainer({ toasts, onClose, onUndo }: { 
-    toasts: any[], 
-    onClose: (id: string) => void,
-    onUndo: (id: string) => void
+export function ToastContainer({ toasts, onClose, onUndo }: {
+  toasts: any[],
+  onClose: (id: string) => void,
+  onUndo: (id: string) => void
 }) {
   return (
     <div className="pointer-events-none">
-       {toasts.map(t => (
-         <div key={t.id} className="pointer-events-auto">
-           <Toast 
-             key={t.id}
-             {...t} 
-             onClose={onClose} 
-             onUndo={() => onUndo(t.id)} 
-           />
-         </div>
-       ))}
+      {toasts.map(t => (
+        <div key={t.id} className="pointer-events-auto">
+          <Toast
+            key={t.id}
+            {...t}
+            onClose={onClose}
+            onUndo={() => onUndo(t.id)}
+          />
+        </div>
+      ))}
     </div>
   );
 }

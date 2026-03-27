@@ -1,9 +1,74 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Solo permitir acceso a usuarios autenticados
-    match /{document=**} {
-      allow read, write: if request.auth != null;
+
+    // Helper: obtener el rol del usuario autenticado
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    function isAdminOrComercial() {
+      return isAuthenticated() && getUserRole() in ['admin', 'comercial'];
+    }
+
+    // Colección de usuarios: lectura para autenticados, escritura solo admin
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAdmin() || request.auth.uid == userId;
+      allow delete: if isAdmin();
+    }
+
+    // Colecciones de leads (leads, leads_descargas, solicitudes_contacto)
+    match /leads/{leadId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrComercial();
+      allow update: if isAdminOrComercial();
+      allow delete: if isAdmin();
+
+      // Subcollections: activity, tasks
+      match /{subcol}/{docId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdminOrComercial();
+      }
+    }
+
+    match /leads_descargas/{leadId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrComercial();
+      allow update: if isAdminOrComercial();
+      allow delete: if isAdmin();
+
+      match /{subcol}/{docId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdminOrComercial();
+      }
+    }
+
+    match /solicitudes_contacto/{leadId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdminOrComercial();
+      allow update: if isAdminOrComercial();
+      allow delete: if isAdmin();
+
+      match /{subcol}/{docId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdminOrComercial();
+      }
+    }
+
+    // Colección global de tareas
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdminOrComercial();
     }
   }
 }

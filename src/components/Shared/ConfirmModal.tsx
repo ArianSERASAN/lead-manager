@@ -2,7 +2,7 @@ import { X, AlertTriangle } from 'lucide-react';
 
 interface ConfirmModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onCancel: () => void;
   onConfirm: () => void;
   title: string;
   message: string;
@@ -10,12 +10,12 @@ interface ConfirmModalProps {
   confirmColor?: 'red' | 'blue' | 'orange';
 }
 
-export function ConfirmModal({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  title, 
-  message, 
+export function ConfirmModal({
+  isOpen,
+  onCancel,
+  onConfirm,
+  title,
+  message,
   confirmText = 'Confirmar',
   confirmColor = 'red'
 }: ConfirmModalProps) {
@@ -32,7 +32,7 @@ export function ConfirmModal({
       <div className="bg-white/90 backdrop-blur-2xl w-full max-w-md rounded-[32px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] border border-white overflow-hidden animate-in zoom-in-95 duration-300">
         <div className="p-8 text-center">
           <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-lg shadow-red-500/10">
-             <AlertTriangle size={32} />
+            <AlertTriangle size={32} />
           </div>
 
           <h3 className="text-xl font-bold text-gray-900 mb-2">{title}</h3>
@@ -42,14 +42,14 @@ export function ConfirmModal({
             <button
               onClick={() => {
                 onConfirm();
-                onClose();
+                onCancel();
               }}
               className={`w-full py-3 rounded-2xl text-white font-bold transition-all shadow-lg active:scale-95 ${colors[confirmColor]}`}
             >
               {confirmText}
             </button>
             <button
-              onClick={onClose}
+              onClick={onCancel}
               className="w-full py-3 bg-gray-50 text-gray-400 font-bold rounded-2xl hover:bg-gray-100 transition-all border border-gray-100"
             >
               Cancelar
