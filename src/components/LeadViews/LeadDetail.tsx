@@ -1,6 +1,6 @@
 import { Lead, LeadStatus } from '../../types/domain';
 import { useState, useEffect } from 'react';
-import { X, Phone, Mail, Building, Clock, Save, Loader2, Copy, Trash2, ChevronDown } from 'lucide-react';
+import { Save, Loader2, Lock } from 'lucide-react';
 import { formatTimestamp } from '../../utils/format';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
 import { TagEditor } from '../Tags/TagEditor';
@@ -47,6 +47,12 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
     onTagsChange(newTags);
   };
 
+  const ReadOnlyBadge = () => (
+    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+      <Lock size={10} /> Solo lectura
+    </span>
+  );
+
   return (
     <div className="bg-white rounded-3xl border border-gray-200/80 shadow-card p-6 sticky top-10 animate-slide-in-right">
       {/* Header */}
@@ -83,52 +89,43 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
 
       {/* Tab Navigation */}
       <div className="flex gap-4 mb-6 pb-4 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab('info')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'info'
-              ? 'bg-blue-100 text-blue-700'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Detalles
-        </button>
-        <button
-          onClick={() => setActiveTab('actividad')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'actividad'
-              ? 'bg-blue-100 text-blue-700'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Actividad
-        </button>
-        <button
-          onClick={() => setActiveTab('tareas')}
-          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'tareas'
-              ? 'bg-blue-100 text-blue-700'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Tareas
-        </button>
+        {(['info', 'actividad', 'tareas'] as TabType[]).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === tab
+                ? 'bg-blue-100 text-blue-700'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            {tab === 'info' ? 'Detalles' : tab === 'actividad' ? 'Actividad' : 'Tareas'}
+          </button>
+        ))}
       </div>
 
       {/* Info Tab */}
       {activeTab === 'info' && (
         <div>
-          {/* Etiquetas */}
+          {/* Tags */}
           <div className="mb-6 pb-6 border-b border-gray-200">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-3">
               Etiquetas
             </label>
-            <TagEditor
-              tags={tags}
-              onChange={handleTagsChange}
-              leadId={lead.id}
-              leadCollection={lead._collection || 'leads'}
-            />
+            <RoleGuard requires="canEdit" fallback={
+              <div className="flex flex-wrap gap-1.5">
+                {tags.length > 0 ? tags.map(tag => (
+                  <span key={tag} className="text-xs font-medium px-2 py-1 rounded-md bg-blue-50 text-blue-700">{tag}</span>
+                )) : <span className="text-xs text-gray-400">Sin etiquetas</span>}
+              </div>
+            }>
+              <TagEditor
+                tags={tags}
+                onChange={handleTagsChange}
+                leadId={lead.id}
+                leadCollection={lead._collection || 'leads'}
+              />
+            </RoleGuard>
           </div>
 
           {/* Info Cards */}
@@ -138,16 +135,23 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
                 Estado
               </label>
-              <select
-                value={lead.status}
-                onChange={(e) => onStatusChange(e.target.value as LeadStatus)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-              >
-                <option value="nuevo">Nuevo</option>
-                <option value="contactado">Contactado</option>
-                <option value="en-progreso">En Progreso</option>
-                <option value="cerrado">Cerrado</option>
-              </select>
+              <RoleGuard requires="canEdit" fallback={
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-gray-700 bg-gray-50 px-3 py-2 rounded-lg capitalize">{lead.status}</p>
+                  <ReadOnlyBadge />
+                </div>
+              }>
+                <select
+                  value={lead.status}
+                  onChange={(e) => onStatusChange(e.target.value as LeadStatus)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
+                >
+                  <option value="nuevo">Nuevo</option>
+                  <option value="contactado">Contactado</option>
+                  <option value="en-progreso">En Progreso</option>
+                  <option value="cerrado">Cerrado</option>
+                </select>
+              </RoleGuard>
             </div>
 
             {/* Company */}
@@ -191,49 +195,48 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
             <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
               Notas
             </label>
-            {isEditing ? (
-              <div className="space-y-3">
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Escribe notas sobre este lead..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24"
-                />
-                <button
-                  onClick={handleSaveNotes}
-                  disabled={isLoading}
-                  className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center justify-center space-x-2"
-                >
-                  {isLoading ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Save size={16} />
-                  )}
-                  <span>Guardar Notas</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setNotes(lead.notes || '');
-                    setIsEditing(false);
-                  }}
-                  className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200"
-                >
-                  Cancelar
-                </button>
-              </div>
-            ) : (
-              <>
-                <p className="text-sm text-gray-700 mb-3 min-h-20 p-3 bg-gray-50 rounded-lg">
-                  {notes || 'Sin notas...'}
-                </p>
-                <button
-                  onClick={() => setIsEditing(true)}
-                  className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200"
-                >
-                  Editar Notas
-                </button>
-              </>
-            )}
+            <RoleGuard requires="canEdit" fallback={
+              <p className="text-sm text-gray-700 min-h-20 p-3 bg-gray-50 rounded-lg">
+                {notes || 'Sin notas...'}
+              </p>
+            }>
+              {isEditing ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Escribe notas sobre este lead..."
+                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24"
+                  />
+                  <button
+                    onClick={handleSaveNotes}
+                    disabled={isLoading}
+                    className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 flex items-center justify-center space-x-2"
+                  >
+                    {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    <span>Guardar Notas</span>
+                  </button>
+                  <button
+                    onClick={() => { setNotes(lead.notes || ''); setIsEditing(false); }}
+                    className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-700 mb-3 min-h-20 p-3 bg-gray-50 rounded-lg">
+                    {notes || 'Sin notas...'}
+                  </p>
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200"
+                  >
+                    Editar Notas
+                  </button>
+                </>
+              )}
+            </RoleGuard>
           </div>
         </div>
       )}

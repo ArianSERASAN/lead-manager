@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react';
+import { RoleGuard } from '../User/RoleGuard';
 
 interface HeaderProps {
   title: string;
@@ -28,13 +29,15 @@ export function Header({ title, subtitle, leadCount, onNewLeadClick, actions }: 
       <div className="flex items-center gap-3">
         {actions}
         {onNewLeadClick && (
-          <button
-            onClick={onNewLeadClick}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 transition-all duration-200 active:scale-[0.98] text-sm"
-          >
-            <Plus size={18} />
-            <span className="hidden sm:inline">Nuevo Lead</span>
-          </button>
+          <RoleGuard requires="canEdit">
+            <button
+              onClick={onNewLeadClick}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 transition-all duration-200 active:scale-[0.98] text-sm"
+            >
+              <Plus size={18} />
+              <span className="hidden sm:inline">Nuevo Lead</span>
+            </button>
+          </RoleGuard>
         )}
       </div>
     </header>
