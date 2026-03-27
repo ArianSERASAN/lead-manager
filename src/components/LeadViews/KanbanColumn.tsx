@@ -44,7 +44,7 @@ export function KanbanColumn({ status, leads, onCardClick, draggedLeadId, readon
       </div>
 
       {/* Cards Container */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-[320px]">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-[200px]">
         {leads.length > 0 ? (
           leads.map(lead => (
             readonly ? (

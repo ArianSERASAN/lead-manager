@@ -6,7 +6,6 @@ import { LeadTable } from '../components/LeadViews/LeadTable';
 import { LeadDetail } from '../components/LeadViews/LeadDetail';
 import { LeadCreateForm } from '../components/LeadViews/LeadCreateForm';
 import { SelectionHUD } from '../components/Shared/SelectionHUD';
-import { ConfirmModal } from '../components/Shared/ConfirmModal';
 import { useLeads } from '../hooks/leads/useLeads';
 import { useLeadActions } from '../hooks/leads/useLeadActions';
 import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
@@ -24,7 +23,6 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
   const { addToast } = useToast();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; onConfirm: () => void; title: string; message: string } | null>(null);
 
   const { leads, loading: leadsLoading } = useLeads();
 
@@ -67,28 +65,11 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
     getCurrentFilterState
   } = useFilterLogic(leads, pendingDeleteIds);
 
-  const handleBulkDelete = () => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Eliminar Leads',
-      message: `¿Seguro que quieres eliminar ${selectedIds.length} leads? Esta acción no se puede deshacer.`,
-      onConfirm: async () => {
-        await bulkDelete(selectedIds);
-        setConfirmModal(null);
-      }
-    });
-  };
-
+  // Direct execution — no confirmation modals. Bulk delete already has 5s undo toast.
+  const handleBulkDelete = () => bulkDelete(selectedIds);
   const handleBulkStatusUpdate = (status: any) => {
-    setConfirmModal({
-      isOpen: true,
-      title: 'Actualizar Estado',
-      message: `¿Actualizar el estado de ${selectedIds.length} leads a ${status}?`,
-      onConfirm: async () => {
-        await bulkStatusUpdate(selectedIds, status);
-        setConfirmModal(null);
-      }
-    });
+    if (!status) return;
+    bulkStatusUpdate(selectedIds, status);
   };
 
   return (
@@ -136,7 +117,6 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
       )}
 
       <div className="flex gap-6 mt-4">
-        {/* Table — full width when no lead selected, shrinks when detail open */}
         <div className={`transition-all duration-300 ${selectedLead ? 'flex-1 min-w-0' : 'w-full'}`}>
           <LeadTable
             leads={filteredLeads}
@@ -150,7 +130,6 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
           />
         </div>
 
-        {/* Detail panel — slides in from right */}
         {selectedLead && (
           <div className="w-[380px] shrink-0 relative">
             <button
@@ -169,16 +148,6 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
           </div>
         )}
       </div>
-
-      {confirmModal && (
-        <ConfirmModal
-          isOpen={confirmModal.isOpen}
-          title={confirmModal.title}
-          message={confirmModal.message}
-          onConfirm={confirmModal.onConfirm}
-          onCancel={() => setConfirmModal(null)}
-        />
-      )}
 
       <LeadCreateForm
         isOpen={showCreateForm}
