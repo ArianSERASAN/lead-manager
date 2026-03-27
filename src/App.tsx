@@ -19,8 +19,18 @@ function AppContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2 className="animate-spin text-blue-600" size={40} />
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
+        <div className="flex flex-col items-center animate-fade-in">
+          <img
+            src="/logos/serasan-icon.png"
+            alt="SERASAN"
+            className="w-16 h-16 object-contain brand-pulse mb-6"
+          />
+          <div className="flex items-center gap-3">
+            <Loader2 className="animate-spin text-blue-600" size={20} />
+            <span className="text-sm font-semibold text-gray-400">Cargando Lead Manager...</span>
+          </div>
+        </div>
       </div>
     );
   }

@@ -69,33 +69,43 @@ export function SettingsPage() {
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* App Info Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <Package size={20} />
-            Información de la Aplicación
-          </h2>
+        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
+          <div className="flex items-start gap-5 mb-6 pb-6 border-b border-gray-100">
+            <img src="/logos/serasan-logo.png" alt="SERASAN Engineering" className="h-14 object-contain" />
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Lead Manager</h2>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">v2.0.0</span>
+                <span className="text-xs text-gray-400">SERASAN Engineering</span>
+              </div>
+            </div>
+          </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Versión</p>
-                <p className="text-lg font-bold text-gray-900">1.0.0</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Total de Leads</p>
-                <p className="text-lg font-bold text-gray-900">{leads.length}</p>
-              </div>
-              <div>
-                <p className="text-xs font-bold text-gray-500 uppercase">Total de Usuarios</p>
-                <p className="text-lg font-bold text-gray-900">{users.length}</p>
-              </div>
+          <div className="flex items-center gap-2 mb-6 px-3 py-2 bg-emerald-50/80 rounded-xl border border-emerald-100">
+            <img src="/logos/reactiva-icon.png" alt="Reactiva tu Edificio" className="w-5 h-5 object-contain" />
+            <span className="text-xs font-bold text-emerald-700">Reactiva tu Edificio</span>
+            <span className="text-xs text-emerald-600/60 ml-1">— Leads desde landing page</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Versión</p>
+              <p className="text-xl font-bold text-gray-900">2.0.0</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Leads</p>
+              <p className="text-xl font-bold text-gray-900">{leads.length}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Usuarios</p>
+              <p className="text-xl font-bold text-gray-900">{users.length}</p>
             </div>
           </div>
         </div>
 
         {/* User Management Section - Only visible to admins */}
         <RoleGuard requires="canManageUsers">
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
             <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
               <Users size={20} />
               Gestión de Usuarios
@@ -148,7 +158,7 @@ export function SettingsPage() {
         </RoleGuard>
 
         {/* Current User Info */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
           <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
             <Shield size={20} />
             Tu Perfil

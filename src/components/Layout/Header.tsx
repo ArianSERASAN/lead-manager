@@ -17,7 +17,7 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, leadCount, user, stats, onNewLeadClick }: HeaderProps) {
   return (
-    <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-12 gap-6">
+    <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-10 gap-6 animate-fade-in-down">
       <div>
         <h2 className="text-4xl font-black text-gray-900 tracking-tighter">
           {title}
@@ -97,7 +97,7 @@ function StatCard({ label, value, icon: Icon, color }: StatCardProps) {
   const colors = colorMap[color];
 
   return (
-    <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6 flex items-center justify-between group hover:shadow-md transition-all duration-300 cursor-default`}>
+    <div className={`${colors.bg} ${colors.border} border rounded-2xl p-6 flex items-center justify-between group hover:shadow-card-hover transition-all duration-300 cursor-default`}>
       <div className="flex-1">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">{label}</p>
         <p className="text-3xl font-black text-gray-900">{value}</p>

@@ -26,10 +26,10 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
   return (
     <div
       onClick={onClick}
-      className={`bg-white rounded-2xl border-2 p-4 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing ${
-        lead.isStale ? 'border-orange-300 opacity-75' : 'border-gray-200'
+      className={`bg-white rounded-2xl border-2 p-4 shadow-card hover:shadow-card-hover transition-all duration-200 cursor-grab active:cursor-grabbing ${
+        lead.isStale ? 'border-orange-300 opacity-80' : 'border-gray-100'
       } ${
-        isDragging ? 'opacity-50 scale-95' : 'hover:border-blue-300 hover:-translate-y-1'
+        isDragging ? 'opacity-50 scale-95 rotate-2 shadow-xl' : 'hover:border-blue-300 hover:-translate-y-1'
       }`}
     >
       {/* Header: Name and Score Badge */}

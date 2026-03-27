@@ -32,8 +32,26 @@ export function DashboardPage() {
     return (
       <>
         <Header title="Dashboard" user={appUser} />
-        <div className="flex items-center justify-center py-24">
-          <p className="text-gray-500">Cargando métricas...</p>
+        <div className="space-y-6 animate-pulse">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-6 h-40">
+                <div className="skeleton w-11 h-11 mb-4" />
+                <div className="skeleton w-20 h-3 mb-2" />
+                <div className="skeleton w-16 h-8" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6 h-72">
+              <div className="skeleton w-32 h-4 mb-4" />
+              <div className="skeleton w-full h-48" />
+            </div>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 h-72">
+              <div className="skeleton w-24 h-4 mb-4" />
+              <div className="skeleton w-full h-48" />
+            </div>
+          </div>
         </div>
       </>
     );
@@ -52,7 +70,7 @@ export function DashboardPage() {
     <>
       <Header title="Dashboard" user={appUser} />
 
-      <div className="space-y-8">
+      <div className="space-y-8 page-enter">
         {/* Date Range Selector */}
         <div className="flex gap-2 justify-end">
           <button

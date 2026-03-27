@@ -1,5 +1,5 @@
-import { TrendingUp, TrendingDown, Users, Target, AlertCircle } from 'lucide-react';
-import { getScoreColor, getScoreBgColor } from '../../utils/format';
+import { TrendingUp, TrendingDown, Users, Target, AlertCircle, Zap } from 'lucide-react';
+import { getScoreColor } from '../../utils/format';
 
 interface StatsCardsProps {
   total: number;
@@ -11,73 +11,79 @@ interface StatsCardsProps {
 
 export function StatsCards({ total, conversionRate, avgScore, staleCount, newThisWeek }: StatsCardsProps) {
   const getTrendIndicator = () => {
-    if (newThisWeek > 5) return { icon: TrendingUp, color: 'text-emerald-600', label: `+${newThisWeek} esta semana` };
-    if (newThisWeek > 0) return { icon: TrendingUp, color: 'text-blue-600', label: `+${newThisWeek} esta semana` };
-    return { icon: TrendingDown, color: 'text-red-600', label: 'Sin movimiento' };
+    if (newThisWeek > 5) return { icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', label: `+${newThisWeek} esta semana` };
+    if (newThisWeek > 0) return { icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', label: `+${newThisWeek} esta semana` };
+    return { icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50', label: 'Sin movimiento' };
   };
 
   const trend = getTrendIndicator();
   const TrendIcon = trend.icon;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
       {/* Total Leads */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default">
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-xl">
-            <Users className="text-blue-600" size={24} />
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-blue-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+            <Users className="text-blue-600" size={22} />
           </div>
-          <div className={`flex items-center gap-1 text-sm font-semibold ${trend.color}`}>
-            <TrendIcon size={16} />
+          <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.bg} ${trend.color}`}>
+            <TrendIcon size={14} />
             <span>{newThisWeek}</span>
           </div>
         </div>
-        <h3 className="text-gray-600 text-sm font-medium mb-1">Total de Leads</h3>
-        <p className="text-4xl font-bold text-gray-900 mb-2">{total}</p>
-        <p className="text-xs text-gray-500">{trend.label}</p>
+        <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">Total Leads</h3>
+        <p className="text-3xl font-black text-gray-900 animate-count-up">{total}</p>
+        <p className="text-xs text-gray-400 mt-1">{trend.label}</p>
       </div>
 
       {/* Conversion Rate */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default">
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-100 rounded-xl">
-            <Target className="text-emerald-600" size={24} />
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-emerald-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+            <Target className="text-emerald-600" size={22} />
           </div>
-          <div className="text-sm font-semibold text-emerald-600">{conversionRate}%</div>
+          <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{conversionRate}%</div>
         </div>
-        <h3 className="text-gray-600 text-sm font-medium mb-1">Tasa de Conversión</h3>
-        <p className="text-4xl font-bold text-gray-900 mb-2">{conversionRate}%</p>
-        <p className="text-xs text-gray-500">Cerrados vs Total</p>
+        <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">Conversión</h3>
+        <p className="text-3xl font-black text-gray-900 animate-count-up">{conversionRate}<span className="text-lg text-gray-400">%</span></p>
+        <p className="text-xs text-gray-400 mt-1">Cerrados vs Total</p>
       </div>
 
       {/* Average Score */}
-      <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow`}>
+      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default">
         <div className="flex items-start justify-between mb-4">
-          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl ${
+          <div className={`inline-flex items-center justify-center w-11 h-11 rounded-xl group-hover:scale-110 transition-transform duration-300 ${
             avgScore >= 80 ? 'bg-emerald-100' : avgScore >= 60 ? 'bg-blue-100' : avgScore >= 40 ? 'bg-amber-100' : 'bg-gray-100'
           }`}>
-            <span className={`text-xl font-bold ${getScoreColor(avgScore)}`}>{avgScore}</span>
+            <Zap className={`${getScoreColor(avgScore)}`} size={22} />
           </div>
-          <div className="text-xs font-semibold px-2 py-1 rounded-lg bg-gray-100 text-gray-700">
+          <div className="text-xs font-bold px-2 py-1 rounded-lg bg-gray-100 text-gray-600">
             {avgScore >= 80 ? 'Caliente' : avgScore >= 60 ? 'Templado' : avgScore >= 40 ? 'Tibio' : 'Frío'}
           </div>
         </div>
-        <h3 className="text-gray-600 text-sm font-medium mb-1">Score Medio</h3>
-        <p className="text-4xl font-bold text-gray-900 mb-2">{avgScore}</p>
-        <p className="text-xs text-gray-500">Puntuación promedio</p>
+        <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">Score Medio</h3>
+        <p className="text-3xl font-black text-gray-900 animate-count-up">{avgScore}</p>
+        <p className="text-xs text-gray-400 mt-1">Puntuación promedio</p>
       </div>
 
       {/* Stale Leads */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+      <div className={`bg-white rounded-2xl shadow-card border p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default ${
+        staleCount > 0 ? 'border-orange-200/80' : 'border-gray-100/80'
+      }`}>
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-100 rounded-xl">
-            <AlertCircle className="text-orange-600" size={24} />
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-orange-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+            <AlertCircle className="text-orange-600" size={22} />
           </div>
-          {staleCount > 0 && <div className="text-sm font-semibold text-orange-600">⚠️ {staleCount}</div>}
+          {staleCount > 0 && (
+            <div className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg animate-pulse">
+              Atención
+            </div>
+          )}
         </div>
-        <h3 className="text-gray-600 text-sm font-medium mb-1">Leads Estancados</h3>
-        <p className="text-4xl font-bold text-gray-900 mb-2">{staleCount}</p>
-        <p className="text-xs text-gray-500">Sin actividad 30+ días</p>
+        <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">Estancados</h3>
+        <p className={`text-3xl font-black animate-count-up ${staleCount > 0 ? 'text-orange-600' : 'text-gray-900'}`}>{staleCount}</p>
+        <p className="text-xs text-gray-400 mt-1">Sin actividad 30+ días</p>
       </div>
     </div>
   );

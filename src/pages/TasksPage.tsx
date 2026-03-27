@@ -53,24 +53,36 @@ export function TasksPage() {
       <Header title="Tareas" user={appUser} />
 
       {loading ? (
-        <div className="flex items-center justify-center py-24">
-          <p className="text-gray-500">Cargando tareas...</p>
+        <div className="max-w-4xl mx-auto px-4 py-6 animate-pulse space-y-6">
+          <div className="grid grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="skeleton w-16 h-3 mb-3" />
+                <div className="skeleton w-12 h-8" />
+              </div>
+            ))}
+          </div>
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="skeleton w-full h-16" />
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto px-4 py-6">
+        <div className="max-w-4xl mx-auto px-4 py-6 page-enter">
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-xs font-bold text-gray-500 uppercase mb-2">Total de Tareas</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+          <div className="grid grid-cols-3 gap-4 mb-8 stagger-children">
+            <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-5 hover:shadow-card-hover transition-all duration-200">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total</p>
+              <p className="text-2xl font-black text-gray-900">{stats.total}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-xs font-bold text-red-500 uppercase mb-2">Vencidas</p>
-              <p className="text-3xl font-bold text-red-600">{stats.overdue}</p>
+            <div className={`bg-white rounded-2xl border shadow-card p-5 hover:shadow-card-hover transition-all duration-200 ${stats.overdue > 0 ? 'border-red-200' : 'border-gray-100/80'}`}>
+              <p className="text-[11px] font-bold text-red-400 uppercase tracking-wider mb-1">Vencidas</p>
+              <p className={`text-2xl font-black ${stats.overdue > 0 ? 'text-red-600' : 'text-gray-900'}`}>{stats.overdue}</p>
             </div>
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <p className="text-xs font-bold text-amber-500 uppercase mb-2">Hoy</p>
-              <p className="text-3xl font-bold text-amber-600">{stats.today}</p>
+            <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-5 hover:shadow-card-hover transition-all duration-200">
+              <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">Hoy</p>
+              <p className="text-2xl font-black text-gray-900">{stats.today}</p>
             </div>
           </div>
 
@@ -138,12 +150,12 @@ export function TasksPage() {
 
             {/* Empty state */}
             {stats.total === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-2xl mb-4">
-                  <CheckSquare className="text-green-600" size={32} />
+              <div className="flex flex-col items-center justify-center py-16 text-center animate-fade-in-up">
+                <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-green-100 rounded-3xl flex items-center justify-center mb-5 shadow-sm">
+                  <CheckSquare className="text-emerald-600" size={36} />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Sin tareas pendientes</h3>
-                <p className="text-gray-500 mb-6">¡Excelente! Todas tus tareas están completas.</p>
+                <p className="text-sm text-gray-400 max-w-xs">Todas las tareas están completadas. Las nuevas tareas se crean desde el detalle de cada lead.</p>
               </div>
             )}
           </div>

@@ -48,7 +48,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-6 sticky top-10">
+    <div className="bg-white rounded-3xl border border-gray-200/80 shadow-card p-6 sticky top-10 animate-slide-in-right">
       {/* Header */}
       <div className="mb-6 pb-6 border-b border-gray-200">
         <div className="flex items-start justify-between mb-3">
