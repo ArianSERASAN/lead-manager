@@ -48,9 +48,8 @@ export function KanbanPage() {
   return (
     <>
       <Header
-        title="Pipeline Kanban"
-        user={appUser}
-        stats={stats}
+        title="Pipeline"
+        leadCount={leads.length}
         onNewLeadClick={() => setShowCreateForm(true)}
       />
 

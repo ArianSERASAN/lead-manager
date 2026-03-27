@@ -88,7 +88,7 @@ export function FilterBar({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-4 mb-6 space-y-4">
+    <div className="bg-white rounded-xl border border-gray-200/80 shadow-card p-3 mb-4 space-y-3">
       {/* Primary Filter Row */}
       <div className="flex flex-col md:flex-row gap-4">
         {/* Search Input */}
@@ -99,7 +99,7 @@ export function FilterBar({
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Buscar por nombre, email, empresa..."
-            className="w-full bg-gray-50 border-none rounded-2xl py-3 pl-12 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            className="w-full bg-gray-50 border-none rounded-lg py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
           />
           {searchTerm && (
             <button
@@ -116,7 +116,7 @@ export function FilterBar({
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}
-            className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+            className="bg-gray-50 border-none rounded-lg py-2.5 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
           >
             <option value="">Cualquier Estado</option>
             <option value="nuevo">Nuevos</option>
@@ -129,7 +129,7 @@ export function FilterBar({
             <select
               value={sourceFilter}
               onChange={(e) => onSourceChange(e.target.value)}
-              className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+              className="bg-gray-50 border-none rounded-lg py-2.5 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
             >
               <option value="">Todos los Orígenes</option>
               <option value="landing">Landing Page</option>
@@ -142,7 +142,7 @@ export function FilterBar({
           <select
             value={dateFilter}
             onChange={(e) => onDateChange(e.target.value)}
-            className="bg-gray-50 border-none rounded-2xl py-3 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+            className="bg-gray-50 border-none rounded-lg py-2.5 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
           >
             <option value="">Cualquier Fecha</option>
             <option value="today">Hoy</option>

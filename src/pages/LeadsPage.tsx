@@ -12,6 +12,7 @@ import { useLeadActions } from '../hooks/leads/useLeadActions';
 import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { X } from 'lucide-react';
 
 interface LeadsPageProps {
   showCreateForm?: boolean;
@@ -66,14 +67,6 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
     getCurrentFilterState
   } = useFilterLogic(leads, pendingDeleteIds);
 
-  const stats = {
-    total: leads.length,
-    new: leads.filter(l => l.status === 'nuevo').length,
-    inProgress: leads.filter(l => l.status === 'en-progreso').length,
-    closed: leads.filter(l => l.status === 'cerrado').length,
-    stale: leads.filter(l => l.isStale).length
-  };
-
   const handleBulkDelete = () => {
     setConfirmModal({
       isOpen: true,
@@ -100,14 +93,11 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <Header title="Gestión de Leads" leadCount={filteredLeads.length} user={appUser} stats={stats} />
-        {activeFilterCount > 0 && (
-          <span className="ml-4 text-xs font-semibold px-3 py-1 bg-blue-100 text-blue-700 rounded-full">
-            {activeFilterCount} filtro{activeFilterCount !== 1 ? 's' : ''} activo{activeFilterCount !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
+      <Header
+        title="Leads"
+        leadCount={filteredLeads.length}
+        onNewLeadClick={() => onCloseCreateForm ? undefined : undefined}
+      />
 
       <FilterBar
         searchTerm={searchQuery}
@@ -145,8 +135,9 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
         />
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 page-enter">
-        <div className="lg:col-span-2">
+      <div className="flex gap-6 mt-4">
+        {/* Table — full width when no lead selected, shrinks when detail open */}
+        <div className={`transition-all duration-300 ${selectedLead ? 'flex-1 min-w-0' : 'w-full'}`}>
           <LeadTable
             leads={filteredLeads}
             selectedIds={selectedIds}
@@ -159,8 +150,15 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
           />
         </div>
 
+        {/* Detail panel — slides in from right */}
         {selectedLead && (
-          <div className="lg:col-span-1">
+          <div className="w-[380px] shrink-0 relative">
+            <button
+              onClick={() => setSelectedLead(null)}
+              className="absolute -left-3 top-4 z-10 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:shadow-md transition-all"
+            >
+              <X size={14} />
+            </button>
             <LeadDetail
               lead={selectedLead}
               onStatusChange={(status) => updateLeadStatus(selectedLead.id, status)}
@@ -182,7 +180,6 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
         />
       )}
 
-      {/* Create Lead Form Modal */}
       <LeadCreateForm
         isOpen={showCreateForm}
         onClose={() => onCloseCreateForm?.()}

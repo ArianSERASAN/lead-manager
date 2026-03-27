@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, MessageSquare, Download, LogOut, CheckSquare, Plus, Settings, Kanban } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, CheckSquare, Settings, Kanban } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppUser } from '../../types/domain';
 
@@ -16,7 +16,7 @@ const NAV_ITEMS = [
   { id: 'settings', path: '/settings', label: 'Ajustes', icon: Settings },
 ];
 
-export function Sidebar({ user, onLogout, onNewLeadClick }: SidebarProps) {
+export function Sidebar({ user, onLogout }: SidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,74 +30,50 @@ export function Sidebar({ user, onLogout, onNewLeadClick }: SidebarProps) {
   const activeTab = getActiveId();
 
   return (
-    <aside role="navigation" aria-label="Menú principal" className="w-full md:w-72 bg-white/90 backdrop-blur-xl border-b md:border-b-0 md:border-r border-gray-200/50 flex flex-col shrink-0 z-20">
-      {/* Logo section */}
-      <div className="p-6 border-b border-gray-100/80 hidden md:block">
-        <div className="flex items-center space-x-3 mb-2">
-          <img src="/logos/serasan-icon.png" alt="SERASAN" className="w-10 h-10 object-contain" />
+    <aside role="navigation" aria-label="Menú principal" className="w-full md:w-[220px] bg-white border-b md:border-b-0 md:border-r border-gray-200/60 flex flex-col shrink-0 z-20">
+      {/* Logo — desktop */}
+      <div className="px-5 pt-5 pb-4 border-b border-gray-100/80 hidden md:block">
+        <div className="flex items-center gap-2.5">
+          <img src="/logos/serasan-icon.png" alt="SERASAN" className="w-8 h-8 object-contain" />
           <div>
-            <h1 className="text-lg font-black text-gray-900 tracking-tight leading-tight">Lead Manager</h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">SERASAN Engineering</p>
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">Lead Manager</h1>
+            <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">SERASAN</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 mt-3 px-1">
-          <img src="/logos/reactiva-icon.png" alt="Reactiva tu Edificio" className="w-4 h-4 object-contain" />
-          <span className="text-[9px] font-semibold text-emerald-600 uppercase tracking-wider">Reactiva tu Edificio</span>
-        </div>
       </div>
 
-      {/* Mobile: logo pill */}
-      <div className="md:hidden flex items-center gap-2 px-4 pt-3 pb-1">
-        <img src="/logos/serasan-icon.png" alt="SERASAN" className="w-6 h-6 object-contain" />
-        <span className="text-sm font-bold text-gray-900">Lead Manager</span>
+      {/* Logo — mobile */}
+      <div className="md:hidden flex items-center gap-2 px-4 pt-2.5 pb-1">
+        <img src="/logos/serasan-icon.png" alt="SERASAN" className="w-5 h-5 object-contain" />
+        <span className="text-sm font-bold text-gray-900">Leads</span>
       </div>
 
-      {/* Nuevo Lead Button */}
-      {onNewLeadClick && (
-        <div className="p-4 md:p-5 border-b border-gray-100/50 hidden md:block">
-          <button
-            onClick={onNewLeadClick}
-            className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold hover:shadow-lg hover:shadow-blue-600/25 hover:-translate-y-0.5 transition-all duration-200 active:scale-95"
-          >
-            <Plus size={20} />
-            <span>Nuevo Lead</span>
-          </button>
-        </div>
-      )}
-
-      <nav className="flex-1 px-3 py-4 md:px-4 md:py-5 flex md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar gap-1.5">
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-3 md:py-4 flex md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar gap-1">
         {NAV_ITEMS.map((item) => {
           const isActive = activeTab === item.id;
           return (
             <button
               key={item.id}
               onClick={() => navigate(item.path)}
-              className={`relative flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 group whitespace-nowrap md:whitespace-normal ${
+              className={`relative flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg transition-all duration-150 whitespace-nowrap md:whitespace-normal text-sm ${
                 isActive
-                  ? 'bg-blue-600 text-white font-bold shadow-lg shadow-blue-600/25'
-                  : 'text-gray-500 hover:bg-gray-100/80 hover:text-gray-800 active:scale-[0.98]'
+                  ? 'bg-blue-600 text-white font-semibold shadow-sm shadow-blue-600/20'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700 active:scale-[0.98]'
               }`}
             >
-              <item.icon
-                size={20}
-                className={`transition-transform duration-200 ${
-                  isActive ? '' : 'group-hover:scale-110'
-                }`}
-              />
-              <span className="text-sm">{item.label}</span>
-              {isActive && (
-                <div className="hidden md:block absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-1 h-6 bg-white rounded-full opacity-80" />
-              )}
+              <item.icon size={18} />
+              <span>{item.label}</span>
             </button>
           );
         })}
       </nav>
 
-      {/* User info + Logout */}
-      <div className="p-4 border-t border-gray-100/80 hidden md:block space-y-3">
+      {/* User + Logout — desktop */}
+      <div className="px-3 py-3 border-t border-gray-100/80 hidden md:block space-y-1">
         {user && (
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-gray-700 to-gray-900 rounded-xl flex items-center justify-center text-white text-xs font-bold shadow-sm">
+          <div className="flex items-center gap-2.5 px-3 py-2">
+            <div className="w-7 h-7 bg-gray-800 rounded-lg flex items-center justify-center text-white text-[11px] font-bold">
               {user.name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
@@ -109,10 +85,10 @@ export function Sidebar({ user, onLogout, onNewLeadClick }: SidebarProps) {
         <button
           onClick={onLogout}
           aria-label="Cerrar sesión"
-          className="flex items-center gap-3 w-full px-4 py-2.5 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-all duration-200 font-semibold group"
+          className="flex items-center gap-2.5 w-full px-3 py-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors text-sm font-medium"
         >
-          <LogOut size={18} className="group-hover:-translate-x-0.5 transition-transform" />
-          <span className="text-sm">Cerrar Sesión</span>
+          <LogOut size={16} />
+          <span>Salir</span>
         </button>
       </div>
     </aside>

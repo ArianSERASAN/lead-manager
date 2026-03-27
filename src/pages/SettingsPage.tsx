@@ -65,7 +65,7 @@ export function SettingsPage() {
 
   return (
     <>
-      <Header title="Configuración" user={appUser} />
+      <Header title="Configuración" />
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
         {/* App Info Section */}

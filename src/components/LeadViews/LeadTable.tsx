@@ -1,5 +1,6 @@
+import { memo } from 'react';
 import { Lead } from '../../types/domain';
-import { Download, MessageSquare, Users, Eye, ChevronRight, Trash2, CheckSquare, Square, Search, Inbox } from 'lucide-react';
+import { Download, MessageSquare, Users, Eye, ChevronRight, CheckSquare, Square, Inbox } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
@@ -18,205 +19,180 @@ interface LeadTableProps {
   onDelete: (id: string) => void;
 }
 
-export function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onToggleAll, onDelete }: LeadTableProps) {
-  const getSourceIcon = (source: Lead['source']) => {
-    switch (source) {
-      case 'landing': return <Users size={16} className="text-blue-500" />;
-      case 'web-download': return <Download size={16} className="text-emerald-500" />;
-      case 'web-contact': return <MessageSquare size={16} className="text-purple-500" />;
-      case 'manual': return <Eye size={16} className="text-gray-400" />;
-    }
-  };
+const SourceIcon = memo(({ source }: { source: Lead['source'] }) => {
+  switch (source) {
+    case 'landing': return <Users size={14} className="text-blue-500" />;
+    case 'web-download': return <Download size={14} className="text-emerald-500" />;
+    case 'web-contact': return <MessageSquare size={14} className="text-purple-500" />;
+    case 'manual': return <Eye size={14} className="text-gray-400" />;
+  }
+});
 
-  const getSourceLabel = (source: Lead['source']) => {
-    switch (source) {
-      case 'landing': return 'Landing';
-      case 'web-download': return 'PDF';
-      case 'web-contact': return 'Web';
-      case 'manual': return 'Manual';
-    }
-  };
+const sourceLabel = (source: Lead['source']) => {
+  switch (source) {
+    case 'landing': return 'Landing';
+    case 'web-download': return 'PDF';
+    case 'web-contact': return 'Web';
+    case 'manual': return 'Manual';
+  }
+};
 
-  const getStatusColor = (status: Lead['status']) => {
-    switch (status) {
-      case 'nuevo': return 'bg-emerald-50 text-emerald-700 border border-emerald-200';
-      case 'contactado': return 'bg-amber-50 text-amber-700 border border-amber-200';
-      case 'en-progreso': return 'bg-purple-50 text-purple-700 border border-purple-200';
-      case 'cerrado': return 'bg-red-50 text-red-700 border border-red-200';
-      default: return 'bg-gray-50 text-gray-700 border border-gray-200';
-    }
-  };
+const statusConfig = (status: Lead['status']) => {
+  switch (status) {
+    case 'nuevo': return { label: 'Nuevo', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    case 'contactado': return { label: 'Contactado', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+    case 'en-progreso': return { label: 'En Progreso', cls: 'bg-purple-50 text-purple-700 border-purple-200' };
+    case 'cerrado': return { label: 'Cerrado', cls: 'bg-red-50 text-red-700 border-red-200' };
+    default: return { label: status, cls: 'bg-gray-50 text-gray-700 border-gray-200' };
+  }
+};
 
-  const getStatusLabel = (status: Lead['status']) => {
-    switch (status) {
-      case 'nuevo': return 'Nuevo';
-      case 'contactado': return 'Contactado';
-      case 'en-progreso': return 'En Progreso';
-      case 'cerrado': return 'Cerrado';
-      default: return status;
-    }
-  };
+const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
+  lead: Lead; isSelected: boolean; onSelect: () => void; onToggle: () => void;
+}) => {
+  const status = statusConfig(lead.status);
+  return (
+    <tr
+      className={cn(
+        "group cursor-pointer transition-colors duration-100",
+        isSelected ? "bg-blue-50/60" : "hover:bg-gray-50/80",
+        lead.isStale && "bg-orange-50/30"
+      )}
+      onClick={onSelect}
+    >
+      <td className="pl-4 pr-2 py-3" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onToggle} className="text-gray-300 hover:text-gray-500">
+          {isSelected ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="group-hover:text-gray-400" />}
+        </button>
+      </td>
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[11px] font-bold shrink-0">
+            {lead.name.charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-gray-900 text-sm truncate leading-tight">{lead.name}</p>
+            <p className="text-[11px] text-gray-400 truncate leading-tight">{lead.email}</p>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-3 text-sm text-gray-500 hidden xl:table-cell">
+        {lead.company || <span className="text-gray-300">—</span>}
+      </td>
+      <td className="px-3 py-3">
+        <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold border", status.cls)}>
+          {status.label}
+        </span>
+      </td>
+      <td className="px-3 py-3 hidden lg:table-cell">
+        <div className="flex items-center gap-1.5">
+          <SourceIcon source={lead.source} />
+          <span className="text-xs text-gray-500">{sourceLabel(lead.source)}</span>
+        </div>
+      </td>
+      <td className="px-3 py-3">
+        <ScoreBadge score={lead.score} size="sm" />
+      </td>
+      <td className="px-3 py-3 hidden lg:table-cell">
+        <span className="text-xs text-gray-400">{formatRelativeTime(lead.createdAt)}</span>
+      </td>
+      <td className="pr-4 py-3">
+        <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+      </td>
+    </tr>
+  );
+});
 
-  // Empty state
+export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onToggleAll, onDelete }: LeadTableProps) {
   if (leads.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-12 animate-fade-in">
         <div className="flex flex-col items-center justify-center text-center">
-          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-            <Inbox className="text-gray-400" size={28} />
+          <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-3">
+            <Inbox className="text-gray-400" size={24} />
           </div>
-          <h3 className="text-lg font-bold text-gray-900 mb-1">Sin resultados</h3>
-          <p className="text-sm text-gray-500 max-w-xs">
-            No hay leads que coincidan con los filtros actuales. Prueba a ajustar los criterios de búsqueda.
-          </p>
+          <h3 className="text-base font-bold text-gray-900 mb-1">Sin resultados</h3>
+          <p className="text-sm text-gray-400 max-w-xs">No hay leads que coincidan con los filtros.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden bg-white rounded-2xl border border-gray-200/80 shadow-card animate-fade-in">
-      {/* Table for Desktop */}
+    <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card overflow-hidden">
+      {/* Desktop Table */}
       <div className="hidden md:block overflow-x-auto">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full text-left">
           <thead>
-            <tr className="bg-gray-50/80 border-b border-gray-200">
-              <th className="px-5 py-4 w-10">
+            <tr className="border-b border-gray-100 bg-gray-50/50">
+              <th className="pl-4 pr-2 py-3 w-10">
                 <button
                   onClick={() => {
-                    if (selectedIds.length === leads.length) onToggleAll([])
-                    else onToggleAll(leads.map(l => l.id))
+                    if (selectedIds.length === leads.length) onToggleAll([]);
+                    else onToggleAll(leads.map(l => l.id));
                   }}
-                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                  className="text-gray-300 hover:text-gray-500"
                 >
-                  {selectedIds.length === leads.length && leads.length > 0 ? (
-                    <CheckSquare size={18} className="text-blue-600" />
-                  ) : (
-                    <Square size={18} />
-                  )}
+                  {selectedIds.length === leads.length && leads.length > 0
+                    ? <CheckSquare size={16} className="text-blue-600" />
+                    : <Square size={16} />}
                 </button>
               </th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Nombre</th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Email</th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Empresa</th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Estado</th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Origen</th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Score</th>
-              <th className="px-5 py-4 text-[11px] font-bold text-gray-400 uppercase tracking-wider">Fecha</th>
-              <th className="px-5 py-4 w-10"></th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Contacto</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden xl:table-cell">Empresa</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Estado</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Origen</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Score</th>
+              <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Fecha</th>
+              <th className="pr-4 py-3 w-8"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
-            {leads.map((lead, index) => (
-              <tr
+          <tbody className="divide-y divide-gray-50">
+            {leads.map((lead) => (
+              <LeadRow
                 key={lead.id}
-                className={cn(
-                  "row-interactive cursor-pointer group",
-                  selectedIds.includes(lead.id) && "bg-blue-50/50",
-                  lead.isStale && "bg-orange-50/30"
-                )}
-                style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
-                onClick={() => onSelect(lead)}
-              >
-                <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => onToggleSelection(lead.id)}
-                    className="text-gray-300 hover:text-gray-500 transition-colors"
-                  >
-                    {selectedIds.includes(lead.id) ? (
-                      <CheckSquare size={18} className="text-blue-600" />
-                    ) : (
-                      <Square size={18} className="group-hover:text-gray-400" />
-                    )}
-                  </button>
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm">
-                      {lead.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-gray-900 text-sm truncate">{lead.name}</p>
-                      {lead.phone && <p className="text-[11px] text-gray-400 truncate">{lead.phone}</p>}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className="text-sm text-gray-600 truncate block max-w-[200px]">
-                    {lead.email}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5 text-sm text-gray-500">
-                  {lead.company || <span className="text-gray-300">—</span>}
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className={cn("px-2.5 py-1 rounded-lg text-[11px] font-bold", getStatusColor(lead.status))}>
-                    {getStatusLabel(lead.status)}
-                  </span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <div className="flex items-center gap-1.5">
-                    {getSourceIcon(lead.source)}
-                    <span className="text-xs text-gray-500 font-medium">{getSourceLabel(lead.source)}</span>
-                  </div>
-                </td>
-                <td className="px-5 py-3.5">
-                  <ScoreBadge score={lead.score} size="sm" />
-                </td>
-                <td className="px-5 py-3.5">
-                  <span className="text-xs text-gray-400">{formatRelativeTime(lead.createdAt)}</span>
-                </td>
-                <td className="px-5 py-3.5">
-                  <ChevronRight size={16} className="text-gray-300 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
-                </td>
-              </tr>
+                lead={lead}
+                isSelected={selectedIds.includes(lead.id)}
+                onSelect={() => onSelect(lead)}
+                onToggle={() => onToggleSelection(lead.id)}
+              />
             ))}
           </tbody>
         </table>
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden divide-y divide-gray-100">
-        {leads.map((lead) => (
-          <div
-            key={lead.id}
-            className="p-4 hover:bg-gray-50/50 transition-colors active:bg-gray-100/50 cursor-pointer"
-            onClick={() => onSelect(lead)}
-          >
-            <div className="flex items-start justify-between mb-2.5">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+      <div className="md:hidden divide-y divide-gray-50">
+        {leads.map((lead) => {
+          const status = statusConfig(lead.status);
+          return (
+            <div
+              key={lead.id}
+              className="p-3.5 hover:bg-gray-50/50 active:bg-gray-100/50 cursor-pointer"
+              onClick={() => onSelect(lead)}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {lead.name.charAt(0).toUpperCase()}
                 </div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm truncate">{lead.name}</p>
-                  <p className="text-xs text-gray-400 truncate">{lead.email}</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <p className="font-semibold text-gray-900 text-sm truncate">{lead.name}</p>
+                    <ScoreBadge score={lead.score} size="sm" />
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-gray-400 truncate">{lead.email}</p>
+                    <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold border", status.cls)}>
+                      {status.label}
+                    </span>
+                  </div>
                 </div>
+                <ChevronRight size={14} className="text-gray-300 shrink-0" />
               </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); onToggleSelection(lead.id); }}
-                className="text-gray-300 ml-2"
-              >
-                {selectedIds.includes(lead.id) ? (
-                  <CheckSquare size={18} className="text-blue-600" />
-                ) : (
-                  <Square size={18} />
-                )}
-              </button>
             </div>
-            <div className="flex items-center justify-between pl-12">
-              <div className="flex items-center gap-2">
-                {getSourceIcon(lead.source)}
-                <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold", getStatusColor(lead.status))}>
-                  {getStatusLabel(lead.status)}
-                </span>
-                <ScoreBadge score={lead.score} size="sm" />
-              </div>
-              <ChevronRight size={16} className="text-gray-300" />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
-}
+});

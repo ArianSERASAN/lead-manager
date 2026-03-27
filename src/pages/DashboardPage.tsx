@@ -31,7 +31,7 @@ export function DashboardPage() {
   if (loading) {
     return (
       <>
-        <Header title="Dashboard" user={appUser} />
+        <Header title="Dashboard" />
         <div className="space-y-6 animate-pulse">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
             {[...Array(4)].map((_, i) => (
@@ -68,9 +68,9 @@ export function DashboardPage() {
 
   return (
     <>
-      <Header title="Dashboard" user={appUser} />
+      <Header title="Dashboard" />
 
-      <div className="space-y-8 page-enter">
+      <div className="space-y-6">
         {/* Date Range Selector */}
         <div className="flex gap-2 justify-end">
           <button

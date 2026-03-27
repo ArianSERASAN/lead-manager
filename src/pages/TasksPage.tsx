@@ -50,7 +50,7 @@ export function TasksPage() {
 
   return (
     <>
-      <Header title="Tareas" user={appUser} />
+      <Header title="Tareas" />
 
       {loading ? (
         <div className="max-w-4xl mx-auto px-4 py-6 animate-pulse space-y-6">
