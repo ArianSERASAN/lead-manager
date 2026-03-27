@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
@@ -15,7 +15,6 @@ import { SettingsPage } from './pages/SettingsPage';
 function AppContent() {
   const { firebaseUser, appUser, loading, logout } = useAuth();
   const { toasts, removeToast } = useToast();
-  const [activeTab, setActiveTab] = useState('leads');
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   if (loading) {
@@ -32,14 +31,12 @@ function AppContent() {
 
   return (
     <MainLayout
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
       user={appUser || undefined}
       onLogout={logout}
       onNewLeadClick={() => setShowCreateForm(true)}
     >
       <Routes>
-        <Route path="/" element={<LeadsPage />} />
+        <Route path="/" element={<LeadsPage showCreateForm={showCreateForm} onCloseCreateForm={() => setShowCreateForm(false)} />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/pipeline" element={<KanbanPage />} />
         <Route path="/tasks" element={<TasksPage />} />

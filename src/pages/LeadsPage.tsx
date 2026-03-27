@@ -4,6 +4,7 @@ import { Header } from '../components/Layout/Header';
 import { FilterBar } from '../components/Filters/FilterBar';
 import { LeadTable } from '../components/LeadViews/LeadTable';
 import { LeadDetail } from '../components/LeadViews/LeadDetail';
+import { LeadCreateForm } from '../components/LeadViews/LeadCreateForm';
 import { SelectionHUD } from '../components/Shared/SelectionHUD';
 import { ConfirmModal } from '../components/Shared/ConfirmModal';
 import { useLeads } from '../hooks/leads/useLeads';
@@ -12,7 +13,12 @@ import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
-export function LeadsPage() {
+interface LeadsPageProps {
+  showCreateForm?: boolean;
+  onCloseCreateForm?: () => void;
+}
+
+export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPageProps) {
   const { appUser } = useAuth();
   const { addToast } = useToast();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -175,6 +181,20 @@ export function LeadsPage() {
           onCancel={() => setConfirmModal(null)}
         />
       )}
+
+      {/* Create Lead Form Modal */}
+      <LeadCreateForm
+        isOpen={showCreateForm}
+        onClose={() => onCloseCreateForm?.()}
+        onSuccess={(lead) => {
+          addToast({ message: `${lead.name} creado exitosamente`, type: 'success' });
+        }}
+        onError={(message) => {
+          addToast({ message, type: 'error' });
+        }}
+        userId={appUser?.uid}
+        userName={appUser?.name}
+      />
     </>
   );
 }

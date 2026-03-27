@@ -1,22 +1,33 @@
-import { LayoutDashboard, Users, MessageSquare, Download, LogOut, CheckSquare, Plus, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, MessageSquare, Download, LogOut, CheckSquare, Plus, Settings, Kanban } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { AppUser } from '../../types/domain';
 
 interface SidebarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
   user?: AppUser | null;
   onLogout: () => void;
   onNewLeadClick?: () => void;
 }
 
-export function Sidebar({ activeTab, onTabChange, user, onLogout, onNewLeadClick }: SidebarProps) {
-  const navItems = [
-    { id: 'leads', label: 'Leads', icon: Users },
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'pipeline', label: 'Pipeline', icon: Users },
-    { id: 'tasks', label: 'Tareas', icon: CheckSquare },
-    { id: 'settings', label: 'Ajustes', icon: Settings },
-  ];
+const NAV_ITEMS = [
+  { id: 'leads', path: '/', label: 'Leads', icon: Users },
+  { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'pipeline', path: '/pipeline', label: 'Pipeline', icon: Kanban },
+  { id: 'tasks', path: '/tasks', label: 'Tareas', icon: CheckSquare },
+  { id: 'settings', path: '/settings', label: 'Ajustes', icon: Settings },
+];
+
+export function Sidebar({ user, onLogout, onNewLeadClick }: SidebarProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const getActiveId = () => {
+    const match = NAV_ITEMS.find(item =>
+      item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
+    );
+    return match?.id || 'leads';
+  };
+
+  const activeTab = getActiveId();
 
   return (
     <aside role="navigation" aria-label="Menú principal" className="w-full md:w-72 bg-white/80 backdrop-blur-xl border-b md:border-b-0 md:border-r border-gray-200/50 flex flex-col shrink-0 z-20">
@@ -44,10 +55,10 @@ export function Sidebar({ activeTab, onTabChange, user, onLogout, onNewLeadClick
       )}
 
       <nav className="flex-1 p-4 md:p-6 flex md:flex-col overflow-x-auto md:overflow-y-auto no-scrollbar gap-2">
-        {navItems.map((item) => (
+        {NAV_ITEMS.map((item) => (
           <button
             key={item.id}
-            onClick={() => onTabChange(item.id)}
+            onClick={() => navigate(item.path)}
             className={`flex items-center space-x-4 w-full px-5 py-3.5 rounded-2xl transition-all duration-300 group whitespace-nowrap md:whitespace-normal ${
               activeTab === item.id
                 ? 'bg-blue-600 text-white font-bold shadow-xl shadow-blue-600/30 -translate-y-0.5'
