@@ -3,13 +3,16 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { defineSecret } from 'firebase-functions/params';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
 initializeApp();
 const db = getFirestore();
 
-// Resend API key — set via: firebase functions:secrets:set RESEND_API_KEY
-const resendApiKey = defineSecret('RESEND_API_KEY');
+// Gmail credentials — set via:
+//   firebase functions:secrets:set GMAIL_USER       (tu email de Gmail)
+//   firebase functions:secrets:set GMAIL_APP_PASS   (App Password de Google)
+const gmailUser = defineSecret('GMAIL_USER');
+const gmailAppPass = defineSecret('GMAIL_APP_PASS');
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -18,18 +21,25 @@ async function getAlertConfig() {
   return snap.exists ? snap.data() : null;
 }
 
-async function sendEmail(apiKey, to, subject, html) {
-  const resend = new Resend(apiKey);
+function getTransporter(user, pass) {
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user, pass },
+  });
+}
+
+async function sendEmail(user, pass, to, subject, html) {
+  const transporter = getTransporter(user, pass);
   const results = [];
   for (const email of to) {
     try {
-      const res = await resend.emails.send({
-        from: 'Lead Manager <alertas@serasan.es>',
+      const info = await transporter.sendMail({
+        from: `Lead Manager SERASAN <${user}>`,
         to: email,
         subject,
         html,
       });
-      results.push({ email, ok: true, id: res?.data?.id });
+      results.push({ email, ok: true, messageId: info.messageId });
     } catch (err) {
       console.error(`Failed to send to ${email}:`, err.message);
       results.push({ email, ok: false, error: err.message });
@@ -71,7 +81,6 @@ function emailTemplate(title, bodyHtml) {
 }
 
 // ─── 1. NEW LEAD ALERT ────────────────────────────────────────────
-// Triggers on any new doc in leads, leads_descargas, solicitudes_contacto
 
 const newLeadCollections = ['leads', 'leads_descargas', 'solicitudes_contacto'];
 const sourceByCollection = { leads: 'landing', leads_descargas: 'web-download', solicitudes_contacto: 'web-contact' };
@@ -79,7 +88,7 @@ const sourceByCollection = { leads: 'landing', leads_descargas: 'web-download', 
 export const onNewLead = onDocumentCreated(
   {
     document: '{collection}/{docId}',
-    secrets: [resendApiKey],
+    secrets: [gmailUser, gmailAppPass],
     region: 'europe-west1',
   },
   async (event) => {
@@ -114,28 +123,28 @@ export const onNewLead = onDocumentCreated(
             <tr><td style="padding:8px 0;color:#6b7280">Origen</td><td style="padding:8px 0">${sourceLabel(source)}</td></tr>
             ${message ? `<tr><td style="padding:8px 0;color:#6b7280;vertical-align:top">Mensaje</td><td style="padding:8px 0">${message}</td></tr>` : ''}
           </table>`;
-        await sendEmail(resendApiKey.value(), nl.recipients, `Nuevo lead: ${name}`, emailTemplate('Nuevo Lead', body));
+        await sendEmail(gmailUser.value(), gmailAppPass.value(), nl.recipients, `Nuevo lead: ${name}`, emailTemplate('Nuevo Lead', body));
       }
     }
 
-    // ─ Hot lead alert (if score already high on creation)
+    // ─ Hot lead alert
     const hl = config.hotLead;
     if (hl?.enabled && hl.recipients?.length > 0 && score >= (hl.scoreThreshold || 70)) {
       const body = `
         <h2 style="color:#111;margin:0 0 16px;font-size:16px">🔥 Lead caliente detectado</h2>
         <p style="font-size:14px;color:#374151"><strong>${name}</strong> (${email}) tiene un score de <span style="color:#ea580c;font-weight:700">${score}</span>, por encima del umbral de ${hl.scoreThreshold}.</p>
         <p style="font-size:13px;color:#6b7280;margin-top:8px">Origen: ${sourceLabel(source)}${company ? ` · Empresa: ${company}` : ''}</p>`;
-      await sendEmail(resendApiKey.value(), hl.recipients, `🔥 Lead caliente: ${name} (score ${score})`, emailTemplate('Lead Caliente', body));
+      await sendEmail(gmailUser.value(), gmailAppPass.value(), hl.recipients, `🔥 Lead caliente: ${name} (score ${score})`, emailTemplate('Lead Caliente', body));
     }
   }
 );
 
-// ─── 2. UNATTENDED LEADS CHECK (runs every hour) ─────────────────
+// ─── 2. UNATTENDED LEADS CHECK (every hour) ──────────────────────
 
 export const checkUnattendedLeads = onSchedule(
   {
     schedule: 'every 1 hours',
-    secrets: [resendApiKey],
+    secrets: [gmailUser, gmailAppPass],
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
@@ -154,7 +163,6 @@ export const checkUnattendedLeads = onSchedule(
         .get();
       snap.docs.forEach(d => {
         const data = d.data();
-        // Skip if already notified recently (avoid spam)
         if (data._unattendedNotifiedAt) {
           const notifiedAt = data._unattendedNotifiedAt.toMillis?.() || 0;
           if (Date.now() - notifiedAt < hoursThreshold * 60 * 60 * 1000) return;
@@ -180,9 +188,8 @@ export const checkUnattendedLeads = onSchedule(
         ${rows}
       </table>`;
 
-    await sendEmail(resendApiKey.value(), config.unattended.recipients, `⏰ ${unattended.length} lead${unattended.length > 1 ? 's' : ''} sin atender`, emailTemplate('Leads Sin Atender', body));
+    await sendEmail(gmailUser.value(), gmailAppPass.value(), config.unattended.recipients, `⏰ ${unattended.length} lead${unattended.length > 1 ? 's' : ''} sin atender`, emailTemplate('Leads Sin Atender', body));
 
-    // Mark as notified to avoid spam
     const batch = db.batch();
     for (const l of unattended) {
       batch.update(db.collection(l.col).doc(l.id), { _unattendedNotifiedAt: Timestamp.now() });
@@ -191,12 +198,12 @@ export const checkUnattendedLeads = onSchedule(
   }
 );
 
-// ─── 3. STALE LEADS CHECK (runs daily at 10:00 Madrid) ───────────
+// ─── 3. STALE LEADS CHECK (daily 10:00 Madrid) ──────────────────
 
 export const checkStaleLeads = onSchedule(
   {
     schedule: 'every day 10:00',
-    secrets: [resendApiKey],
+    secrets: [gmailUser, gmailAppPass],
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
@@ -209,11 +216,8 @@ export const checkStaleLeads = onSchedule(
 
     const staleLeads = [];
     for (const col of newLeadCollections) {
-      // Check leads in contactado or en-progreso
       for (const status of ['contactado', 'en-progreso']) {
-        const snap = await db.collection(col)
-          .where('status', '==', status)
-          .get();
+        const snap = await db.collection(col).where('status', '==', status).get();
         snap.docs.forEach(d => {
           const data = d.data();
           const lastUpdate = data.updatedAt || data.createdAt;
@@ -240,16 +244,16 @@ export const checkStaleLeads = onSchedule(
         ${rows}
       </table>`;
 
-    await sendEmail(resendApiKey.value(), config.stale.recipients, `⚠️ ${staleLeads.length} lead${staleLeads.length > 1 ? 's' : ''} estancado${staleLeads.length > 1 ? 's' : ''}`, emailTemplate('Leads Estancados', body));
+    await sendEmail(gmailUser.value(), gmailAppPass.value(), config.stale.recipients, `⚠️ ${staleLeads.length} lead${staleLeads.length > 1 ? 's' : ''} estancado${staleLeads.length > 1 ? 's' : ''}`, emailTemplate('Leads Estancados', body));
   }
 );
 
-// ─── 4. DIGEST (daily at 9:00 or weekly Monday 9:00) ─────────────
+// ─── 4. DIGEST (daily 9:00 / weekly Monday 9:00) ────────────────
 
 export const dailyDigest = onSchedule(
   {
     schedule: 'every day 09:00',
-    secrets: [resendApiKey],
+    secrets: [gmailUser, gmailAppPass],
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
@@ -257,10 +261,9 @@ export const dailyDigest = onSchedule(
     const config = await getAlertConfig();
     if (!config?.digest?.enabled || !config.digest.recipients?.length) return;
 
-    // Weekly: only run on Monday
     if (config.digest.frequency === 'weekly') {
       const today = new Date();
-      if (today.getDay() !== 1) return; // 1 = Monday
+      if (today.getDay() !== 1) return;
     }
 
     const isWeekly = config.digest.frequency === 'weekly';
@@ -289,8 +292,6 @@ export const dailyDigest = onSchedule(
       });
     }
 
-    const unattendedCount = statusCounts.nuevo;
-
     const recentRows = recentLeads.slice(0, 10).map(l => {
       const name = l.name || l.nombre || 'Sin nombre';
       const source = sourceLabel(l.source || 'manual');
@@ -299,7 +300,6 @@ export const dailyDigest = onSchedule(
 
     const body = `
       <h2 style="color:#111;margin:0 0 16px;font-size:16px">Resumen ${isWeekly ? 'semanal' : 'diario'}</h2>
-
       <div style="display:flex;gap:12px;margin-bottom:20px">
         <div style="flex:1;background:#eff6ff;border-radius:12px;padding:16px;text-align:center">
           <p style="font-size:24px;font-weight:700;color:#1d4ed8;margin:0">${newLeadsCount}</p>
@@ -310,11 +310,10 @@ export const dailyDigest = onSchedule(
           <p style="font-size:11px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Total leads</p>
         </div>
         <div style="flex:1;background:#fef3c7;border-radius:12px;padding:16px;text-align:center">
-          <p style="font-size:24px;font-weight:700;color:#d97706;margin:0">${unattendedCount}</p>
+          <p style="font-size:24px;font-weight:700;color:#d97706;margin:0">${statusCounts.nuevo}</p>
           <p style="font-size:11px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Sin gestionar</p>
         </div>
       </div>
-
       <h3 style="font-size:13px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Pipeline</h3>
       <div style="display:flex;gap:8px;margin-bottom:20px">
         <span style="flex:1;background:#d1fae5;color:#065f46;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.nuevo} Nuevos</span>
@@ -322,20 +321,18 @@ export const dailyDigest = onSchedule(
         <span style="flex:1;background:#ede9fe;color:#5b21b6;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts['en-progreso']} En Progreso</span>
         <span style="flex:1;background:#fee2e2;color:#991b1b;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.cerrado} Cerrados</span>
       </div>
-
       ${recentLeads.length > 0 ? `
         <h3 style="font-size:13px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Últimos leads</h3>
         <table style="width:100%;border-collapse:collapse;font-size:13px">
           <tr style="background:#f9fafb"><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280">Nombre</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280">Email</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280">Origen</th></tr>
           ${recentRows}
         </table>
-      ` : '<p style="color:#9ca3af;font-size:13px">No hay leads nuevos en este periodo.</p>'}
-    `;
+      ` : '<p style="color:#9ca3af;font-size:13px">No hay leads nuevos en este periodo.</p>'}`;
 
     const subject = isWeekly
       ? `📊 Resumen semanal: ${newLeadsCount} nuevos leads, ${totalLeads} total`
       : `📊 Resumen diario: ${newLeadsCount} nuevos leads`;
 
-    await sendEmail(resendApiKey.value(), config.digest.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
+    await sendEmail(gmailUser.value(), gmailAppPass.value(), config.digest.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
   }
 );
