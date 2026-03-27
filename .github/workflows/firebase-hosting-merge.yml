@@ -10,6 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       # ── Build frontend ──
       - run: npm ci && npm run build
         env:
@@ -39,9 +43,12 @@ jobs:
           echo "GMAIL_USER=${{ secrets.GMAIL_USER }}" > functions/.env
           echo "GMAIL_APP_PASS=${{ secrets.GMAIL_APP_PASS }}" >> functions/.env
 
-      - name: Deploy Cloud Functions
-        uses: w9jds/firebase-action@master
-        with:
-          args: deploy --only functions --project serasan-web --force
-        env:
-          GCP_SA_KEY: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SERASAN_WEB }}'
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Authenticate and deploy functions
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SERASAN_WEB }}' > /tmp/sa-key.json
+          export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json
+          firebase deploy --only functions --project serasan-web --force
+          rm /tmp/sa-key.json
