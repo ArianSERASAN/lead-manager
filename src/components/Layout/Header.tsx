@@ -11,9 +11,9 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, leadCount, onNewLeadClick, actions }: HeaderProps) {
   return (
-    <header className="flex items-center justify-between mb-6 gap-4 animate-fade-in">
-      <div className="flex items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-900 tracking-tight">
+    <header className="flex flex-wrap items-center justify-between mb-6 gap-3 sm:gap-4 animate-fade-in">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate">
           {title}
         </h2>
         {leadCount !== undefined && (

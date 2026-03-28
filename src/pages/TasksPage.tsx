@@ -52,7 +52,7 @@ export function TasksPage() {
 
       {loading ? (
         <div className="max-w-4xl mx-auto px-4 py-6 animate-pulse space-y-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
                 <div className="skeleton w-16 h-3 mb-3" />
@@ -69,18 +69,18 @@ export function TasksPage() {
       ) : (
         <div className="max-w-4xl mx-auto px-4 py-6 page-enter">
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8 stagger-children">
-            <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-5 hover:shadow-card-hover transition-all duration-200">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total</p>
-              <p className="text-2xl font-black text-gray-900">{stats.total}</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8 stagger-children">
+            <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-3 sm:p-5 hover:shadow-card-hover transition-all duration-200">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total</p>
+              <p className="text-xl sm:text-2xl font-black text-gray-900">{stats.total}</p>
             </div>
-            <div className={`bg-white rounded-2xl border shadow-card p-5 hover:shadow-card-hover transition-all duration-200 ${stats.overdue > 0 ? 'border-red-200' : 'border-gray-100/80'}`}>
-              <p className="text-[11px] font-bold text-red-400 uppercase tracking-wider mb-1">Vencidas</p>
-              <p className={`text-2xl font-black ${stats.overdue > 0 ? 'text-red-600' : 'text-gray-900'}`}>{stats.overdue}</p>
+            <div className={`bg-white rounded-2xl border shadow-card p-3 sm:p-5 hover:shadow-card-hover transition-all duration-200 ${stats.overdue > 0 ? 'border-red-200' : 'border-gray-100/80'}`}>
+              <p className="text-[10px] sm:text-[11px] font-bold text-red-400 uppercase tracking-wider mb-1">Vencidas</p>
+              <p className={`text-xl sm:text-2xl font-black ${stats.overdue > 0 ? 'text-red-600' : 'text-gray-900'}`}>{stats.overdue}</p>
             </div>
-            <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-5 hover:shadow-card-hover transition-all duration-200">
-              <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">Hoy</p>
-              <p className="text-2xl font-black text-gray-900">{stats.today}</p>
+            <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-3 sm:p-5 hover:shadow-card-hover transition-all duration-200">
+              <p className="text-[10px] sm:text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">Hoy</p>
+              <p className="text-xl sm:text-2xl font-black text-gray-900">{stats.today}</p>
             </div>
           </div>
 

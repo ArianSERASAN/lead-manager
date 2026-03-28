@@ -80,10 +80,10 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
           )}
 
           {/* Lead Info */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={onSelectLead}
-              className="text-xs text-blue-600 hover:underline font-semibold"
+              className="text-xs text-blue-600 hover:underline font-semibold truncate min-w-0"
             >
               {task.leadName} {task.leadEmail && `(${task.leadEmail})`}
             </button>

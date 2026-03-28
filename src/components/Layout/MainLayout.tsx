@@ -14,8 +14,8 @@ export function MainLayout({ children, user, onLogout, onNewLeadClick }: MainLay
     <div className="flex h-screen bg-gray-50 flex-col md:flex-row overflow-hidden font-sans">
       <Sidebar user={user} onLogout={onLogout} onNewLeadClick={onNewLeadClick} />
 
-      <main className="flex-1 overflow-y-auto bg-gray-50/80 relative">
-        <div className="w-full px-4 md:px-8 lg:px-10 py-4 md:py-7 max-w-[1600px]">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50/80 relative min-w-0">
+        <div className="w-full px-3 sm:px-4 md:px-8 lg:px-10 py-4 md:py-7 max-w-[1600px]">
           {children}
         </div>
       </main>

@@ -96,13 +96,13 @@ export function SettingsPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         {/* App Info */}
         <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
-          <div className="flex items-start gap-5 mb-6 pb-6 border-b border-gray-100">
-            <img src="/logos/serasan-logo.png" alt="SERASAN Engineering" className="h-14 object-contain" />
-            <div className="flex-1">
+          <div className="flex items-start gap-3 sm:gap-5 mb-6 pb-6 border-b border-gray-100">
+            <img src="/logos/serasan-logo.png" alt="SERASAN Engineering" className="h-10 sm:h-14 object-contain shrink-0" />
+            <div className="flex-1 min-w-0">
               <h2 className="text-lg font-bold text-gray-900 mb-1">Lead Manager</h2>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">v2.1.0</span>
-                <span className="text-xs text-gray-400">SERASAN Engineering</span>
+                <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md shrink-0">v2.1.0</span>
+                <span className="text-xs text-gray-400 truncate">SERASAN Engineering</span>
               </div>
             </div>
           </div>
@@ -113,18 +113,18 @@ export function SettingsPage() {
             <span className="text-xs text-emerald-600/60 ml-1">— Leads desde landing page</span>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Versión</p>
-              <p className="text-xl font-bold text-gray-900">2.1.0</p>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
+            <div className="bg-gray-50 rounded-xl p-3 sm:p-4">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Versión</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900">2.1.0</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Total Leads</p>
-              <p className="text-xl font-bold text-gray-900">{leads.length}</p>
+            <div className="bg-gray-50 rounded-xl p-3 sm:p-4">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Leads</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900">{leads.length}</p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4">
-              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Usuarios</p>
-              <p className="text-xl font-bold text-gray-900">{activeUsers.length}<span className="text-sm font-normal text-gray-400">/{users.length}</span></p>
+            <div className="bg-gray-50 rounded-xl p-3 sm:p-4">
+              <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Usuarios</p>
+              <p className="text-lg sm:text-xl font-bold text-gray-900">{activeUsers.length}<span className="text-sm font-normal text-gray-400">/{users.length}</span></p>
             </div>
           </div>
         </div>
@@ -132,17 +132,17 @@ export function SettingsPage() {
         {/* User Management */}
         <RoleGuard requires="canManageUsers">
           <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <Users size={20} />
                 Gestión de Usuarios
               </h2>
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
               >
                 <UserPlus size={16} />
-                Añadir Usuario
+                <span className="hidden sm:inline">Añadir</span> Usuario
               </button>
             </div>
 
@@ -246,7 +246,7 @@ export function SettingsPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-1">Rol</p>
               <span className={`text-sm font-bold px-3 py-1 rounded-full ${getRoleConfig(appUser?.role || 'read_only').bgColor} ${getRoleConfig(appUser?.role || 'read_only').color}`}>
@@ -300,12 +300,12 @@ function UserRow({
   const roleConfig = getRoleConfig(user.role);
 
   return (
-    <div className={`rounded-xl border p-4 transition-all ${
+    <div className={`rounded-xl border p-3 sm:p-4 transition-all ${
       isCurrentUser ? 'border-blue-200 bg-blue-50/30' : 'border-gray-100 bg-gray-50/50 hover:bg-gray-50'
     }`}>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3 sm:gap-4">
         {/* Avatar */}
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0 ${
+        <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white text-sm font-bold shadow-sm flex-shrink-0 ${
           !user.active ? 'bg-gray-400' :
           user.role === 'admin' ? 'bg-gradient-to-br from-red-500 to-red-700' :
           user.role === 'comercial' ? 'bg-gradient-to-br from-blue-500 to-blue-700' :
@@ -323,7 +323,7 @@ function UserRow({
                 value={editName}
                 onChange={(e) => onEditNameChange(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') onSaveName(); if (e.key === 'Escape') onEditCancel(); }}
-                className="text-sm font-bold text-gray-900 border border-blue-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full max-w-[200px]"
+                className="text-sm font-bold text-gray-900 border border-blue-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 w-full max-w-[160px] sm:max-w-[200px]"
                 autoFocus
               />
               <button onClick={onSaveName} className="text-emerald-600 hover:text-emerald-700 p-1" title="Guardar">
@@ -334,14 +334,14 @@ function UserRow({
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <h3 className="font-bold text-sm text-gray-900 truncate">{user.name}</h3>
               {isCurrentUser && (
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">TÚ</span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded shrink-0">TÚ</span>
               )}
               <button
                 onClick={onEditStart}
-                className="text-gray-300 hover:text-gray-500 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-gray-300 hover:text-gray-500 p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                 title="Editar nombre"
               >
                 <Pencil size={12} />
@@ -351,33 +351,34 @@ function UserRow({
           <p className="text-xs text-gray-500 truncate">{user.email}</p>
         </div>
 
-        {/* Role Selector */}
-        <select
-          value={user.role}
-          onChange={(e) => onRoleChange(e.target.value as UserRole)}
-          disabled={isUpdating || isCurrentUser}
-          className={`text-xs font-bold px-3 py-1.5 rounded-lg border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${roleConfig.bgColor} ${roleConfig.color}`}
-        >
-          {ROLE_OPTIONS.map(r => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </select>
+        {/* Role Selector + Toggle — stacked on mobile */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <select
+            value={user.role}
+            onChange={(e) => onRoleChange(e.target.value as UserRole)}
+            disabled={isUpdating || isCurrentUser}
+            className={`text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg border cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed max-w-[90px] sm:max-w-none ${roleConfig.bgColor} ${roleConfig.color}`}
+          >
+            {ROLE_OPTIONS.map(r => (
+              <option key={r.value} value={r.value}>{r.label}</option>
+            ))}
+          </select>
 
-        {/* Active Toggle */}
-        <button
-          onClick={onToggleActive}
-          disabled={isUpdating || isCurrentUser}
-          className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
-            user.active
-              ? 'text-emerald-600 hover:bg-emerald-50'
-              : 'text-gray-400 hover:bg-gray-100'
-          }`}
-          title={user.active ? 'Desactivar usuario' : 'Activar usuario'}
-        >
-          {user.active ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
-        </button>
+          <button
+            onClick={onToggleActive}
+            disabled={isUpdating || isCurrentUser}
+            className={`p-1 sm:p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+              user.active
+                ? 'text-emerald-600 hover:bg-emerald-50'
+                : 'text-gray-400 hover:bg-gray-100'
+            }`}
+            title={user.active ? 'Desactivar usuario' : 'Activar usuario'}
+          >
+            {user.active ? <ToggleRight size={20} /> : <ToggleLeft size={20} />}
+          </button>
 
-        {isUpdating && <Loader2 size={16} className="animate-spin text-blue-600 flex-shrink-0" />}
+          {isUpdating && <Loader2 size={16} className="animate-spin text-blue-600 flex-shrink-0" />}
+        </div>
       </div>
     </div>
   );
