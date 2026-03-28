@@ -10,6 +10,7 @@ import { TaskList } from '../Tasks/TaskList';
 import { useLeadTasks } from '../../hooks/leads/useLeadTasks';
 import { AssigneeDropdown } from '../User/AssigneeDropdown';
 import { RoleGuard } from '../User/RoleGuard';
+import { ApolloEnrichmentPanel } from './ApolloEnrichmentPanel';
 
 interface LeadDetailProps {
   lead: Lead;
@@ -17,11 +18,12 @@ interface LeadDetailProps {
   onNotesChange: (notes: string) => void;
   onTagsChange: (tags: string[]) => void;
   onAssign: (userId: string) => void;
+  onEnriched?: () => void;
 }
 
 type TabType = 'info' | 'actividad' | 'tareas';
 
-export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign }: LeadDetailProps) {
+export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign, onEnriched }: LeadDetailProps) {
   const [notes, setNotes] = useState(lead.notes || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -188,6 +190,17 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
               </label>
               <p className="text-sm text-gray-700">{formatTimestamp(lead.createdAt)}</p>
             </div>
+          </div>
+
+          {/* Apollo Enrichment */}
+          <div className="mb-6">
+            <RoleGuard requires="canEdit" fallback={
+              lead.enrichment ? (
+                <ApolloEnrichmentPanel lead={lead} />
+              ) : null
+            }>
+              <ApolloEnrichmentPanel lead={lead} onEnriched={onEnriched} />
+            </RoleGuard>
           </div>
 
           {/* Notes */}

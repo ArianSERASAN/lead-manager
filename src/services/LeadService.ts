@@ -17,7 +17,8 @@ export function getCollectionName(source: string): string {
 const UPDATABLE_FIELDS = new Set([
   'name', 'email', 'phone', 'company', 'source', 'status',
   'notes', 'tags', 'message', 'assignedTo', 'assignedAt',
-  'score', 'scoreBreakdown', 'pipelinePosition', 'customFields'
+  'score', 'scoreBreakdown', 'pipelinePosition', 'customFields',
+  'enrichment', 'enrichedAt'
 ]);
 
 export async function createLead(leadData: Partial<Lead>): Promise<string> {

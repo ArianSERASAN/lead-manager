@@ -1,7 +1,8 @@
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import nodemailer from 'nodemailer';
 
 initializeApp();
@@ -10,6 +11,10 @@ const db = getFirestore();
 // Gmail credentials — loaded from .env file (created by CI from GitHub secrets)
 const GMAIL_USER = process.env.GMAIL_USER;
 const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS;
+
+// Apollo.io API key — loaded from .env file (created by CI from GitHub secrets)
+// To activate: add APOLLO_API_KEY to your GitHub secrets and .env
+const APOLLO_API_KEY = process.env.APOLLO_API_KEY || '';
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -331,5 +336,265 @@ export const dailyDigest = onSchedule(
       : `📊 Resumen diario: ${newLeadsCount} nuevos leads`;
 
     await sendEmail(GMAIL_USER, GMAIL_APP_PASS, config.digest.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
+  }
+);
+
+// ─── 5. APOLLO ENRICHMENT (callable) ─────────────────────────────
+// Called from the frontend via httpsCallable('enrichLead')
+// Requires APOLLO_API_KEY in environment variables.
+
+/**
+ * Call Apollo People Enrichment API
+ * POST https://api.apollo.io/api/v1/people/match
+ */
+async function callApolloPeopleEnrich(email, firstName, lastName, domain) {
+  const body = {};
+  if (email) body.email = email;
+  if (firstName) body.first_name = firstName;
+  if (lastName) body.last_name = lastName;
+  if (domain) body.domain = domain;
+  body.reveal_personal_emails = false;
+  body.reveal_phone_number = false;
+
+  const res = await fetch('https://api.apollo.io/api/v1/people/match', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': APOLLO_API_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Apollo People API error ${res.status}: ${text}`);
+  }
+
+  return res.json();
+}
+
+/**
+ * Call Apollo Organization Enrichment API
+ * GET https://api.apollo.io/api/v1/organizations/enrich?domain=...
+ */
+async function callApolloOrgEnrich(domain) {
+  if (!domain) return null;
+
+  const url = new URL('https://api.apollo.io/api/v1/organizations/enrich');
+  url.searchParams.set('domain', domain);
+
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      'x-api-key': APOLLO_API_KEY,
+    },
+  });
+
+  if (!res.ok) {
+    console.warn(`Apollo Org API error ${res.status} for domain ${domain}`);
+    return null;
+  }
+
+  return res.json();
+}
+
+/**
+ * Transform Apollo API responses into our ApolloEnrichment schema.
+ */
+function buildEnrichmentData(personRes, orgRes) {
+  const person = personRes?.person || {};
+  const org = person?.organization || orgRes?.organization || {};
+
+  return {
+    // Person data
+    apolloId: person.id || null,
+    firstName: person.first_name || null,
+    lastName: person.last_name || null,
+    title: person.title || null,
+    headline: person.headline || null,
+    linkedinUrl: person.linkedin_url || null,
+    photoUrl: person.photo_url || null,
+    city: person.city || null,
+    state: person.state || null,
+    country: person.country || null,
+    seniority: person.seniority || null,
+    departments: person.departments || [],
+    // Organization data
+    organizationName: org.name || null,
+    organizationDomain: org.primary_domain || null,
+    organizationWebsite: org.website_url || null,
+    organizationIndustry: org.industry || null,
+    organizationLinkedin: org.linkedin_url || null,
+    organizationSize: org.estimated_num_employees || null,
+    organizationFoundedYear: org.founded_year || null,
+    organizationRevenue: org.annual_revenue || null,
+    organizationFunding: org.total_funding || null,
+    organizationFundingStage: org.latest_funding_stage || null,
+    // Meta
+    source: 'apollo',
+    matchConfidence: person.email_status || null,
+  };
+}
+
+export const enrichLead = onCall(
+  {
+    region: 'europe-west1',
+    maxInstances: 10,
+  },
+  async (request) => {
+    // Auth check
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado para enriquecer leads.');
+    }
+
+    const { leadId, collection: colName } = request.data;
+    if (!leadId || !colName) {
+      throw new HttpsError('invalid-argument', 'Se requieren leadId y collection.');
+    }
+
+    // Check Apollo API key is configured
+    if (!APOLLO_API_KEY) {
+      throw new HttpsError(
+        'failed-precondition',
+        'La API key de Apollo no está configurada. Añade APOLLO_API_KEY a las variables de entorno del proyecto.'
+      );
+    }
+
+    // Get lead from Firestore
+    const leadRef = db.collection(colName).doc(leadId);
+    const leadSnap = await leadRef.get();
+    if (!leadSnap.exists) {
+      throw new HttpsError('not-found', `Lead ${leadId} no encontrado en ${colName}.`);
+    }
+
+    const leadData = leadSnap.data();
+    const email = leadData.email || '';
+    const name = leadData.name || leadData.nombre || '';
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+
+    // Extract domain from email
+    const emailDomain = email.includes('@') ? email.split('@')[1] : '';
+
+    try {
+      // Call Apollo People Enrichment
+      const personRes = await callApolloPeopleEnrich(email, firstName, lastName, emailDomain);
+
+      // Optionally call Organization Enrichment for more company data
+      const orgDomain = personRes?.person?.organization?.primary_domain || emailDomain;
+      let orgRes = null;
+      if (orgDomain) {
+        orgRes = await callApolloOrgEnrich(orgDomain);
+      }
+
+      // Build enrichment object
+      const enrichment = buildEnrichmentData(personRes, orgRes);
+
+      // Update Firestore
+      const updateData = {
+        enrichment,
+        enrichedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      // Also fill in top-level fields if they were empty
+      if (!leadData.company && enrichment.organizationName) {
+        updateData.company = enrichment.organizationName;
+      }
+
+      await leadRef.update(updateData);
+
+      // Record activity
+      await db.collection(colName).doc(leadId).collection('activity').add({
+        leadId,
+        timestamp: FieldValue.serverTimestamp(),
+        actor: request.auth.uid,
+        actorName: request.auth.token.name || request.auth.token.email || 'Sistema',
+        action: 'enriched',
+        details: {
+          description: `Lead enriquecido con Apollo: ${enrichment.title || 'sin cargo'} @ ${enrichment.organizationName || 'sin empresa'}`,
+        },
+      });
+
+      return { success: true, enrichment };
+    } catch (error) {
+      console.error('Error enriching lead:', error);
+      throw new HttpsError('internal', `Error al enriquecer con Apollo: ${error.message}`);
+    }
+  }
+);
+
+// ─── 6. AUTO-ENRICH ON NEW LEAD (optional) ───────────────────────
+// Automatically enriches new leads when they are created.
+// Only runs if APOLLO_API_KEY is set and settings/apollo.autoEnrich is true.
+
+export const autoEnrichNewLead = onDocumentCreated(
+  {
+    document: '{collection}/{docId}',
+    region: 'europe-west1',
+  },
+  async (event) => {
+    const colName = event.params.collection;
+    if (!newLeadCollections.includes(colName)) return;
+    if (!APOLLO_API_KEY) return;
+
+    // Check if auto-enrich is enabled in settings
+    const settingsSnap = await db.doc('settings/apollo').get();
+    const settings = settingsSnap.exists ? settingsSnap.data() : {};
+    if (!settings.autoEnrich) return;
+
+    const data = event.data?.data();
+    if (!data) return;
+
+    const email = data.email || '';
+    if (!email) return; // Can't enrich without email
+
+    const name = data.name || data.nombre || '';
+    const nameParts = name.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    const emailDomain = email.includes('@') ? email.split('@')[1] : '';
+
+    try {
+      const personRes = await callApolloPeopleEnrich(email, firstName, lastName, emailDomain);
+
+      const orgDomain = personRes?.person?.organization?.primary_domain || emailDomain;
+      let orgRes = null;
+      if (orgDomain) {
+        orgRes = await callApolloOrgEnrich(orgDomain);
+      }
+
+      const enrichment = buildEnrichmentData(personRes, orgRes);
+
+      const updateData = {
+        enrichment,
+        enrichedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+
+      if (!data.company && enrichment.organizationName) {
+        updateData.company = enrichment.organizationName;
+      }
+
+      await db.collection(colName).doc(event.params.docId).update(updateData);
+
+      // Record activity
+      await db.collection(colName).doc(event.params.docId).collection('activity').add({
+        leadId: event.params.docId,
+        timestamp: FieldValue.serverTimestamp(),
+        actor: 'system',
+        actorName: 'Sistema',
+        action: 'enriched',
+        details: {
+          description: `Auto-enriquecido con Apollo: ${enrichment.title || 'sin cargo'} @ ${enrichment.organizationName || 'sin empresa'}`,
+        },
+      });
+
+      console.log(`Auto-enriched lead ${event.params.docId} in ${colName}`);
+    } catch (error) {
+      // Auto-enrichment failures should not block lead creation
+      console.error(`Auto-enrich failed for ${event.params.docId}:`, error.message);
+    }
   }
 );

@@ -15,7 +15,7 @@ export function toJSDate(ts: TimestampLike): Date {
 export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado';
 export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual';
 export type UserRole = 'admin' | 'comercial' | 'read_only';
-export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated';
+export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Lead {
@@ -43,6 +43,42 @@ export interface Lead {
   customFields?: Record<string, unknown>;
   data?: Record<string, unknown>; // Legacy raw data
   _collection?: string; // Track original collection for backward compat
+
+  // ─── Apollo Enrichment Data ─────────────────────────────────────
+  enrichment?: ApolloEnrichment;
+  enrichedAt?: Timestamp | Date | string;
+}
+
+/** Data returned by Apollo.io People Enrichment + Organization Enrichment */
+export interface ApolloEnrichment {
+  // Person data
+  apolloId?: string;
+  firstName?: string;
+  lastName?: string;
+  title?: string;           // Job title (e.g. "CEO", "CTO")
+  headline?: string;        // LinkedIn headline
+  linkedinUrl?: string;
+  photoUrl?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  seniority?: string;       // e.g. "c_suite", "director"
+  departments?: string[];
+  // Organization data
+  organizationName?: string;
+  organizationDomain?: string;
+  organizationWebsite?: string;
+  organizationIndustry?: string;
+  organizationLinkedin?: string;
+  organizationSize?: number;       // estimated_num_employees
+  organizationFoundedYear?: number;
+  organizationRevenue?: number;
+  organizationFunding?: number;
+  organizationFundingStage?: string;
+  // Meta
+  source: 'apollo';
+  matchConfidence?: string;   // Apollo's match status
+  rawResponse?: Record<string, unknown>; // Full raw response for debugging
 }
 
 export interface ScoreBreakdown {
