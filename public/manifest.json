@@ -1,0 +1,27 @@
+{
+  "name": "Lead Manager SERASAN",
+  "short_name": "Lead Manager",
+  "description": "Gestión de leads y pipeline comercial — SERASAN Engineering",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#3b82f6",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/logos/serasan-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logos/serasan-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "lang": "es-ES",
+  "dir": "ltr"
+}
