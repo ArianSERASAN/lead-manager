@@ -28,8 +28,8 @@ export function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-md modal-backdrop-enter">
-      <div className="bg-white/90 backdrop-blur-2xl w-full max-w-md rounded-[32px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] border border-white overflow-hidden modal-enter">
+    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center sm:p-4 bg-gray-900/40 backdrop-blur-md modal-backdrop-enter">
+      <div className="bg-white/90 backdrop-blur-2xl w-full max-w-md rounded-t-[32px] sm:rounded-[32px] shadow-[0_40px_80px_-20px_rgba(0,0,0,0.2)] border border-white overflow-hidden modal-enter">
         <div className="p-8 text-center">
           <div className="w-16 h-16 bg-red-50 text-red-500 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-lg shadow-red-500/10">
             <AlertTriangle size={32} />

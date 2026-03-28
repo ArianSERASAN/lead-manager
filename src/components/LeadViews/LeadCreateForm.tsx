@@ -147,7 +147,7 @@ export function LeadCreateForm({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm modal-backdrop-enter"
@@ -155,19 +155,19 @@ export function LeadCreateForm({
       />
 
       {/* Modal */}
-      <div role="dialog" aria-modal="true" aria-labelledby="create-lead-title" className="relative bg-white/95 backdrop-blur-xl rounded-[40px] shadow-2xl w-full max-w-md p-8 border border-white/20 modal-enter">
+      <div role="dialog" aria-modal="true" aria-labelledby="create-lead-title" className="relative bg-white/95 backdrop-blur-xl rounded-t-2xl sm:rounded-[40px] shadow-2xl w-full max-w-md max-h-[92vh] sm:max-h-[90vh] overflow-y-auto overscroll-contain p-5 sm:p-8 border border-white/20 modal-enter -webkit-overflow-scrolling-touch">
         {/* Close Button */}
         <button
           onClick={onClose}
           aria-label="Cerrar formulario"
-          className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-4 right-4 sm:top-6 sm:right-6 text-gray-400 hover:text-gray-600 transition-colors z-10 min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <X size={24} />
         </button>
 
         {/* Header */}
-        <div className="mb-8">
-          <h2 id="create-lead-title" className="text-3xl font-black text-gray-900 mb-2">Nuevo Lead</h2>
+        <div className="mb-6 sm:mb-8">
+          <h2 id="create-lead-title" className="text-2xl sm:text-3xl font-black text-gray-900 mb-2">Nuevo Lead</h2>
           <p className="text-sm text-gray-500">Completa los campos para crear un nuevo lead</p>
         </div>
 
@@ -305,7 +305,7 @@ export function LeadCreateForm({
           </div>
 
           {/* Buttons */}
-          <div className="flex gap-3 pt-4">
+          <div className="flex gap-3 pt-4 pb-safe">
             <button
               type="button"
               onClick={onClose}

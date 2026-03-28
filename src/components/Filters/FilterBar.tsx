@@ -88,7 +88,7 @@ export function FilterBar({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200/80 shadow-card p-2.5 sm:p-3 mb-4 space-y-3">
+    <div className="bg-white rounded-xl border border-gray-200/80 shadow-card p-2 sm:p-3 mb-4 space-y-3">
       {/* Primary Filter Row */}
       <div className="flex flex-col md:flex-row gap-4">
         {/* Search Input */}
@@ -115,7 +115,7 @@ export function FilterBar({
         </div>
 
         {/* Basic Filters */}
-        <div className="flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide items-center">
+        <div className="flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2 pb-2 md:pb-0 items-center">
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}
@@ -231,8 +231,8 @@ export function FilterBar({
 
       {/* Save Filter Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 rounded-2xl">
-          <div className="bg-white rounded-3xl shadow-xl p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50">
+          <div className="bg-white rounded-t-2xl sm:rounded-3xl shadow-xl p-5 sm:p-6 max-w-md w-full sm:mx-4">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Guardar Filtro</h3>
             <input
               type="text"

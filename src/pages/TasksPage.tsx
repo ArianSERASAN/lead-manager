@@ -51,7 +51,7 @@ export function TasksPage() {
       <Header title="Tareas" />
 
       {loading ? (
-        <div className="max-w-4xl mx-auto px-4 py-6 animate-pulse space-y-6">
+        <div className="max-w-4xl mx-auto px-0 sm:px-4 py-6 animate-pulse space-y-6">
           <div className="grid grid-cols-3 gap-2 sm:gap-4">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -67,7 +67,7 @@ export function TasksPage() {
           ))}
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto px-4 py-6 page-enter">
+        <div className="max-w-4xl mx-auto px-0 sm:px-4 py-6 page-enter">
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8 stagger-children">
             <div className="bg-white rounded-2xl border border-gray-100/80 shadow-card p-3 sm:p-5 hover:shadow-card-hover transition-all duration-200">
