@@ -163,9 +163,9 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
       {/* ═══════════════════════════════════════════════════
           MOBILE: Tab-based single-column view
           ═══════════════════════════════════════════════════ */}
-      <div className="md:hidden flex flex-col flex-1">
+      <div className="md:hidden flex flex-col flex-1 -mx-3 sm:-mx-4">
         {/* Tab Bar */}
-        <div className="flex gap-1 mb-3 bg-gray-100 rounded-xl p-1">
+        <div className="flex gap-1 mb-3 bg-gray-100 rounded-xl p-1 mx-3 sm:mx-4">
           {PIPELINE_STAGES.map((status, idx) => {
             const config = STATUS_CONFIG[status];
             const count = (leadsByStatus[status as LeadStatus] || []).length;
@@ -199,7 +199,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
         </div>
 
         {/* Navigation arrows + Column Header */}
-        <div className="flex items-center justify-between mb-2 px-1">
+        <div className="flex items-center justify-between mb-2 px-3 sm:px-4">
           <button
             onClick={goToPrevTab}
             disabled={mobileActiveTab === 0}
@@ -222,7 +222,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
         </div>
 
         {/* Cards list for active status */}
-        <div className="flex-1 overflow-y-auto space-y-2 pb-4">
+        <div className="flex-1 overflow-y-auto space-y-2 pb-4 px-3 sm:px-4">
           {mobileLeads.length > 0 ? (
             mobileLeads.map(lead => (
               <MobileKanbanCard
@@ -234,7 +234,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
               />
             ))
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+            <div className="flex flex-col items-center justify-center py-12 text-gray-400 px-3">
               <div className="text-3xl mb-2">📭</div>
               <p className="text-sm font-medium">Sin leads en {mobileActiveConfig.label.toLowerCase()}</p>
             </div>
