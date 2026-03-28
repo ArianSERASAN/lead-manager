@@ -119,7 +119,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
       )}
 
       <div className="flex flex-col md:flex-row gap-4 md:gap-6 mt-4">
-        <div className={`transition-all duration-300 ${selectedLead ? 'flex-1 min-w-0' : 'w-full'}`}>
+        <div className={`transition-all duration-300 ${selectedLead ? 'hidden md:block md:flex-1 md:min-w-0' : 'w-full'}`}>
           <LeadTable
             leads={filteredLeads}
             selectedIds={selectedIds}
