@@ -72,7 +72,7 @@ export function DashboardPage() {
 
       <div className="space-y-6">
         {/* Date Range Selector */}
-        <div className="flex gap-2 justify-end">
+        <div className="flex gap-2 justify-end flex-wrap">
           <button
             onClick={() => setDateRangeFilter('7')}
             className={`px-4 py-2 rounded-xl font-semibold text-sm transition-colors ${

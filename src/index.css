@@ -18,6 +18,11 @@
   --serasan-teal: #06b6d4;
   --serasan-green: #10b981;
   --reactiva-green: #34d399;
+
+  /* Emil Kowalski — Custom easing curves */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 body {
@@ -137,48 +142,48 @@ body {
   50% { border-color: rgba(99, 102, 241, 0.5); }
 }
 
-/* Animation utilities */
+/* Animation utilities — custom easing curves (Emil Kowalski) */
 .animate-fade-in {
-  animation: fadeIn 0.4s ease-out both;
+  animation: fadeIn 300ms var(--ease-out) both;
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out both;
+  animation: fadeInUp 350ms var(--ease-out) both;
 }
 
 .animate-fade-in-down {
-  animation: fadeInDown 0.4s ease-out both;
+  animation: fadeInDown 300ms var(--ease-out) both;
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.4s ease-out both;
+  animation: slideInRight 300ms var(--ease-out) both;
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.4s ease-out both;
+  animation: slideInLeft 300ms var(--ease-out) both;
 }
 
 .animate-scale-in {
-  animation: scaleIn 0.3s ease-out both;
+  animation: scaleIn 250ms var(--ease-out) both;
 }
 
 .animate-count-up {
-  animation: countUp 0.6s ease-out both;
+  animation: countUp 400ms var(--ease-out) both;
 }
 
-/* Staggered children animation */
+/* Staggered children animation (30-80ms per Emil Kowalski) */
 .stagger-children > * {
-  animation: fadeInUp 0.4s ease-out both;
+  animation: fadeInUp 300ms var(--ease-out) both;
 }
 
 .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 60ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 120ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 180ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 300ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 360ms; }
-.stagger-children > *:nth-child(8) { animation-delay: 420ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 250ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 350ms; }
 
 /* Skeleton loader */
 .skeleton {
@@ -208,14 +213,15 @@ body {
   animation: fadeInUp 0.35s ease-out both;
 }
 
-/* Table row hover effect */
+/* Table row hover effect — only on pointer devices */
 tr.row-interactive {
-  transition: all 0.15s ease;
+  transition: background-color 0.15s var(--ease-out);
 }
 
-tr.row-interactive:hover {
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0%, rgba(59, 130, 246, 0.02) 100%);
-  transform: scale(1.002);
+@media (hover: hover) and (pointer: fine) {
+  tr.row-interactive:hover {
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0%, rgba(59, 130, 246, 0.02) 100%);
+  }
 }
 
 /* Active nav indicator */
@@ -238,4 +244,123 @@ tr.row-interactive:hover {
 /* Branded loading pulse */
 .brand-pulse {
   animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Emil Kowalski — Design Engineering Principles
+   ============================================================ */
+
+/* Buttons: tactile feedback on press */
+.btn-press {
+  transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Dropdowns & popovers: origin-aware entry */
+.dropdown-enter {
+  animation: dropdownIn 200ms var(--ease-out) both;
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal entry with correct scale (never from 0) */
+.modal-enter {
+  animation: modalIn 250ms var(--ease-out) both;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-backdrop-enter {
+  animation: fadeIn 200ms var(--ease-out) both;
+}
+
+/* Toast enter from bottom */
+.toast-enter {
+  animation: toastIn 300ms var(--ease-out) both;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(16px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+/* HUD enter from bottom */
+.hud-enter {
+  animation: hudIn 350ms var(--ease-out) both;
+}
+
+@keyframes hudIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Stagger children — tighter delays per Emil (30-80ms) */
+.stagger-tight > * {
+  animation: fadeInUp 300ms var(--ease-out) both;
+}
+.stagger-tight > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-tight > *:nth-child(2) { animation-delay: 50ms; }
+.stagger-tight > *:nth-child(3) { animation-delay: 100ms; }
+.stagger-tight > *:nth-child(4) { animation-delay: 150ms; }
+.stagger-tight > *:nth-child(5) { animation-delay: 200ms; }
+.stagger-tight > *:nth-child(6) { animation-delay: 250ms; }
+
+/* Hover states gated behind pointer media query */
+@media (hover: hover) and (pointer: fine) {
+  .hover-lift {
+    transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+  }
+}
+
+/* ============================================================
+   Accessibility: prefers-reduced-motion
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .stagger-children > *,
+  .stagger-tight > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

@@ -12,7 +12,7 @@ export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpda
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-4rem)] max-w-4xl animate-in slide-in-from-bottom-12 duration-500 ease-out">
+    <div className="fixed bottom-8 left-1/2 z-[100] w-[calc(100%-4rem)] max-w-4xl hud-enter">
       <div className="bg-gray-900/80 backdrop-blur-2xl border border-white/10 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.5)] rounded-[40px] p-4 md:p-5 flex items-center justify-between">
 
         {/* Selection Info */}
@@ -32,7 +32,7 @@ export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpda
           <div className="relative group">
             <select
               onChange={(e) => onBulkStatusUpdate(e.target.value as LeadStatus)}
-              className="appearance-none bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2.5 pl-4 pr-10 rounded-2xl border border-white/5 outline-none transition-all cursor-pointer"
+              className="appearance-none bg-white/10 hover:bg-white/20 text-white text-xs font-bold py-2.5 pl-4 pr-10 rounded-2xl border border-white/5 outline-none transition-colors duration-150 cursor-pointer"
             >
               <option value="" className="bg-gray-900">Cambiar Estado...</option>
               <option value="nuevo" className="bg-gray-900">Marcar Nuevo</option>
@@ -47,7 +47,7 @@ export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpda
 
           <button
             onClick={onBulkDelete}
-            className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-all border border-red-500/20"
+            className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-colors duration-150 border border-red-500/20 btn-press"
             title="Eliminar permanentemente"
           >
             <Trash2 size={20} />
@@ -57,7 +57,7 @@ export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpda
 
           <button
             onClick={onClearSelection}
-            className="p-2.5 text-white/40 hover:text-white hover:bg-white/10 rounded-2xl transition-all"
+            className="p-2.5 text-white/40 hover:text-white hover:bg-white/10 rounded-2xl transition-colors duration-150"
             title="Cancelar selección"
           >
             <X size={20} />

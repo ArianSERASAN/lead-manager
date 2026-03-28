@@ -53,7 +53,7 @@ function AppContent() {
     >
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<LeadsPage showCreateForm={showCreateForm} onCloseCreateForm={() => setShowCreateForm(false)} />} />
+          <Route path="/" element={<LeadsPage showCreateForm={showCreateForm} onOpenCreateForm={() => setShowCreateForm(true)} onCloseCreateForm={() => setShowCreateForm(false)} />} />
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/pipeline" element={<KanbanPage />} />
           <Route path="/tasks" element={<TasksPage />} />

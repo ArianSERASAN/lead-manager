@@ -62,7 +62,7 @@ export async function createUser(
     name,
     role,
     active: true,
-    createdAt: serverTimestamp() as any,
+    createdAt: serverTimestamp() as unknown as AppUser['createdAt'],
   };
 
   await setDoc(doc(db, USERS_COLLECTION, uid), userData);

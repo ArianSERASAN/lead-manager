@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Lead, LeadStatus } from '../../types/domain';
+import { Lead, LeadStatus, toJSDate } from '../../types/domain';
 import { daysSince, getTimestampSeconds } from '../../utils/format';
 
 export interface DashboardMetrics {
@@ -30,7 +30,7 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
       const endDate = dateRange.end ? new Date(dateRange.end) : new Date();
 
       filteredLeads = leads.filter(lead => {
-        const leadDate = lead.createdAt?.toDate ? lead.createdAt.toDate() : new Date(lead.createdAt);
+        const leadDate = toJSDate(lead.createdAt);
         return leadDate >= startDate && leadDate <= endDate;
       });
     }
@@ -67,12 +67,12 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
     monthAgo.setMonth(monthAgo.getMonth() - 1);
 
     const newThisWeek = filteredLeads.filter(lead => {
-      const leadDate = lead.createdAt?.toDate ? lead.createdAt.toDate() : new Date(lead.createdAt);
+      const leadDate = toJSDate(lead.createdAt);
       return leadDate >= weekAgo;
     }).length;
 
     const newThisMonth = filteredLeads.filter(lead => {
-      const leadDate = lead.createdAt?.toDate ? lead.createdAt.toDate() : new Date(lead.createdAt);
+      const leadDate = toJSDate(lead.createdAt);
       return leadDate >= monthAgo;
     }).length;
 
@@ -88,7 +88,7 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
     }
 
     filteredLeads.forEach(lead => {
-      const leadDate = lead.createdAt?.toDate ? lead.createdAt.toDate() : new Date(lead.createdAt);
+      const leadDate = toJSDate(lead.createdAt);
       const weekStart = new Date(leadDate);
       weekStart.setDate(weekStart.getDate() - weekStart.getDay());
       const weekKey = weekStart.toISOString().split('T')[0];

@@ -85,7 +85,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
 
     // Update lead in database
     try {
-      const lead = { id: leadId, _collection: leadCollection } as any;
+      const lead = { id: leadId, _collection: leadCollection, name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
       await LeadService.updateLeadTags(lead, updatedTags);
     } catch (error) {
       console.error('Error updating tags:', error);
@@ -114,7 +114,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
 
     // Update lead in database
     try {
-      const lead = { id: leadId, _collection: leadCollection } as any;
+      const lead = { id: leadId, _collection: leadCollection, name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
       await LeadService.updateLeadTags(lead, updatedTags);
     } catch (error) {
       console.error('Error updating tags:', error);

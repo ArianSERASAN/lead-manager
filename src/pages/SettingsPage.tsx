@@ -93,7 +93,7 @@ export function SettingsPage() {
     <>
       <Header title="Configuración" />
 
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+      <div className="max-w-4xl mx-auto space-y-8">
         {/* App Info */}
         <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
           <div className="flex items-start gap-5 mb-6 pb-6 border-b border-gray-100">
@@ -416,8 +416,9 @@ function CreateUserModal({ onClose, onSuccess, onError }: CreateUserModalProps) 
     try {
       const user = await UserService.createUser(form.email.trim(), form.password, form.name.trim(), form.role);
       onSuccess(user);
-    } catch (err: any) {
-      const code = err?.code || '';
+    } catch (err: unknown) {
+      const firebaseErr = err as { code?: string; message?: string };
+      const code = firebaseErr?.code || '';
       if (code === 'auth/email-already-in-use') {
         onError('Este email ya está registrado');
       } else if (code === 'auth/weak-password') {
@@ -425,7 +426,7 @@ function CreateUserModal({ onClose, onSuccess, onError }: CreateUserModalProps) 
       } else if (code === 'auth/invalid-email') {
         onError('El email no es válido');
       } else {
-        onError(`Error al crear usuario: ${err?.message || 'desconocido'}`);
+        onError(`Error al crear usuario: ${firebaseErr?.message || 'desconocido'}`);
       }
     } finally {
       setCreating(false);

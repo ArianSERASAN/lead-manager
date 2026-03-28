@@ -16,7 +16,7 @@ export function Login() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
       setError('Credenciales inválidas. Por favor, comprueba tu email y contraseña.');
     } finally {

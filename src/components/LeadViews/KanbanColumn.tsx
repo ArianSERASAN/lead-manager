@@ -20,7 +20,7 @@ export function KanbanColumn({ status, leads, onCardClick, draggedLeadId, readon
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col min-w-[280px] flex-1 rounded-2xl border-2 transition-all duration-200 ${
+      className={`flex flex-col min-w-[240px] sm:min-w-[280px] flex-1 rounded-2xl border-2 transition-colors duration-200 ${
         isOver
           ? 'border-blue-400 bg-blue-50/60 shadow-lg scale-[1.01]'
           : isDragging
@@ -100,8 +100,8 @@ function DraggableCard({ lead, onClick, isBeingDragged }: { lead: Lead; onClick:
       ref={setNodeRef}
       {...attributes}
       {...listeners}
-      className={`transition-all duration-150 ${
-        isBeingDragged ? 'opacity-30 scale-95' : ''
+      className={`transition-opacity duration-150 ${
+        isBeingDragged ? 'opacity-30' : ''
       }`}
     >
       <KanbanCard

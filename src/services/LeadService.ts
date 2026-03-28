@@ -38,7 +38,7 @@ export async function createLead(leadData: Partial<Lead>): Promise<string> {
   }
 }
 
-export async function updateLeadField(lead: Lead, field: string, value: any): Promise<void> {
+export async function updateLeadField(lead: Lead, field: string, value: unknown): Promise<void> {
   if (!UPDATABLE_FIELDS.has(field)) {
     throw new Error(`El campo "${field}" no se puede actualizar.`);
   }

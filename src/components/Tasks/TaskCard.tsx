@@ -26,7 +26,7 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
     }
   };
 
-  const getDueDateColor = (dueAt: any) => {
+  const getDueDateColor = (dueAt: Task['dueAt']) => {
     const days = daysSince(dueAt);
     if (days < 0) return 'text-red-600'; // Overdue
     if (days === 0) return 'text-amber-600'; // Today
@@ -38,7 +38,7 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
   const isOverdue = daysUntilDue < 0;
 
   return (
-    <div className={`bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all ${
+    <div className={`bg-white rounded-lg border border-gray-200 p-4 hover-lift ${
       task.completed ? 'opacity-60 bg-gray-50' : ''
     }`}>
       <div className="flex items-start gap-3">

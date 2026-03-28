@@ -150,12 +150,12 @@ export function LeadCreateForm({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm modal-backdrop-enter"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div role="dialog" aria-modal="true" aria-labelledby="create-lead-title" className="relative bg-white/95 backdrop-blur-xl rounded-[40px] shadow-2xl w-full max-w-md p-8 border border-white/20">
+      <div role="dialog" aria-modal="true" aria-labelledby="create-lead-title" className="relative bg-white/95 backdrop-blur-xl rounded-[40px] shadow-2xl w-full max-w-md p-8 border border-white/20 modal-enter">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -188,7 +188,7 @@ export function LeadCreateForm({
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
               placeholder="Nombre completo"
-              className={`w-full px-4 py-3 rounded-xl border-2 transition-all focus:outline-none ${
+              className={`w-full px-4 py-3 rounded-xl border-2 transition-colors duration-150 focus:outline-none ${
                 errors.name
                   ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500'
                   : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500'
@@ -214,7 +214,7 @@ export function LeadCreateForm({
               value={formData.email}
               onChange={(e) => handleChange('email', e.target.value)}
               placeholder="correo@ejemplo.com"
-              className={`w-full px-4 py-3 rounded-xl border-2 transition-all focus:outline-none ${
+              className={`w-full px-4 py-3 rounded-xl border-2 transition-colors duration-150 focus:outline-none ${
                 errors.email
                   ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500'
                   : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500'
@@ -236,7 +236,7 @@ export function LeadCreateForm({
               value={formData.phone}
               onChange={(e) => handleChange('phone', e.target.value)}
               placeholder="+34 600 000 000"
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all focus:outline-none"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
             />
           </div>
 
@@ -251,7 +251,7 @@ export function LeadCreateForm({
               value={formData.company}
               onChange={(e) => handleChange('company', e.target.value)}
               placeholder="Nombre de la empresa"
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all focus:outline-none"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
             />
           </div>
 
@@ -264,7 +264,7 @@ export function LeadCreateForm({
               id="lead-source"
               value={formData.source}
               onChange={(e) => handleChange('source', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all focus:outline-none font-semibold text-gray-700"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none font-semibold text-gray-700"
             >
               {SOURCE_OPTIONS.map(opt => (
                 <option key={opt.value} value={opt.value}>
@@ -285,7 +285,7 @@ export function LeadCreateForm({
               onChange={(e) => handleChange('message', e.target.value)}
               placeholder="Mensaje del lead (opcional)"
               rows={2}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all focus:outline-none resize-none"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none resize-none"
             />
           </div>
 
@@ -300,7 +300,7 @@ export function LeadCreateForm({
               onChange={(e) => handleChange('notes', e.target.value)}
               placeholder="Notas internas (opcional)"
               rows={2}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-all focus:outline-none resize-none"
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none resize-none"
             />
           </div>
 
@@ -309,14 +309,14 @@ export function LeadCreateForm({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-all active:scale-95"
+              className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors duration-150 btn-press"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold hover:shadow-lg hover:shadow-blue-600/30 transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold hover:shadow-lg hover:shadow-blue-600/30 transition-shadow duration-200 btn-press disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>

@@ -61,7 +61,7 @@ const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
       onClick={onSelect}
     >
       <td className="pl-4 pr-2 py-3" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onToggle} className="text-gray-300 hover:text-gray-500">
+        <button onClick={onToggle} aria-label={isSelected ? 'Deseleccionar lead' : 'Seleccionar lead'} className="text-gray-300 hover:text-gray-500">
           {isSelected ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="group-hover:text-gray-400" />}
         </button>
       </td>
@@ -131,6 +131,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
                     if (selectedIds.length === leads.length) onToggleAll([]);
                     else onToggleAll(leads.map(l => l.id));
                   }}
+                  aria-label={selectedIds.length === leads.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
                   className="text-gray-300 hover:text-gray-500"
                 >
                   {selectedIds.length === leads.length && leads.length > 0

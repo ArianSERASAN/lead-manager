@@ -11,20 +11,22 @@ import { useLeadActions } from '../hooks/leads/useLeadActions';
 import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { X } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
+import { LeadStatus } from '../types/domain';
 
 interface LeadsPageProps {
   showCreateForm?: boolean;
+  onOpenCreateForm?: () => void;
   onCloseCreateForm?: () => void;
 }
 
-export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPageProps) {
+export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCreateForm }: LeadsPageProps) {
   const { appUser } = useAuth();
   const { addToast } = useToast();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  const { leads, loading: leadsLoading } = useLeads();
+  const { leads, loading: leadsLoading, hasMore, loadMore, loadingMore } = useLeads();
 
   const {
     updateLeadStatus,
@@ -67,7 +69,7 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
 
   // Direct execution — no confirmation modals. Bulk delete already has 5s undo toast.
   const handleBulkDelete = () => bulkDelete(selectedIds);
-  const handleBulkStatusUpdate = (status: any) => {
+  const handleBulkStatusUpdate = (status: LeadStatus) => {
     if (!status) return;
     bulkStatusUpdate(selectedIds, status);
   };
@@ -77,7 +79,7 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
       <Header
         title="Leads"
         leadCount={filteredLeads.length}
-        onNewLeadClick={() => onCloseCreateForm ? undefined : undefined}
+        onNewLeadClick={onOpenCreateForm}
       />
 
       <FilterBar
@@ -116,7 +118,7 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
         />
       )}
 
-      <div className="flex gap-6 mt-4">
+      <div className="flex flex-col md:flex-row gap-4 md:gap-6 mt-4">
         <div className={`transition-all duration-300 ${selectedLead ? 'flex-1 min-w-0' : 'w-full'}`}>
           <LeadTable
             leads={filteredLeads}
@@ -128,15 +130,41 @@ export function LeadsPage({ showCreateForm = false, onCloseCreateForm }: LeadsPa
             onToggleAll={(ids) => setSelectedIds(ids)}
             onDelete={deleteLead}
           />
+          {hasMore && (
+            <div className="mt-4 text-center">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 active:scale-[0.97] disabled:opacity-50"
+              >
+                {loadingMore ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Cargando...
+                  </span>
+                ) : (
+                  'Cargar más leads'
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {selectedLead && (
-          <div className="w-[380px] shrink-0 relative">
+          <div className="w-full md:w-[380px] shrink-0 relative">
             <button
               onClick={() => setSelectedLead(null)}
-              className="absolute -left-3 top-4 z-10 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:shadow-md transition-all"
+              aria-label="Cerrar detalle del lead"
+              className="absolute -left-3 top-4 z-10 w-7 h-7 bg-white border border-gray-200 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:shadow-md transition-all hidden md:flex"
             >
               <X size={14} />
+            </button>
+            <button
+              onClick={() => setSelectedLead(null)}
+              aria-label="Cerrar detalle del lead"
+              className="md:hidden w-full mb-2 py-2 text-sm font-semibold text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              ← Volver a la lista
             </button>
             <LeadDetail
               lead={selectedLead}

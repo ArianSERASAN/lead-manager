@@ -1,6 +1,16 @@
-import { useState, useMemo } from 'react';
-import { Lead, FilterState } from '../../types/domain';
+import { useState, useMemo, useEffect } from 'react';
+import { Lead, FilterState, LeadStatus, LeadSource, toJSDate } from '../../types/domain';
 import { daysSince } from '../../utils/format';
+
+// Debounce hook for search
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
 
 export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
   const [activeTab, setActiveTab] = useState<'all' | 'descargas' | 'contactos' | 'landing'>('all');
@@ -14,6 +24,25 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
   const [scoreMax, setScoreMax] = useState(100);
   const [staleDays, setStaleDays] = useState<number | null>(null);
 
+  // Debounce search query to avoid filtering on every keystroke
+  const debouncedSearch = useDebouncedValue(searchQuery, 200);
+
+  // Pre-compute searchable text for each lead
+  const searchIndex = useMemo(() => {
+    return new Map(leads.map(lead => [
+      lead.id,
+      [
+        lead.name,
+        lead.email,
+        lead.phone || '',
+        lead.company || '',
+        lead.message || '',
+        lead.notes || '',
+        lead.resource || '',
+      ].join(' ').toLowerCase()
+    ]));
+  }, [leads]);
+
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
       // Hide if marked for deletion
@@ -24,18 +53,12 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
       if (activeTab === 'contactos' && lead.source !== 'web-contact') return false;
       if (activeTab === 'landing' && lead.source !== 'landing') return false;
 
-      // Search query (Deep search)
-      const searchLower = searchQuery.toLowerCase();
-      const matchesSearch =
-        lead.name.toLowerCase().includes(searchLower) ||
-        lead.email.toLowerCase().includes(searchLower) ||
-        (lead.phone || '').toLowerCase().includes(searchLower) ||
-        lead.company?.toLowerCase().includes(searchLower) ||
-        lead.message?.toLowerCase().includes(searchLower) ||
-        lead.notes?.toLowerCase().includes(searchLower) ||
-        JSON.stringify(lead.data).toLowerCase().includes(searchLower);
-
-      if (searchQuery && !matchesSearch) return false;
+      // Search query using pre-computed index
+      if (debouncedSearch) {
+        const searchLower = debouncedSearch.toLowerCase();
+        const indexed = searchIndex.get(lead.id) || '';
+        if (!indexed.includes(searchLower)) return false;
+      }
 
       // Status filter
       if (statusFilter && lead.status !== statusFilter) return false;
@@ -45,7 +68,7 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
 
       // Date filter
       if (dateFilter) {
-        const leadDate = lead.createdAt?.toDate ? lead.createdAt.toDate() : new Date(lead.createdAt);
+        const leadDate = toJSDate(lead.createdAt);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -95,7 +118,7 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
 
       return true;
     });
-  }, [leads, activeTab, searchQuery, statusFilter, sourceFilter, dateFilter, tags, assignedTo, scoreMin, scoreMax, staleDays, pendingDeleteIds]);
+  }, [leads, activeTab, debouncedSearch, statusFilter, sourceFilter, dateFilter, tags, assignedTo, scoreMin, scoreMax, staleDays, pendingDeleteIds, searchIndex]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -152,8 +175,8 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
     clearAllFilters,
     getCurrentFilterState: (): FilterState => ({
       search: searchQuery,
-      status: statusFilter ? [statusFilter as any] : undefined,
-      source: sourceFilter ? [sourceFilter as any] : undefined,
+      status: statusFilter ? [statusFilter as LeadStatus] : undefined,
+      source: sourceFilter ? [sourceFilter as LeadSource] : undefined,
       tags: tags.length > 0 ? tags : undefined,
       assignedTo: assignedTo.length > 0 ? assignedTo : undefined,
       scoreMin: scoreMin > 0 ? scoreMin : undefined,

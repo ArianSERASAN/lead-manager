@@ -22,7 +22,7 @@ export function TaskForm({ onSubmit, onCancel, isLoading = false }: TaskFormProp
     await onSubmit({
       title,
       description,
-      dueAt: dueDate as any,
+      dueAt: dueDate.toISOString(),
       priority,
       completed: false,
       assignedTo: ''

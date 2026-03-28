@@ -56,11 +56,11 @@ export function AssigneeDropdown({ currentAssigneeId, onAssign, disabled = false
         <span className="truncate">
           {loading ? 'Cargando...' : (currentUser ? `${currentUser.name} (${currentUser.email})` : 'Sin asignar')}
         </span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && !loading && (
-        <div role="listbox" aria-label="Lista de usuarios" className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+        <div role="listbox" aria-label="Lista de usuarios" className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 dropdown-enter">
           {/* Sin asignar option */}
           <button
             onClick={() => handleSelect('')}

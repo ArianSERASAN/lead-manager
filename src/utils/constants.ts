@@ -30,3 +30,18 @@ export const TAG_COLORS: string[] = [
   'bg-red-100 text-red-700',
   'bg-teal-100 text-teal-700',
 ];
+
+// Timing constants
+export const DELETION_TIMEOUT_MS = 5000;
+export const TOAST_DEFAULT_DURATION_MS = 5000;
+export const SEARCH_DEBOUNCE_MS = 200;
+
+// Score thresholds
+export const MAX_SCORE = 100;
+export const MIN_SCORE = 0;
+export const SCORE_HOT_THRESHOLD = 80;
+export const SCORE_WARM_THRESHOLD = 60;
+export const SCORE_LUKEWARM_THRESHOLD = 40;
+
+// Pagination
+export const PAGE_SIZE = 50;

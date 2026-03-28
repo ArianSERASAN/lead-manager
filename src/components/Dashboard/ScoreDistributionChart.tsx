@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -7,7 +8,6 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
-  TooltipProps
 } from 'recharts';
 
 interface ScoreDistributionChartProps {
@@ -15,11 +15,11 @@ interface ScoreDistributionChartProps {
 }
 
 const rangeColors: Record<string, string> = {
-  '0-20': '#d1d5db',      // gray
-  '20-40': '#fbbf24',     // amber
-  '40-60': '#60a5fa',     // blue
-  '60-80': '#34d399',     // emerald
-  '80-100': '#10b981'     // emerald-600
+  '0-20': '#d1d5db',
+  '20-40': '#fbbf24',
+  '40-60': '#60a5fa',
+  '60-80': '#34d399',
+  '80-100': '#10b981'
 };
 
 const rangeLabels: Record<string, string> = {
@@ -30,8 +30,12 @@ const rangeLabels: Record<string, string> = {
   '80-100': 'Muy Caliente'
 };
 
-const CustomTooltip = (props: any) => {
-  const { active, payload } = props;
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ payload: { range: string; count: number; label: string } }>;
+}
+
+const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -45,10 +49,24 @@ const CustomTooltip = (props: any) => {
   return null;
 };
 
+function useIsMobile(breakpoint = 640) {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia(`(max-width: ${breakpoint}px)`);
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
+
 export function ScoreDistributionChart({ data }: ScoreDistributionChartProps) {
+  const isMobile = useIsMobile();
+
   if (data.length === 0 || data.every(d => d.count === 0)) {
     return (
-      <div className="w-full h-80 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
+      <div className="w-full h-60 sm:h-80 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
         <p className="text-gray-500 text-sm">Sin datos disponibles</p>
       </div>
     );
@@ -60,19 +78,22 @@ export function ScoreDistributionChart({ data }: ScoreDistributionChartProps) {
   }));
 
   return (
-    <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Distribución de Score</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="w-full bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
+      <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-4 sm:mb-6">Distribución de Score</h3>
+      <ResponsiveContainer width="100%" height={isMobile ? 200 : 300}>
         <BarChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
           <XAxis
             dataKey="label"
             stroke="#9ca3af"
-            style={{ fontSize: '12px' }}
+            style={{ fontSize: isMobile ? '9px' : '12px' }}
+            tick={{ fontSize: isMobile ? 9 : 12 }}
+            interval={0}
           />
           <YAxis
             stroke="#9ca3af"
-            style={{ fontSize: '12px' }}
+            style={{ fontSize: isMobile ? '10px' : '12px' }}
+            width={isMobile ? 25 : 40}
           />
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="count" radius={[8, 8, 0, 0]}>
@@ -84,7 +105,7 @@ export function ScoreDistributionChart({ data }: ScoreDistributionChartProps) {
       </ResponsiveContainer>
 
       {/* Summary */}
-      <div className="mt-6 grid grid-cols-5 gap-2 text-xs">
+      <div className="mt-4 sm:mt-6 grid grid-cols-3 sm:grid-cols-5 gap-2 text-xs">
         {chartData.map(item => (
           <div key={item.range} className="text-center p-2 rounded-lg" style={{ backgroundColor: rangeColors[item.range] + '20' }}>
             <p className="font-semibold text-gray-900">{item.label}</p>

@@ -1,5 +1,17 @@
 import { Timestamp } from 'firebase/firestore';
 
+/** Flexible timestamp type that covers Firestore Timestamp, JS Date, and ISO strings */
+export type TimestampLike = Timestamp | Date | string | null;
+
+/** Safely convert any TimestampLike to a JS Date */
+export function toJSDate(ts: TimestampLike): Date {
+  if (!ts) return new Date(0);
+  if (ts instanceof Date) return ts;
+  if (typeof ts === 'string') return new Date(ts);
+  if (typeof ts === 'object' && 'toDate' in ts && typeof ts.toDate === 'function') return ts.toDate();
+  return new Date(0);
+}
+
 export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado';
 export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual';
 export type UserRole = 'admin' | 'comercial' | 'read_only';
@@ -14,22 +26,22 @@ export interface Lead {
   company?: string;
   source: LeadSource;
   status: LeadStatus;
-  createdAt: Timestamp | any;
-  updatedAt?: Timestamp | any;
+  createdAt: Timestamp | Date | string;
+  updatedAt?: Timestamp | Date | string;
   notes?: string;
   tags: string[];
   score: number;
   scoreBreakdown?: ScoreBreakdown;
   isStale?: boolean;
   assignedTo?: string;
-  assignedAt?: Timestamp | any;
+  assignedAt?: Timestamp | Date | string;
   pipelinePosition?: number;
-  movedToStatusAt?: Timestamp | any;
+  movedToStatusAt?: Timestamp | Date | string;
   type?: string;
   resource?: string;
   message?: string;
-  customFields?: Record<string, any>;
-  data?: any; // Legacy raw data
+  customFields?: Record<string, unknown>;
+  data?: Record<string, unknown>; // Legacy raw data
   _collection?: string; // Track original collection for backward compat
 }
 
@@ -43,13 +55,13 @@ export interface ScoreBreakdown {
 export interface Activity {
   id: string;
   leadId: string;
-  timestamp: Timestamp | any;
+  timestamp: Timestamp | Date | string;
   actor: string;
   actorName?: string;
   action: ActivityAction;
   details: {
-    oldValue?: any;
-    newValue?: any;
+    oldValue?: string | string[];
+    newValue?: string | string[];
     field?: string;
     note?: string;
     description?: string;
@@ -61,12 +73,12 @@ export interface Task {
   leadId: string;
   title: string;
   description?: string;
-  dueAt: Timestamp | any;
-  createdAt: Timestamp | any;
+  dueAt: Timestamp | Date | string;
+  createdAt: Timestamp | Date | string;
   createdBy: string;
   assignedTo?: string;
   completed: boolean;
-  completedAt?: Timestamp | any;
+  completedAt?: Timestamp | Date | string;
   completedBy?: string;
   priority: TaskPriority;
 }
@@ -77,15 +89,15 @@ export interface AppUser {
   name: string;
   role: UserRole;
   active: boolean;
-  createdAt: Timestamp | any;
-  lastLogin?: Timestamp | any;
+  createdAt: Timestamp | Date | string | null;
+  lastLogin?: Timestamp | Date | string | null;
 }
 
 export interface SavedFilter {
   id: string;
   name: string;
   createdBy: string;
-  createdAt: Timestamp | any;
+  createdAt: Timestamp | Date | string;
   filters: FilterState;
 }
 
@@ -139,7 +151,7 @@ export interface AlertConfig {
   unattended: AlertUnattended;
   stale: AlertStale;
   digest: AlertDigest;
-  updatedAt?: any;
+  updatedAt?: Timestamp | Date | string;
   updatedBy?: string;
 }
 

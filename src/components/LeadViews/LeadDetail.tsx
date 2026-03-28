@@ -54,7 +54,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
   );
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-200/80 shadow-card p-6 sticky top-10 animate-slide-in-right">
+    <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-200/80 shadow-card p-4 md:p-6 md:sticky md:top-10 animate-slide-in-right">
       {/* Header */}
       <div className="mb-6 pb-6 border-b border-gray-200">
         <div className="flex items-start justify-between mb-3">
@@ -93,7 +93,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors duration-150 btn-press ${
               activeTab === tab
                 ? 'bg-blue-100 text-blue-700'
                 : 'text-gray-600 hover:text-gray-900'

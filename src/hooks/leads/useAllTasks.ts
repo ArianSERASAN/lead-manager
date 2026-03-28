@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Task } from '../../types/domain';
+import { Task, toJSDate } from '../../types/domain';
 import { getCollectionName } from '../../services/LeadService';
 
 export interface TaskWithLead extends Task {
@@ -67,8 +67,8 @@ export function useAllTasks() {
 
         // Sort by dueAt
         allTasksList.sort((a, b) => {
-          const aTime = (a.dueAt?.seconds || 0) * 1000;
-          const bTime = (b.dueAt?.seconds || 0) * 1000;
+          const aTime = toJSDate(a.dueAt).getTime();
+          const bTime = toJSDate(b.dueAt).getTime();
           return aTime - bTime;
         });
 
@@ -89,7 +89,7 @@ export function useAllTasks() {
         allTasksList.forEach(task => {
           if (task.completed) return; // Skip completed tasks
 
-          const dueDate = task.dueAt?.toDate ? task.dueAt.toDate() : new Date(task.dueAt);
+          const dueDate = toJSDate(task.dueAt);
           const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
 
           if (dueDateOnly < today) {

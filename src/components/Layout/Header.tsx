@@ -32,7 +32,7 @@ export function Header({ title, subtitle, leadCount, onNewLeadClick, actions }: 
           <RoleGuard requires="canEdit">
             <button
               onClick={onNewLeadClick}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 transition-all duration-200 active:scale-[0.98] text-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 transition-shadow duration-200 btn-press text-sm"
             >
               <Plus size={18} />
               <span className="hidden sm:inline">Nuevo Lead</span>

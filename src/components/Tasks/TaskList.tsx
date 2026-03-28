@@ -23,7 +23,7 @@ export function TaskList({ tasks, leadId, leadCollection, leadName, leadEmail }:
   const { appUser } = useAuth();
   const { addToast } = useToast();
 
-  const handleCreateTask = async (taskData: any) => {
+  const handleCreateTask = async (taskData: Omit<Task, 'id' | 'leadId' | 'createdAt' | 'createdBy' | 'completedAt' | 'completedBy'>) => {
     if (!appUser) return;
 
     setIsLoading(true);
@@ -110,7 +110,7 @@ export function TaskList({ tasks, leadId, leadCollection, leadName, leadEmail }:
       {!isFormOpen && (
         <button
           onClick={() => setIsFormOpen(true)}
-          className="w-full bg-blue-50 border-2 border-dashed border-blue-300 text-blue-600 px-4 py-3 rounded-lg text-sm font-bold hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+          className="w-full bg-blue-50 border-2 border-dashed border-blue-300 text-blue-600 px-4 py-3 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors duration-150 btn-press flex items-center justify-center gap-2"
         >
           <Plus size={18} />
           Nueva Tarea

@@ -22,11 +22,11 @@ export default {
       },
       animation: {
         'spin-slow': 'spin 3s linear infinite',
-        'fade-in': 'fadeIn 0.4s ease-out both',
-        'fade-in-up': 'fadeInUp 0.5s ease-out both',
-        'fade-in-down': 'fadeInDown 0.4s ease-out both',
-        'slide-in-right': 'slideInRight 0.4s ease-out both',
-        'scale-in': 'scaleIn 0.3s ease-out both',
+        'fade-in': 'fadeIn 300ms cubic-bezier(0.23, 1, 0.32, 1) both',
+        'fade-in-up': 'fadeInUp 350ms cubic-bezier(0.23, 1, 0.32, 1) both',
+        'fade-in-down': 'fadeInDown 300ms cubic-bezier(0.23, 1, 0.32, 1) both',
+        'slide-in-right': 'slideInRight 300ms cubic-bezier(0.23, 1, 0.32, 1) both',
+        'scale-in': 'scaleIn 250ms cubic-bezier(0.23, 1, 0.32, 1) both',
         'shimmer': 'shimmer 1.5s infinite',
       },
       keyframes: {

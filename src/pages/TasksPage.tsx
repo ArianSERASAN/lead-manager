@@ -2,7 +2,7 @@ import { CheckSquare, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
-import { useAllTasks } from '../hooks/leads/useAllTasks';
+import { useAllTasks, TaskWithLead } from '../hooks/leads/useAllTasks';
 import { TaskCard } from '../components/Tasks/TaskCard';
 import { deleteTask, completeTask } from '../services/TaskService';
 import { useToast } from '../contexts/ToastContext';
@@ -15,11 +15,10 @@ export function TasksPage() {
   const { leads } = useLeads();
   const [selectedLeadForNewTask, setSelectedLeadForNewTask] = useState<string | null>(null);
 
-  const handleCompleteTask = async (task: any) => {
+  const handleCompleteTask = async (task: TaskWithLead) => {
     if (!appUser) return;
     try {
-      await completeTask(task.leadCollection, task.leadId, task.id, appUser.uid);
-      // Note: Activity recording could be added here if needed
+      await completeTask(task.leadCollection || '', task.leadId, task.id, appUser.uid);
       addToast({ message: 'Tarea marcada como completada', type: 'success' });
     } catch (err) {
       console.error('Error:', err);
@@ -27,9 +26,9 @@ export function TasksPage() {
     }
   };
 
-  const handleDeleteTask = async (task: any) => {
+  const handleDeleteTask = async (task: TaskWithLead) => {
     try {
-      await deleteTask(task.leadCollection, task.leadId, task.id);
+      await deleteTask(task.leadCollection || '', task.leadId, task.id);
       addToast({ message: 'Tarea eliminada', type: 'success' });
     } catch (err) {
       console.error('Error:', err);
@@ -37,9 +36,8 @@ export function TasksPage() {
     }
   };
 
-  const handleSelectLead = (leadId: string) => {
+  const handleSelectLead = (_leadId: string) => {
     // Navigate to lead detail would be handled by parent router
-    console.log('Navigate to lead:', leadId);
   };
 
   const stats = {

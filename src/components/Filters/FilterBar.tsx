@@ -93,17 +93,20 @@ export function FilterBar({
       <div className="flex flex-col md:flex-row gap-4">
         {/* Search Input */}
         <div className="flex-1 relative">
+          <label htmlFor="lead-search" className="sr-only">Buscar leads</label>
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input
+            id="lead-search"
             type="text"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Buscar por nombre, email, empresa..."
-            className="w-full bg-gray-50 border-none rounded-lg py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+            className="w-full bg-gray-50 border-none rounded-lg py-2.5 pl-12 pr-4 text-sm focus:ring-2 focus:ring-blue-500 transition-shadow duration-150 outline-none"
           />
           {searchTerm && (
             <button
               onClick={() => onSearchChange('')}
+              aria-label="Limpiar búsqueda"
               className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
             >
               <X size={18} />
@@ -112,11 +115,12 @@ export function FilterBar({
         </div>
 
         {/* Basic Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide items-center">
+        <div className="flex flex-wrap sm:flex-nowrap gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide items-center">
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}
-            className="bg-gray-50 border-none rounded-lg py-2.5 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+            aria-label="Filtrar por estado"
+            className="bg-gray-50 border-none rounded-lg py-2.5 px-3 sm:px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-150 cursor-pointer whitespace-nowrap"
           >
             <option value="">Cualquier Estado</option>
             <option value="nuevo">Nuevos</option>
@@ -129,7 +133,8 @@ export function FilterBar({
             <select
               value={sourceFilter}
               onChange={(e) => onSourceChange(e.target.value)}
-              className="bg-gray-50 border-none rounded-lg py-2.5 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+              aria-label="Filtrar por origen"
+              className="bg-gray-50 border-none rounded-lg py-2.5 px-3 sm:px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-150 cursor-pointer whitespace-nowrap"
             >
               <option value="">Todos los Orígenes</option>
               <option value="landing">Landing Page</option>
@@ -142,7 +147,8 @@ export function FilterBar({
           <select
             value={dateFilter}
             onChange={(e) => onDateChange(e.target.value)}
-            className="bg-gray-50 border-none rounded-lg py-2.5 px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-all cursor-pointer whitespace-nowrap"
+            aria-label="Filtrar por fecha"
+            className="bg-gray-50 border-none rounded-lg py-2.5 px-3 sm:px-4 text-sm font-bold text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none transition-colors duration-150 cursor-pointer whitespace-nowrap"
           >
             <option value="">Cualquier Fecha</option>
             <option value="today">Hoy</option>
@@ -154,12 +160,14 @@ export function FilterBar({
           {/* More Filters Button */}
           <button
             onClick={() => setShowAdvanced(!showAdvanced)}
-            className={`p-3 rounded-2xl transition-all shrink-0 relative ${
+            className={`p-3 rounded-2xl transition-colors duration-150 shrink-0 relative btn-press ${
               showAdvanced
                 ? 'bg-blue-50 text-blue-600 border border-blue-200'
                 : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
             }`}
             title="Más filtros"
+            aria-label="Más filtros"
+            aria-expanded={showAdvanced}
           >
             <Filter size={20} />
             {activeFilterCount > 0 && (
@@ -173,8 +181,9 @@ export function FilterBar({
           {activeFilterCount > 0 && (
             <button
               onClick={handleClearAll}
-              className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all shrink-0"
+              className="p-3 bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-colors duration-150 shrink-0 btn-press"
               title="Limpiar Todos los Filtros"
+              aria-label="Limpiar todos los filtros"
             >
               <X size={20} />
             </button>

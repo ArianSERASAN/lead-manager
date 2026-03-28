@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, Trash2, Save } from 'lucide-react';
-import { SavedFilter, FilterState } from '../../types/domain';
+import { SavedFilter, FilterState, toJSDate } from '../../types/domain';
 
 interface SavedFiltersDropdownProps {
   savedFilters: SavedFilter[];
@@ -38,11 +38,11 @@ export function SavedFiltersDropdown({
         className="flex items-center gap-2 px-4 py-3 text-sm font-semibold bg-gray-50 text-gray-700 rounded-2xl border border-gray-200 hover:bg-gray-100 transition-colors"
       >
         <span>Filtros Guardados ({savedFilters.length})</span>
-        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown size={16} className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-lg border border-gray-200 z-50 overflow-hidden dropdown-enter">
           <div className="max-h-72 overflow-y-auto">
             {savedFilters.map(filter => (
               <div
@@ -58,13 +58,13 @@ export function SavedFiltersDropdown({
                 >
                   <p className="text-sm font-semibold text-gray-900">{filter.name}</p>
                   <p className="text-xs text-gray-500">
-                    {new Date(filter.createdAt).toLocaleDateString('es-ES')}
+                    {toJSDate(filter.createdAt).toLocaleDateString('es-ES')}
                   </p>
                 </button>
 
                 <button
                   onClick={() => onDeleteFilter(filter.id)}
-                  className="p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
+                  className="p-1 text-gray-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                   title="Eliminar filtro"
                 >
                   <Trash2 size={16} />

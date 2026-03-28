@@ -2,9 +2,10 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: obtener el rol del usuario autenticado
+    // Helper: obtener el rol del usuario autenticado (con fallback seguro)
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data != null ? userDoc.data.role : 'read_only';
     }
 
     function isAuthenticated() {

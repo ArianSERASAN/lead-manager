@@ -41,7 +41,7 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
   const Icon = type === 'success' ? CheckCircle2 : type === 'error' ? AlertCircle : type === 'undo' ? RotateCcw : CheckCircle2;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[150] w-[calc(100%-3rem)] max-w-sm animate-in slide-in-from-bottom-10">
+    <div className="fixed bottom-6 left-1/2 z-[150] w-[calc(100%-3rem)] max-w-sm toast-enter">
       <div className={`${colors[type]} rounded-2xl shadow-2xl p-4 flex items-center justify-between text-white border border-white/10`}>
         <div className="flex items-center space-x-3">
           <Icon size={20} className={type === 'undo' ? 'animate-spin-once' : ''} />
@@ -55,7 +55,7 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
                 onUndo();
                 onClose(id);
               }}
-              className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+              className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-colors duration-150 btn-press"
             >
               Deshacer
             </button>
@@ -78,8 +78,16 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
 }
 
 // Container for managing multiple toasts
+interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
+  onUndo?: () => void;
+  duration?: number;
+}
+
 export function ToastContainer({ toasts, onClose, onUndo }: {
-  toasts: any[],
+  toasts: ToastItem[],
   onClose: (id: string) => void,
   onUndo: (id: string) => void
 }) {

@@ -22,9 +22,9 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
       {/* Total Leads */}
-      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default">
+      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150">
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-11 h-11 bg-blue-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-blue-100 rounded-xl md:group-hover:scale-110 transition-transform duration-200">
             <Users className="text-blue-600" size={22} />
           </div>
           <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.bg} ${trend.color}`}>
@@ -38,9 +38,9 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
       </div>
 
       {/* Conversion Rate */}
-      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default">
+      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150">
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-11 h-11 bg-emerald-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-emerald-100 rounded-xl md:group-hover:scale-110 transition-transform duration-200">
             <Target className="text-emerald-600" size={22} />
           </div>
           <div className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{conversionRate}%</div>
@@ -51,9 +51,9 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
       </div>
 
       {/* Average Score */}
-      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default">
+      <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150">
         <div className="flex items-start justify-between mb-4">
-          <div className={`inline-flex items-center justify-center w-11 h-11 rounded-xl group-hover:scale-110 transition-transform duration-300 ${
+          <div className={`inline-flex items-center justify-center w-11 h-11 rounded-xl md:group-hover:scale-110 transition-transform duration-200 ${
             avgScore >= 80 ? 'bg-emerald-100' : avgScore >= 60 ? 'bg-blue-100' : avgScore >= 40 ? 'bg-amber-100' : 'bg-gray-100'
           }`}>
             <Zap className={`${getScoreColor(avgScore)}`} size={22} />
@@ -68,11 +68,11 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
       </div>
 
       {/* Stale Leads */}
-      <div className={`bg-white rounded-2xl shadow-card border p-6 hover:shadow-card-hover transition-all duration-300 group cursor-default ${
+      <div className={`bg-white rounded-2xl shadow-card border p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150 ${
         staleCount > 0 ? 'border-orange-200/80' : 'border-gray-100/80'
       }`}>
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-11 h-11 bg-orange-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-orange-100 rounded-xl md:group-hover:scale-110 transition-transform duration-200">
             <AlertCircle className="text-orange-600" size={22} />
           </div>
           {staleCount > 0 && (

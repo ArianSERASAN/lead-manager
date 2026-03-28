@@ -1,37 +1,38 @@
 import { formatDistanceToNow, format, isToday, isYesterday, differenceInDays } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { TimestampLike, toJSDate } from '../types/domain';
 
-export function formatTimestamp(ts: any): string {
+export function formatTimestamp(ts: TimestampLike): string {
   if (!ts) return '—';
-  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const date = toJSDate(ts);
   if (isToday(date)) return `Hoy, ${format(date, 'HH:mm')}`;
   if (isYesterday(date)) return `Ayer, ${format(date, 'HH:mm')}`;
   return format(date, "d MMM yyyy", { locale: es });
 }
 
-export function formatRelativeTime(ts: any): string {
+export function formatRelativeTime(ts: TimestampLike): string {
   if (!ts) return '';
-  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const date = toJSDate(ts);
   return formatDistanceToNow(date, { addSuffix: true, locale: es });
 }
 
-export function formatFullDate(ts: any): string {
+export function formatFullDate(ts: TimestampLike): string {
   if (!ts) return '—';
-  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const date = toJSDate(ts);
   return format(date, "d 'de' MMMM 'de' yyyy, HH:mm", { locale: es });
 }
 
-export function getTimestampSeconds(ts: any): number {
+export function getTimestampSeconds(ts: TimestampLike): number {
   if (!ts) return 0;
-  if (ts.seconds) return ts.seconds;
-  if (ts instanceof Date) return Math.floor(ts.getTime() / 1000);
-  if (typeof ts === 'string') return Math.floor(new Date(ts).getTime() / 1000);
-  return 0;
+  if (typeof ts === 'object' && 'seconds' in ts && typeof (ts as { seconds: number }).seconds === 'number') {
+    return (ts as { seconds: number }).seconds;
+  }
+  return Math.floor(toJSDate(ts).getTime() / 1000);
 }
 
-export function daysSince(ts: any): number {
+export function daysSince(ts: TimestampLike): number {
   if (!ts) return 999;
-  const date = ts.toDate ? ts.toDate() : new Date(ts);
+  const date = toJSDate(ts);
   return differenceInDays(new Date(), date);
 }
 

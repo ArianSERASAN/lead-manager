@@ -40,11 +40,11 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
 
   return (
     <div
-      className={`bg-white rounded-lg border transition-all duration-150 select-none ${
+      className={`bg-white rounded-lg border select-none ${
         isDragging
           ? 'shadow-2xl border-blue-300 ring-2 ring-blue-200'
-          : `shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing ${
-              lead.isStale ? 'border-orange-200' : 'border-gray-100 hover:border-blue-200'
+          : `shadow-sm cursor-grab active:cursor-grabbing active:scale-[0.98] md:hover-lift transition-transform duration-150 ${
+              lead.isStale ? 'border-orange-200' : 'border-gray-100 md:hover:border-blue-200'
             }`
       }`}
     >
@@ -76,7 +76,9 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
         {/* Expand button */}
         <button
           onClick={handleExpandToggle}
-          className={`p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all flex-shrink-0 ${
+          aria-label={expanded ? 'Contraer detalles' : 'Expandir detalles'}
+          aria-expanded={expanded}
+          className={`p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-transform duration-200 flex-shrink-0 ${
             expanded ? 'rotate-180' : ''
           }`}
         >
