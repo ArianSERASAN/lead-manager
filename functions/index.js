@@ -250,33 +250,79 @@ export const checkStaleLeads = onSchedule(
   }
 );
 
-// ─── 4. DIGEST (daily 9:00 / weekly Monday 9:00) ────────────────
+// ─── 4. DAILY DIGEST (08:00 Madrid) ─────────────────────────────
+// Reads its own config from Firestore: settings/digest
+// Config shape: { enabled, recipients[], frequency: 'daily'|'weekly', staleDaysThreshold }
+
+async function getDigestConfig() {
+  const snap = await db.doc('settings/digest').get();
+  return snap.exists ? snap.data() : null;
+}
+
+async function getPendingTasks() {
+  const tasks = [];
+  const now = new Date();
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+  for (const col of newLeadCollections) {
+    const leadsSnap = await db.collection(col).get();
+    for (const leadDoc of leadsSnap.docs) {
+      const leadData = leadDoc.data();
+      const tasksSnap = await db.collection(col).doc(leadDoc.id).collection('tasks')
+        .where('completed', '==', false)
+        .get();
+      tasksSnap.docs.forEach(t => {
+        const td = t.data();
+        const dueAt = td.dueAt?.toDate?.() || null;
+        tasks.push({
+          id: t.id,
+          title: td.title || 'Sin título',
+          assignee: td.assignee || '',
+          dueAt,
+          isOverdue: dueAt ? dueAt < now : false,
+          isDueToday: dueAt ? (dueAt >= now && dueAt <= todayEnd) : false,
+          leadName: leadData.name || leadData.nombre || 'Sin nombre',
+          leadEmail: leadData.email || '',
+        });
+      });
+    }
+  }
+  tasks.sort((a, b) => {
+    if (a.isOverdue && !b.isOverdue) return -1;
+    if (!a.isOverdue && b.isOverdue) return 1;
+    return (a.dueAt?.getTime() || Infinity) - (b.dueAt?.getTime() || Infinity);
+  });
+  return tasks;
+}
 
 export const dailyDigest = onSchedule(
   {
-    schedule: 'every day 09:00',
+    schedule: 'every day 08:00',
 
     region: 'europe-west1',
     timeZone: 'Europe/Madrid',
   },
   async () => {
-    const config = await getAlertConfig();
-    if (!config?.digest?.enabled || !config.digest.recipients?.length) return;
+    const digestCfg = await getDigestConfig();
+    if (!digestCfg?.enabled || !digestCfg.recipients?.length) return;
 
-    if (config.digest.frequency === 'weekly') {
+    if (digestCfg.frequency === 'weekly') {
       const today = new Date();
       if (today.getDay() !== 1) return;
     }
 
-    const isWeekly = config.digest.frequency === 'weekly';
-    const periodMs = isWeekly ? 7 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+    const isWeekly = digestCfg.frequency === 'weekly';
+    const periodMs = isWeekly ? 7 * 86400000 : 86400000;
     const periodStart = Timestamp.fromMillis(Date.now() - periodMs);
-    const periodLabel = isWeekly ? 'esta semana' : 'hoy';
+    const periodLabel = isWeekly ? 'esta semana' : 'últimas 24h';
+    const staleDays = digestCfg.staleDaysThreshold || 7;
+    const staleCutoff = Timestamp.fromMillis(Date.now() - staleDays * 86400000);
 
     let totalLeads = 0;
     let newLeadsCount = 0;
     const statusCounts = { nuevo: 0, contactado: 0, 'en-progreso': 0, cerrado: 0 };
     const recentLeads = [];
+    const staleLeads = [];
 
     for (const col of newLeadCollections) {
       const allSnap = await db.collection(col).get();
@@ -287,55 +333,139 @@ export const dailyDigest = onSchedule(
         const status = data.status || 'nuevo';
         if (statusCounts[status] !== undefined) statusCounts[status]++;
 
-        if (data.createdAt && data.createdAt.toMillis && data.createdAt.toMillis() > periodStart.toMillis()) {
+        if (data.createdAt?.toMillis && data.createdAt.toMillis() > periodStart.toMillis()) {
           newLeadsCount++;
-          recentLeads.push(data);
+          recentLeads.push({ ...data, source: data.source || sourceByCollection[col] || 'manual' });
+        }
+
+        if (['contactado', 'en-progreso'].includes(status)) {
+          const lastUpdate = data.updatedAt || data.createdAt;
+          if (lastUpdate?.toMillis && lastUpdate.toMillis() < staleCutoff.toMillis()) {
+            const days = Math.round((Date.now() - lastUpdate.toMillis()) / 86400000);
+            staleLeads.push({ name: data.name || data.nombre || 'Sin nombre', email: data.email || '', status, days });
+          }
         }
       });
     }
 
+    const closedCount = statusCounts.cerrado;
+    const conversionRate = totalLeads > 0 ? ((closedCount / totalLeads) * 100).toFixed(1) : '0.0';
+
+    const pendingTasks = await getPendingTasks();
+    const overdueTasks = pendingTasks.filter(t => t.isOverdue);
+    const todayTasks = pendingTasks.filter(t => t.isDueToday);
+
+    const dateStr = new Date().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Madrid' });
+
+    // KPI cards (table-based for email client compatibility)
+    const kpiHtml = `
+      <p style="font-size:12px;color:#6b7280;margin:0 0 16px;text-transform:uppercase;letter-spacing:0.05em">${dateStr}</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+        <tr>
+          <td width="25%" style="padding:4px">
+            <div style="background:#eff6ff;border-radius:12px;padding:16px;text-align:center">
+              <p style="font-size:28px;font-weight:700;color:#1d4ed8;margin:0">${newLeadsCount}</p>
+              <p style="font-size:10px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Nuevos ${periodLabel}</p>
+            </div>
+          </td>
+          <td width="25%" style="padding:4px">
+            <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:center">
+              <p style="font-size:28px;font-weight:700;color:#16a34a;margin:0">${totalLeads}</p>
+              <p style="font-size:10px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Total leads</p>
+            </div>
+          </td>
+          <td width="25%" style="padding:4px">
+            <div style="background:#fef3c7;border-radius:12px;padding:16px;text-align:center">
+              <p style="font-size:28px;font-weight:700;color:#d97706;margin:0">${staleLeads.length}</p>
+              <p style="font-size:10px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Estancados</p>
+            </div>
+          </td>
+          <td width="25%" style="padding:4px">
+            <div style="background:#ede9fe;border-radius:12px;padding:16px;text-align:center">
+              <p style="font-size:28px;font-weight:700;color:#7c3aed;margin:0">${conversionRate}%</p>
+              <p style="font-size:10px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Conversión</p>
+            </div>
+          </td>
+        </tr>
+      </table>`;
+
+    const pipelineHtml = `
+      <h3 style="font-size:12px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Pipeline por estado</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px">
+        <tr>
+          <td width="25%" style="padding:3px"><div style="background:#d1fae5;color:#065f46;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.nuevo} Nuevos</div></td>
+          <td width="25%" style="padding:3px"><div style="background:#fef3c7;color:#92400e;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.contactado} Contactados</div></td>
+          <td width="25%" style="padding:3px"><div style="background:#ede9fe;color:#5b21b6;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts['en-progreso']} En Progreso</div></td>
+          <td width="25%" style="padding:3px"><div style="background:#fee2e2;color:#991b1b;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.cerrado} Cerrados</div></td>
+        </tr>
+      </table>`;
+
     const recentRows = recentLeads.slice(0, 10).map(l => {
       const name = l.name || l.nombre || 'Sin nombre';
       const source = sourceLabel(l.source || 'manual');
-      return `<tr><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6">${name}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6">${l.email || ''}</td><td style="padding:6px 8px;border-bottom:1px solid #f3f4f6">${source}</td></tr>`;
+      return `<tr><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${name}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px"><a href="mailto:${l.email || ''}" style="color:#3b82f6;text-decoration:none">${l.email || ''}</a></td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${source}</td></tr>`;
     }).join('');
 
+    const recentHtml = recentLeads.length > 0 ? `
+      <h3 style="font-size:12px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Leads nuevos (${periodLabel})</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px">
+        <tr style="background:#f9fafb"><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Nombre</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Email</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Origen</th></tr>
+        ${recentRows}
+      </table>` : '<p style="color:#9ca3af;font-size:13px;margin-bottom:24px">No hay leads nuevos en este periodo.</p>';
+
+    const staleRows = staleLeads.slice(0, 10).map(l =>
+      `<tr><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${l.name}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${l.email}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${statusLabel(l.status)}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px;color:#ea580c;font-weight:600">${l.days}d</td></tr>`
+    ).join('');
+
+    const staleHtml = staleLeads.length > 0 ? `
+      <h3 style="font-size:12px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Leads estancados (+${staleDays} días sin actividad)</h3>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px">
+        <tr style="background:#f9fafb"><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Nombre</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Email</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Estado</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Días</th></tr>
+        ${staleRows}
+        ${staleLeads.length > 10 ? `<tr><td colspan="4" style="padding:8px;font-size:12px;color:#6b7280;text-align:center">… y ${staleLeads.length - 10} más</td></tr>` : ''}
+      </table>` : '';
+
+    const taskRows = [...overdueTasks, ...todayTasks].slice(0, 8).map(t => {
+      const dueLabel = t.isOverdue
+        ? `<span style="color:#dc2626;font-weight:600">Vencida</span>`
+        : `<span style="color:#d97706">Hoy</span>`;
+      const dueDate = t.dueAt ? t.dueAt.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) : '—';
+      return `<tr><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${t.title}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${t.leadName}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${t.assignee || '—'}</td><td style="padding:8px;border-bottom:1px solid #f3f4f6;font-size:13px">${dueLabel} (${dueDate})</td></tr>`;
+    }).join('');
+
+    const tasksHtml = (overdueTasks.length + todayTasks.length) > 0 ? `
+      <h3 style="font-size:12px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Tareas pendientes del equipo</h3>
+      <p style="font-size:12px;color:#6b7280;margin:0 0 8px">${overdueTasks.length} vencida${overdueTasks.length !== 1 ? 's' : ''} · ${todayTasks.length} para hoy · ${pendingTasks.length} total pendientes</p>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:24px">
+        <tr style="background:#f9fafb"><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Tarea</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Lead</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Asignado</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280;text-transform:uppercase">Estado</th></tr>
+        ${taskRows}
+      </table>` : '';
+
+    const ctaHtml = `
+      <div style="text-align:center;margin-top:8px;margin-bottom:8px">
+        <a href="https://lead-manager-serasan.web.app" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#3b82f6);color:#fff;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">Abrir Lead Manager</a>
+      </div>`;
+
     const body = `
-      <h2 style="color:#111;margin:0 0 16px;font-size:16px">Resumen ${isWeekly ? 'semanal' : 'diario'}</h2>
-      <div style="display:flex;gap:12px;margin-bottom:20px">
-        <div style="flex:1;background:#eff6ff;border-radius:12px;padding:16px;text-align:center">
-          <p style="font-size:24px;font-weight:700;color:#1d4ed8;margin:0">${newLeadsCount}</p>
-          <p style="font-size:11px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Nuevos ${periodLabel}</p>
-        </div>
-        <div style="flex:1;background:#f0fdf4;border-radius:12px;padding:16px;text-align:center">
-          <p style="font-size:24px;font-weight:700;color:#16a34a;margin:0">${totalLeads}</p>
-          <p style="font-size:11px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Total leads</p>
-        </div>
-        <div style="flex:1;background:#fef3c7;border-radius:12px;padding:16px;text-align:center">
-          <p style="font-size:24px;font-weight:700;color:#d97706;margin:0">${statusCounts.nuevo}</p>
-          <p style="font-size:11px;color:#6b7280;margin:4px 0 0;text-transform:uppercase">Sin gestionar</p>
-        </div>
-      </div>
-      <h3 style="font-size:13px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Pipeline</h3>
-      <div style="display:flex;gap:8px;margin-bottom:20px">
-        <span style="flex:1;background:#d1fae5;color:#065f46;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.nuevo} Nuevos</span>
-        <span style="flex:1;background:#fef3c7;color:#92400e;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.contactado} Contactados</span>
-        <span style="flex:1;background:#ede9fe;color:#5b21b6;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts['en-progreso']} En Progreso</span>
-        <span style="flex:1;background:#fee2e2;color:#991b1b;padding:8px;border-radius:8px;text-align:center;font-size:12px;font-weight:600">${statusCounts.cerrado} Cerrados</span>
-      </div>
-      ${recentLeads.length > 0 ? `
-        <h3 style="font-size:13px;color:#6b7280;margin:0 0 8px;text-transform:uppercase;letter-spacing:0.05em">Últimos leads</h3>
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <tr style="background:#f9fafb"><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280">Nombre</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280">Email</th><th style="padding:8px;text-align:left;font-size:11px;color:#6b7280">Origen</th></tr>
-          ${recentRows}
-        </table>
-      ` : '<p style="color:#9ca3af;font-size:13px">No hay leads nuevos en este periodo.</p>'}`;
+      <h2 style="color:#111;margin:0 0 4px;font-size:18px">Resumen ${isWeekly ? 'Semanal' : 'Diario'}</h2>
+      ${kpiHtml}
+      ${pipelineHtml}
+      ${recentHtml}
+      ${staleHtml}
+      ${tasksHtml}
+      ${ctaHtml}`;
 
     const subject = isWeekly
-      ? `📊 Resumen semanal: ${newLeadsCount} nuevos leads, ${totalLeads} total`
-      : `📊 Resumen diario: ${newLeadsCount} nuevos leads`;
+      ? `📊 Semanal: ${newLeadsCount} nuevos, ${totalLeads} total, ${conversionRate}% conversión`
+      : `📊 Daily Digest: ${newLeadsCount} nuevos · ${staleLeads.length} estancados · ${overdueTasks.length} tareas vencidas`;
 
-    await sendEmail(GMAIL_USER, GMAIL_APP_PASS, config.digest.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
+    await sendEmail(GMAIL_USER, GMAIL_APP_PASS, digestCfg.recipients, subject, emailTemplate(`Resumen ${isWeekly ? 'Semanal' : 'Diario'}`, body));
+
+    await db.collection('digest_log').add({
+      sentAt: Timestamp.now(),
+      recipients: digestCfg.recipients,
+      stats: { totalLeads, newLeadsCount, staleLeads: staleLeads.length, conversionRate, pendingTasks: pendingTasks.length, overdueTasks: overdueTasks.length },
+    });
   }
 );
 
@@ -595,6 +725,122 @@ export const autoEnrichNewLead = onDocumentCreated(
     } catch (error) {
       // Auto-enrichment failures should not block lead creation
       console.error(`Auto-enrich failed for ${event.params.docId}:`, error.message);
+    }
+  }
+);
+
+// ─── 7. CLEAN TEST DATA (callable, admin only) ───────────────────
+// Callable function to wipe all test data before production launch.
+// Requires: authenticated admin user + confirm: true parameter.
+
+export const cleanTestData = onCall(
+  {
+    region: 'europe-west1',
+    maxInstances: 1,
+  },
+  async (request) => {
+    // 1. Auth check
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+
+    // 2. Admin role check
+    const userSnap = await db.doc(`users/${request.auth.uid}`).get();
+    if (!userSnap.exists || userSnap.data()?.role !== 'admin') {
+      throw new HttpsError('permission-denied', 'Solo los administradores pueden ejecutar esta función.');
+    }
+
+    // 3. Confirmation check
+    if (request.data?.confirm !== true) {
+      throw new HttpsError(
+        'failed-precondition',
+        'Debes enviar { confirm: true } para confirmar el borrado de datos.'
+      );
+    }
+
+    const results = {
+      leads: 0,
+      leads_descargas: 0,
+      solicitudes_contacto: 0,
+      tasks: 0,
+      activity: 0,
+    };
+
+    try {
+      // Helper: delete all docs in a collection (with subcollections)
+      async function deleteCollection(colName) {
+        const snap = await db.collection(colName).get();
+        if (snap.empty) return 0;
+
+        let deleted = 0;
+        let subDeleted = 0;
+
+        // Delete subcollections first (activity, tasks)
+        for (const docSnap of snap.docs) {
+          for (const subColName of ['activity', 'tasks']) {
+            const subSnap = await db.collection(colName).doc(docSnap.id).collection(subColName).get();
+            if (!subSnap.empty) {
+              const subBatch = db.batch();
+              subSnap.docs.forEach(subDoc => subBatch.delete(subDoc.ref));
+              await subBatch.commit();
+              subDeleted += subSnap.size;
+            }
+          }
+        }
+
+        // Delete main docs in batches of 500
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 500) {
+          const batch = db.batch();
+          docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+          await batch.commit();
+          deleted += Math.min(500, docs.length - i);
+        }
+
+        results.activity += subDeleted;
+        return deleted;
+      }
+
+      // Delete all lead collections
+      results.leads = await deleteCollection('leads');
+      results.leads_descargas = await deleteCollection('leads_descargas');
+      results.solicitudes_contacto = await deleteCollection('solicitudes_contacto');
+
+      // Delete top-level tasks collection
+      const tasksSnap = await db.collection('tasks').get();
+      if (!tasksSnap.empty) {
+        for (let i = 0; i < tasksSnap.docs.length; i += 500) {
+          const batch = db.batch();
+          tasksSnap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+          await batch.commit();
+        }
+        results.tasks = tasksSnap.size;
+      }
+
+      // Reset stats/counters in settings if they exist
+      const statsSnap = await db.doc('settings/stats').get();
+      if (statsSnap.exists) {
+        await db.doc('settings/stats').set({
+          totalLeads: 0,
+          totalBySource: { landing: 0, 'web-download': 0, 'web-contact': 0, manual: 0 },
+          totalByStatus: { nuevo: 0, contactado: 0, 'en-progreso': 0, cerrado: 0 },
+          resetAt: Timestamp.now(),
+          resetBy: request.auth.uid,
+        });
+      }
+
+      const totalDeleted = results.leads + results.leads_descargas + results.solicitudes_contacto + results.tasks + results.activity;
+
+      console.log(`cleanTestData executed by ${request.auth.uid}: ${totalDeleted} documents deleted`, results);
+
+      return {
+        success: true,
+        message: `Limpieza completada: ${totalDeleted} documentos eliminados.`,
+        details: results,
+      };
+    } catch (error) {
+      console.error('Error in cleanTestData:', error);
+      throw new HttpsError('internal', `Error al limpiar datos: ${error.message}`);
     }
   }
 );

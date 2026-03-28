@@ -15,7 +15,7 @@ export function toJSDate(ts: TimestampLike): Date {
 export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado';
 export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual';
 export type UserRole = 'admin' | 'comercial' | 'read_only';
-export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched';
+export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched' | 'email_sent';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 export interface Lead {
@@ -187,6 +187,25 @@ export interface AlertConfig {
   unattended: AlertUnattended;
   stale: AlertStale;
   digest: AlertDigest;
+  updatedAt?: Timestamp | Date | string;
+  updatedBy?: string;
+}
+
+// ─── Email Sequence Configuration ─────────────────────────────────
+
+export interface EmailSequenceStep {
+  enabled: boolean;
+  delayDays: number;
+  subject: string;
+}
+
+export interface EmailSequenceConfig {
+  enabled: boolean;
+  senderName: string;
+  welcome: EmailSequenceStep;
+  followUp: EmailSequenceStep;
+  reminder: EmailSequenceStep;
+  contacted: EmailSequenceStep;
   updatedAt?: Timestamp | Date | string;
   updatedBy?: string;
 }
