@@ -78,11 +78,11 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           onClick={handleExpandToggle}
           aria-label={expanded ? 'Contraer detalles' : 'Expandir detalles'}
           aria-expanded={expanded}
-          className={`p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-transform duration-200 flex-shrink-0 ${
+          className={`p-2 -mr-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center ${
             expanded ? 'rotate-180' : ''
           }`}
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={16} />
         </button>
       </div>
 
@@ -140,7 +140,7 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           {/* Open detail button */}
           <button
             onClick={handleCardClick}
-            className="w-full text-center text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-50 py-1.5 rounded-md transition-colors"
+            className="w-full text-center text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 active:bg-blue-100 py-3 rounded-lg transition-colors min-h-[44px]"
           >
             Ver detalle completo
           </button>

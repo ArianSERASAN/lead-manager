@@ -20,7 +20,7 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
   const TrendIcon = trend.icon;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
+    <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 stagger-children">
       {/* Total Leads */}
       <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150">
         <div className="flex items-start justify-between mb-4">

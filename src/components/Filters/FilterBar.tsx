@@ -88,7 +88,7 @@ export function FilterBar({
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200/80 shadow-card p-3 mb-4 space-y-3">
+    <div className="bg-white rounded-xl border border-gray-200/80 shadow-card p-2.5 sm:p-3 mb-4 space-y-3">
       {/* Primary Filter Row */}
       <div className="flex flex-col md:flex-row gap-4">
         {/* Search Input */}
@@ -115,7 +115,7 @@ export function FilterBar({
         </div>
 
         {/* Basic Filters */}
-        <div className="flex flex-wrap sm:flex-nowrap gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide items-center">
+        <div className="flex flex-wrap sm:flex-nowrap gap-1.5 sm:gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide items-center">
           <select
             value={statusFilter}
             onChange={(e) => onStatusChange(e.target.value)}

@@ -45,7 +45,7 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
         {/* Checkbox */}
         <button
           onClick={() => onToggleComplete(task.id)}
-          className="flex-shrink-0 mt-1 text-gray-400 hover:text-blue-600 transition-colors"
+          className="flex-shrink-0 mt-0.5 p-2 -ml-2 text-gray-400 hover:text-blue-600 active:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           {task.completed ? (
             <CheckCircle2 size={20} className="text-green-600" />
@@ -91,7 +91,8 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
             {/* Delete Button */}
             <button
               onClick={() => onDelete(task.id)}
-              className="text-xs text-gray-400 hover:text-red-600 transition-colors"
+              className="text-sm text-gray-400 hover:text-red-600 active:text-red-700 transition-colors p-2 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Eliminar tarea"
             >
               ×
             </button>
