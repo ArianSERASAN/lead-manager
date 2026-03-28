@@ -844,3 +844,500 @@ export const cleanTestData = onCall(
     }
   }
 );
+
+// ═══════════════════════════════════════════════════════════════════
+// 8. EMAIL SEQUENCE — AUTOMATED DRIP FOR LEADS
+// ═══════════════════════════════════════════════════════════════════
+//
+// Sequence:
+//   1. Welcome       → on lead creation (status "nuevo")
+//   2. Follow-up     → N days after creation if still "nuevo" (default: 3)
+//   3. Reminder      → N days after creation if still "nuevo" (default: 7)
+//   4. Contacted     → when lead moves to "contactado" (callable from frontend)
+//
+// Config: Firestore doc settings/emailSequence
+// Tracking: each lead gets _emailSequence: { welcome, followUp, reminder, contacted }
+
+// ─── Helpers ─────────────────────────────────────────────────────
+
+async function getEmailSequenceConfig() {
+  const snap = await db.doc('settings/emailSequence').get();
+  if (!snap.exists) return null;
+  const data = snap.data();
+  return data?.enabled ? data : null;
+}
+
+function serasanEmailTemplate(preheader, bodyHtml) {
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>SERASAN Engineering</title>
+  <!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+  <style>
+    body,table,td,a{-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}
+    table,td{mso-table-lspace:0;mso-table-rspace:0}
+    img{-ms-interpolation-mode:bicubic;border:0;height:auto;line-height:100%;outline:none;text-decoration:none}
+    @media only screen and (max-width:600px){
+      .container{width:100%!important;padding:16px!important}
+      .hero{padding:28px 20px!important}
+      .cta-btn{display:block!important;width:100%!important;text-align:center!important}
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;color:#1a1a2e">
+  <div style="display:none;max-height:0;overflow:hidden">${preheader}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f2f5">
+    <tr><td align="center" style="padding:32px 16px">
+      <table role="presentation" class="container" width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <tr><td class="hero" style="background:linear-gradient(135deg,#1e3a5f 0%,#2d6a9f 100%);padding:36px 40px;text-align:center">
+          <h1 style="color:#ffffff;margin:0;font-size:22px;font-weight:700;letter-spacing:-0.3px">SERASAN Engineering</h1>
+          <p style="color:rgba(255,255,255,0.75);margin:6px 0 0;font-size:13px;font-weight:400">Rehabilitación integral de edificios</p>
+        </td></tr>
+        <tr><td style="padding:32px 40px">
+          ${bodyHtml}
+        </td></tr>
+        <tr><td style="padding:20px 40px;background:#f8f9fa;border-top:1px solid #e9ecef;text-align:center">
+          <p style="margin:0 0 6px;font-size:12px;color:#6c757d">SERASAN Engineering · Rehabilitación de Edificios</p>
+          <p style="margin:0;font-size:11px;color:#adb5bd">Este email fue enviado porque mostró interés en nuestros servicios.<br>Si no desea recibir más comunicaciones, responda a este email indicándolo.</p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
+
+function welcomeEmailHtml(leadName) {
+  const firstName = (leadName || '').split(' ')[0] || 'estimado/a cliente';
+  return serasanEmailTemplate(
+    'Bienvenido/a a SERASAN Engineering — Rehabilitación integral de edificios',
+    `
+    <p style="font-size:16px;line-height:1.6;margin:0 0 16px;color:#1a1a2e">Hola <strong>${firstName}</strong>,</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#333">Gracias por ponerse en contacto con <strong>SERASAN Engineering</strong>. Nos alegra mucho su interés en nuestros servicios de rehabilitación de edificios.</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 20px;color:#333">Somos especialistas en dar nueva vida a los edificios, combinando ingeniería de vanguardia con un profundo respeto por el patrimonio construido. Estos son algunos de los servicios que ponemos a su disposición:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px">
+      <tr><td style="padding:12px 16px;background:#e8f4f8;border-radius:10px;border-left:4px solid #2d6a9f">
+        <p style="margin:0 0 4px;font-weight:600;font-size:14px;color:#1e3a5f">Rehabilitación estructural</p>
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.5">Refuerzo de cimentaciones, estructuras de hormigón y acero, muros de carga y forjados.</p>
+      </td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px">
+      <tr><td style="padding:12px 16px;background:#f0f7e6;border-radius:10px;border-left:4px solid #5a8f29">
+        <p style="margin:0 0 4px;font-weight:600;font-size:14px;color:#3d6b1a">Eficiencia energética</p>
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.5">Aislamiento térmico, fachadas ventiladas, cubiertas y certificación energética.</p>
+      </td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px">
+      <tr><td style="padding:12px 16px;background:#fef5e7;border-radius:10px;border-left:4px solid #d4930d">
+        <p style="margin:0 0 4px;font-weight:600;font-size:14px;color:#8a6008">Informes técnicos (ITE/IEE)</p>
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.5">Inspección Técnica de Edificios, informes de evaluación y planes de mantenimiento preventivo.</p>
+      </td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+      <tr><td style="padding:12px 16px;background:#f3eef8;border-radius:10px;border-left:4px solid #7c3aed">
+        <p style="margin:0 0 4px;font-weight:600;font-size:14px;color:#5b21b6">Accesibilidad y mejoras</p>
+        <p style="margin:0;font-size:13px;color:#555;line-height:1.5">Instalación de ascensores, eliminación de barreras arquitectónicas y adecuación a normativa.</p>
+      </td></tr>
+    </table>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 24px;color:#333">En los próximos días nos pondremos en contacto con usted para conocer mejor su proyecto y ofrecerle una valoración personalizada sin compromiso.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px">
+      <tr><td>
+        <a class="cta-btn" href="https://reactivatuedificio.es" style="display:inline-block;background:linear-gradient(135deg,#1e3a5f,#2d6a9f);color:#ffffff;padding:14px 32px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:0.3px">Conocer nuestros proyectos</a>
+      </td></tr>
+    </table>
+    <p style="font-size:14px;line-height:1.6;margin:0;color:#555">Un cordial saludo,<br><strong style="color:#1e3a5f">Equipo SERASAN Engineering</strong></p>
+    `
+  );
+}
+
+function followUpEmailHtml(leadName) {
+  const firstName = (leadName || '').split(' ')[0] || 'estimado/a cliente';
+  return serasanEmailTemplate(
+    'Casos de éxito en rehabilitación de edificios — SERASAN Engineering',
+    `
+    <p style="font-size:16px;line-height:1.6;margin:0 0 16px;color:#1a1a2e">Hola <strong>${firstName}</strong>,</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#333">Hace unos días mostró interés en nuestros servicios de rehabilitación de edificios. Queríamos compartir con usted algunos datos que consideramos de valor:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;background:#f8f9fa;border-radius:12px;overflow:hidden">
+      <tr>
+        <td style="padding:20px;text-align:center;width:33%">
+          <p style="margin:0;font-size:28px;font-weight:700;color:#1e3a5f">+200</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6c757d;text-transform:uppercase">Proyectos realizados</p>
+        </td>
+        <td style="padding:20px;text-align:center;width:33%;border-left:1px solid #e9ecef;border-right:1px solid #e9ecef">
+          <p style="margin:0;font-size:28px;font-weight:700;color:#2d6a9f">98%</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6c757d;text-transform:uppercase">Clientes satisfechos</p>
+        </td>
+        <td style="padding:20px;text-align:center;width:33%">
+          <p style="margin:0;font-size:28px;font-weight:700;color:#5a8f29">15+</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6c757d;text-transform:uppercase">Años de experiencia</p>
+        </td>
+      </tr>
+    </table>
+    <p style="font-size:14px;font-weight:600;color:#1e3a5f;margin:0 0 12px">¿Por qué comunidades de vecinos y administradores de fincas confían en nosotros?</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr><td style="padding:8px 0;font-size:14px;line-height:1.6;color:#333"><span style="color:#2d6a9f;font-weight:700;margin-right:8px">✓</span> <strong>Presupuesto cerrado</strong> — sin sorpresas ni costes ocultos.</td></tr>
+      <tr><td style="padding:8px 0;font-size:14px;line-height:1.6;color:#333"><span style="color:#2d6a9f;font-weight:700;margin-right:8px">✓</span> <strong>Gestión de subvenciones</strong> — tramitamos ayudas europeas, estatales y autonómicas.</td></tr>
+      <tr><td style="padding:8px 0;font-size:14px;line-height:1.6;color:#333"><span style="color:#2d6a9f;font-weight:700;margin-right:8px">✓</span> <strong>Mínimas molestias</strong> — planificación para reducir el impacto en los vecinos.</td></tr>
+      <tr><td style="padding:8px 0 16px;font-size:14px;line-height:1.6;color:#333"><span style="color:#2d6a9f;font-weight:700;margin-right:8px">✓</span> <strong>Garantía total</strong> — seguro de responsabilidad civil en todos nuestros trabajos.</td></tr>
+    </table>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 24px;color:#333">Si tiene un proyecto en mente, estaremos encantados de realizarle un <strong>estudio previo gratuito y sin compromiso</strong>. Solo tiene que responder a este email o llamarnos.</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px">
+      <tr><td>
+        <a class="cta-btn" href="https://reactivatuedificio.es" style="display:inline-block;background:linear-gradient(135deg,#1e3a5f,#2d6a9f);color:#ffffff;padding:14px 32px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">Solicitar estudio gratuito</a>
+      </td></tr>
+    </table>
+    <p style="font-size:14px;line-height:1.6;margin:0;color:#555">Quedamos a su disposición,<br><strong style="color:#1e3a5f">Equipo SERASAN Engineering</strong></p>
+    `
+  );
+}
+
+function reminderEmailHtml(leadName) {
+  const firstName = (leadName || '').split(' ')[0] || 'estimado/a cliente';
+  return serasanEmailTemplate(
+    'Última oportunidad: estudio gratuito de rehabilitación — SERASAN Engineering',
+    `
+    <p style="font-size:16px;line-height:1.6;margin:0 0 16px;color:#1a1a2e">Hola <strong>${firstName}</strong>,</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#333">Le escribimos por última vez respecto a su consulta sobre rehabilitación de edificios. Sabemos que estos proyectos requieren reflexión, y queremos asegurarnos de que dispone de toda la información necesaria.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+      <tr><td style="padding:20px;background:linear-gradient(135deg,#1e3a5f,#2d6a9f);border-radius:12px;text-align:center">
+        <p style="margin:0 0 8px;font-size:18px;font-weight:700;color:#ffffff">¿Sabía que puede obtener hasta un 80% de subvención?</p>
+        <p style="margin:0;font-size:14px;color:rgba(255,255,255,0.85);line-height:1.6">Las ayudas Next Generation y los programas autonómicos hacen que la rehabilitación sea más asequible que nunca. Nosotros nos encargamos de toda la tramitación.</p>
+      </td></tr>
+    </table>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#333">Le ofrecemos una <strong>consulta inicial totalmente gratuita</strong> donde:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px">
+      <tr><td style="padding:10px 16px;font-size:14px;color:#333;line-height:1.5"><span style="display:inline-block;width:24px;height:24px;background:#e8f4f8;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:700;color:#1e3a5f;margin-right:10px">1</span> Evaluamos el estado actual de su edificio</td></tr>
+      <tr><td style="padding:10px 16px;font-size:14px;color:#333;line-height:1.5"><span style="display:inline-block;width:24px;height:24px;background:#e8f4f8;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:700;color:#1e3a5f;margin-right:10px">2</span> Identificamos las actuaciones prioritarias</td></tr>
+      <tr><td style="padding:10px 16px;font-size:14px;color:#333;line-height:1.5"><span style="display:inline-block;width:24px;height:24px;background:#e8f4f8;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:700;color:#1e3a5f;margin-right:10px">3</span> Le informamos sobre las subvenciones aplicables</td></tr>
+      <tr><td style="padding:10px 16px;font-size:14px;color:#333;line-height:1.5"><span style="display:inline-block;width:24px;height:24px;background:#e8f4f8;border-radius:50%;text-align:center;line-height:24px;font-size:12px;font-weight:700;color:#1e3a5f;margin-right:10px">4</span> Le entregamos un presupuesto orientativo sin compromiso</td></tr>
+    </table>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 24px">
+      <tr><td>
+        <a class="cta-btn" href="mailto:soporte@reactivatuedificio.es?subject=Consulta%20rehabilitaci%C3%B3n%20edificio" style="display:inline-block;background:linear-gradient(135deg,#d4930d,#e6a817);color:#ffffff;padding:14px 32px;border-radius:8px;font-size:14px;font-weight:600;text-decoration:none">Responder ahora</a>
+      </td></tr>
+    </table>
+    <p style="font-size:14px;line-height:1.6;margin:0 0 8px;color:#555">También puede llamarnos directamente. Estaremos encantados de atenderle.</p>
+    <p style="font-size:14px;line-height:1.6;margin:0;color:#555">Un saludo cordial,<br><strong style="color:#1e3a5f">Equipo SERASAN Engineering</strong></p>
+    `
+  );
+}
+
+function contactedEmailHtml(leadName) {
+  const firstName = (leadName || '').split(' ')[0] || 'estimado/a cliente';
+  return serasanEmailTemplate(
+    'Gracias por su interés — SERASAN Engineering',
+    `
+    <p style="font-size:16px;line-height:1.6;margin:0 0 16px;color:#1a1a2e">Hola <strong>${firstName}</strong>,</p>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#333">Queríamos agradecerle su tiempo e interés en los servicios de rehabilitación de <strong>SERASAN Engineering</strong>.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+      <tr><td style="padding:20px;background:#f0f7e6;border-radius:12px;border-left:4px solid #5a8f29">
+        <p style="margin:0 0 6px;font-size:15px;font-weight:600;color:#3d6b1a">Hemos registrado su consulta</p>
+        <p style="margin:0;font-size:14px;color:#555;line-height:1.6">Nuestro equipo técnico ya está trabajando en su caso. En breve recibirá información detallada adaptada a las necesidades específicas de su edificio.</p>
+      </td></tr>
+    </table>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 16px;color:#333">Mientras tanto, estos son los <strong>próximos pasos</strong> habituales:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
+      <tr>
+        <td style="padding:12px;text-align:center;width:33%">
+          <div style="width:40px;height:40px;background:#e8f4f8;border-radius:50%;margin:0 auto 8px;line-height:40px;font-size:16px;font-weight:700;color:#1e3a5f">1</div>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#1e3a5f">Análisis</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6c757d;line-height:1.4">Estudiamos su caso</p>
+        </td>
+        <td style="padding:12px;text-align:center;width:33%">
+          <div style="width:40px;height:40px;background:#f0f7e6;border-radius:50%;margin:0 auto 8px;line-height:40px;font-size:16px;font-weight:700;color:#3d6b1a">2</div>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#3d6b1a">Propuesta</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6c757d;line-height:1.4">Presupuesto detallado</p>
+        </td>
+        <td style="padding:12px;text-align:center;width:33%">
+          <div style="width:40px;height:40px;background:#fef5e7;border-radius:50%;margin:0 auto 8px;line-height:40px;font-size:16px;font-weight:700;color:#8a6008">3</div>
+          <p style="margin:0;font-size:13px;font-weight:600;color:#8a6008">Ejecución</p>
+          <p style="margin:4px 0 0;font-size:12px;color:#6c757d;line-height:1.4">Inicio de la obra</p>
+        </td>
+      </tr>
+    </table>
+    <p style="font-size:15px;line-height:1.7;margin:0 0 24px;color:#333">Ante cualquier duda, no dude en respondernos o llamarnos. Estamos aquí para ayudarle.</p>
+    <p style="font-size:14px;line-height:1.6;margin:0;color:#555">Con nuestro mejor saludo,<br><strong style="color:#1e3a5f">Equipo SERASAN Engineering</strong></p>
+    `
+  );
+}
+
+// ─── 8a. WELCOME EMAIL — on new lead creation ────────────────────
+
+export const sendWelcomeEmail = onDocumentCreated(
+  {
+    document: '{collection}/{docId}',
+    region: 'europe-west1',
+  },
+  async (event) => {
+    const colName = event.params.collection;
+    if (!newLeadCollections.includes(colName)) return;
+
+    const config = await getEmailSequenceConfig();
+    if (!config?.welcome?.enabled) return;
+
+    const data = event.data?.data();
+    if (!data) return;
+
+    const leadEmail = data.email || '';
+    if (!leadEmail) return;
+
+    const leadName = data.name || data.nombre || '';
+
+    try {
+      const html = welcomeEmailHtml(leadName);
+      const subject = config.welcome.subject || 'Bienvenido/a a SERASAN Engineering';
+      const senderName = config.senderName || 'SERASAN Engineering';
+
+      const transporter = getTransporter(GMAIL_USER, GMAIL_APP_PASS);
+      await transporter.sendMail({
+        from: `${senderName} <${GMAIL_USER}>`,
+        to: leadEmail,
+        subject,
+        html,
+      });
+
+      await db.collection(colName).doc(event.params.docId).update({
+        '_emailSequence.welcome': Timestamp.now(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      await db.collection(colName).doc(event.params.docId).collection('activity').add({
+        leadId: event.params.docId,
+        timestamp: FieldValue.serverTimestamp(),
+        actor: 'system',
+        actorName: 'Secuencia Email',
+        action: 'email_sent',
+        details: {
+          description: `Email de bienvenida enviado a ${leadEmail}`,
+          field: 'emailSequence',
+          newValue: 'welcome',
+        },
+      });
+
+      console.log(`Welcome email sent to ${leadEmail} for lead ${event.params.docId}`);
+    } catch (error) {
+      console.error(`Failed to send welcome email to ${leadEmail}:`, error.message);
+    }
+  }
+);
+
+// ─── 8b. FOLLOW-UP & REMINDER — scheduled hourly ────────────────
+
+export const processEmailSequence = onSchedule(
+  {
+    schedule: 'every 1 hours',
+    region: 'europe-west1',
+    timeZone: 'Europe/Madrid',
+  },
+  async () => {
+    const config = await getEmailSequenceConfig();
+    if (!config) return;
+
+    const followUpDays = config.followUp?.delayDays || 3;
+    const reminderDays = config.reminder?.delayDays || 7;
+    const now = Date.now();
+    const senderName = config.senderName || 'SERASAN Engineering';
+
+    for (const col of newLeadCollections) {
+      const snap = await db.collection(col).where('status', '==', 'nuevo').get();
+
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        const leadEmail = data.email || '';
+        if (!leadEmail) continue;
+
+        const createdAtMs = data.createdAt?.toMillis?.() || now;
+        const daysSinceCreation = (now - createdAtMs) / (1000 * 60 * 60 * 24);
+        const seq = data._emailSequence || {};
+        const leadName = data.name || data.nombre || '';
+
+        // Follow-up
+        if (config.followUp?.enabled && daysSinceCreation >= followUpDays && !seq.followUp) {
+          try {
+            const html = followUpEmailHtml(leadName);
+            const subject = config.followUp.subject || 'Casos de éxito en rehabilitación — SERASAN Engineering';
+            const transporter = getTransporter(GMAIL_USER, GMAIL_APP_PASS);
+            await transporter.sendMail({ from: `${senderName} <${GMAIL_USER}>`, to: leadEmail, subject, html });
+
+            await db.collection(col).doc(doc.id).update({
+              '_emailSequence.followUp': Timestamp.now(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+
+            await db.collection(col).doc(doc.id).collection('activity').add({
+              leadId: doc.id,
+              timestamp: FieldValue.serverTimestamp(),
+              actor: 'system',
+              actorName: 'Secuencia Email',
+              action: 'email_sent',
+              details: {
+                description: `Email de seguimiento (día ${followUpDays}) enviado a ${leadEmail}`,
+                field: 'emailSequence',
+                newValue: 'followUp',
+              },
+            });
+
+            console.log(`Follow-up email sent to ${leadEmail} (lead ${doc.id})`);
+          } catch (error) {
+            console.error(`Follow-up email failed for ${doc.id}:`, error.message);
+          }
+        }
+
+        // Reminder
+        if (config.reminder?.enabled && daysSinceCreation >= reminderDays && !seq.reminder) {
+          try {
+            const html = reminderEmailHtml(leadName);
+            const subject = config.reminder.subject || 'Última oportunidad: estudio gratuito de rehabilitación';
+            const transporter = getTransporter(GMAIL_USER, GMAIL_APP_PASS);
+            await transporter.sendMail({ from: `${senderName} <${GMAIL_USER}>`, to: leadEmail, subject, html });
+
+            await db.collection(col).doc(doc.id).update({
+              '_emailSequence.reminder': Timestamp.now(),
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+
+            await db.collection(col).doc(doc.id).collection('activity').add({
+              leadId: doc.id,
+              timestamp: FieldValue.serverTimestamp(),
+              actor: 'system',
+              actorName: 'Secuencia Email',
+              action: 'email_sent',
+              details: {
+                description: `Email recordatorio (día ${reminderDays}) enviado a ${leadEmail}`,
+                field: 'emailSequence',
+                newValue: 'reminder',
+              },
+            });
+
+            console.log(`Reminder email sent to ${leadEmail} (lead ${doc.id})`);
+          } catch (error) {
+            console.error(`Reminder email failed for ${doc.id}:`, error.message);
+          }
+        }
+      }
+    }
+  }
+);
+
+// ─── 8c. CONTACTED EMAIL — callable from frontend ───────────────
+
+export const sendContactedEmail = onCall(
+  {
+    region: 'europe-west1',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+
+    const { leadId, collection: colName } = request.data;
+    if (!leadId || !colName) {
+      throw new HttpsError('invalid-argument', 'Se requieren leadId y collection.');
+    }
+
+    const config = await getEmailSequenceConfig();
+    if (!config?.contacted?.enabled) {
+      return { success: false, reason: 'contacted email disabled' };
+    }
+
+    const leadRef = db.collection(colName).doc(leadId);
+    const leadSnap = await leadRef.get();
+    if (!leadSnap.exists) {
+      throw new HttpsError('not-found', `Lead ${leadId} no encontrado.`);
+    }
+
+    const data = leadSnap.data();
+    const leadEmail = data.email || '';
+    if (!leadEmail) return { success: false, reason: 'lead has no email' };
+
+    if (data._emailSequence?.contacted) {
+      return { success: false, reason: 'already sent' };
+    }
+
+    const leadName = data.name || data.nombre || '';
+    const senderName = config.senderName || 'SERASAN Engineering';
+
+    try {
+      const html = contactedEmailHtml(leadName);
+      const subject = config.contacted.subject || 'Gracias por su interés — SERASAN Engineering';
+      const transporter = getTransporter(GMAIL_USER, GMAIL_APP_PASS);
+      await transporter.sendMail({ from: `${senderName} <${GMAIL_USER}>`, to: leadEmail, subject, html });
+
+      await leadRef.update({
+        '_emailSequence.contacted': Timestamp.now(),
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      await db.collection(colName).doc(leadId).collection('activity').add({
+        leadId,
+        timestamp: FieldValue.serverTimestamp(),
+        actor: request.auth.uid,
+        actorName: request.auth.token.name || request.auth.token.email || 'Sistema',
+        action: 'email_sent',
+        details: {
+          description: `Email de contacto realizado enviado a ${leadEmail}`,
+          field: 'emailSequence',
+          newValue: 'contacted',
+        },
+      });
+
+      return { success: true };
+    } catch (error) {
+      console.error(`Contacted email failed for ${leadId}:`, error.message);
+      throw new HttpsError('internal', `Error al enviar email: ${error.message}`);
+    }
+  }
+);
+
+// ─── 9. INIT EMAIL SEQUENCE CONFIG (callable) ────────────────────
+
+export const initEmailSequenceConfig = onCall(
+  {
+    region: 'europe-west1',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+
+    const ref = db.doc('settings/emailSequence');
+    const snap = await ref.get();
+
+    if (snap.exists) {
+      return { success: true, message: 'Config already exists', config: snap.data() };
+    }
+
+    const defaultConfig = {
+      enabled: true,
+      senderName: 'SERASAN Engineering',
+      welcome: {
+        enabled: true,
+        delayDays: 0,
+        subject: 'Bienvenido/a a SERASAN Engineering — Rehabilitación integral de edificios',
+      },
+      followUp: {
+        enabled: true,
+        delayDays: 3,
+        subject: 'Casos de éxito en rehabilitación — SERASAN Engineering',
+      },
+      reminder: {
+        enabled: true,
+        delayDays: 7,
+        subject: 'Última oportunidad: estudio gratuito de rehabilitación',
+      },
+      contacted: {
+        enabled: true,
+        delayDays: 0,
+        subject: 'Gracias por su interés — SERASAN Engineering',
+      },
+      updatedAt: FieldValue.serverTimestamp(),
+      updatedBy: request.auth.uid,
+    };
+
+    await ref.set(defaultConfig);
+    return { success: true, message: 'Default config created', config: defaultConfig };
+  }
+);
