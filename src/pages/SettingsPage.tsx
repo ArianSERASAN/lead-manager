@@ -1,4 +1,4 @@
-import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell } from 'lucide-react';
+import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell, Mail } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -8,6 +8,7 @@ import { RoleGuard } from '../components/User/RoleGuard';
 import { useToast } from '../contexts/ToastContext';
 import * as UserService from '../services/UserService';
 import { AlertSettings } from '../components/Settings/AlertSettings';
+import { EmailSequenceSettings } from '../components/Settings/EmailSequenceSettings';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; color: string; bgColor: string; description: string }[] = [
   { value: 'admin', label: 'Administrador', color: 'text-red-700', bgColor: 'bg-red-50 border-red-200', description: 'Acceso completo: gestión de usuarios, leads, configuración' },
@@ -226,6 +227,17 @@ export function SettingsPage() {
               Alertas y Notificaciones
             </h2>
             <AlertSettings />
+          </div>
+        </RoleGuard>
+
+        {/* Email Sequence Configuration — Admin only */}
+        <RoleGuard requires="canManageUsers">
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
+            <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Mail size={20} />
+              Emails Automáticos de Onboarding
+            </h2>
+            <EmailSequenceSettings />
           </div>
         </RoleGuard>
 
