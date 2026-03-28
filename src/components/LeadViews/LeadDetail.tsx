@@ -61,7 +61,9 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
       <div className="mb-6 pb-6 border-b border-gray-200">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1">
-            <h3 className="text-2xl font-bold text-gray-900 mb-1">{lead.name}</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-1">
+              {lead.name}{lead.apellidos ? ` ${lead.apellidos}` : ''}
+            </h3>
             <a href={`mailto:${lead.email}`} className="text-sm text-blue-600 hover:underline">
               {lead.email}
             </a>
@@ -156,13 +158,88 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
               </RoleGuard>
             </div>
 
-            {/* Company */}
-            {lead.company && (
-              <div>
-                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">
-                  Empresa
-                </label>
-                <p className="text-sm text-gray-700">{lead.company}</p>
+            {/* Datos de contacto */}
+            {(lead.company || lead.cargo || lead.sector) && (
+              <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Datos de contacto</p>
+                {lead.company && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Empresa</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.company}</span>
+                  </div>
+                )}
+                {lead.cargo && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Cargo</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.cargo}</span>
+                  </div>
+                )}
+                {lead.sector && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Sector</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.sector}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Datos del inmueble */}
+            {(lead.tipoInmueble || lead.superficie || lead.localidad || lead.direccion || lead.referenciaCatastral) && (
+              <div className="bg-blue-50/60 rounded-xl p-3 space-y-2">
+                <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-2">Inmueble</p>
+                {lead.tipoInmueble && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Tipo</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.tipoInmueble}</span>
+                  </div>
+                )}
+                {lead.superficie && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Superficie</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.superficie} m²</span>
+                  </div>
+                )}
+                {lead.localidad && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Localidad</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.localidad}</span>
+                  </div>
+                )}
+                {lead.direccion && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Dirección</span>
+                    <span className="text-xs font-medium text-gray-800 text-right">{lead.direccion}</span>
+                  </div>
+                )}
+                {lead.referenciaCatastral && (
+                  <div className="flex justify-between items-start gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Ref. Catastral</span>
+                    <span className="text-xs font-mono font-medium text-gray-800 text-right break-all">{lead.referenciaCatastral}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Interés */}
+            {(lead.servicios?.length || lead.message) && (
+              <div className="bg-purple-50/60 rounded-xl p-3 space-y-2">
+                <p className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-2">Interés</p>
+                {lead.servicios && lead.servicios.length > 0 && (
+                  <div>
+                    <span className="text-xs text-gray-500 block mb-1.5">Servicios solicitados</span>
+                    <div className="flex flex-wrap gap-1">
+                      {lead.servicios.map(s => (
+                        <span key={s} className="text-xs font-medium px-2 py-0.5 rounded-md bg-purple-100 text-purple-700">{s}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {lead.message && (
+                  <div>
+                    <span className="text-xs text-gray-500 block mb-1">Mensaje</span>
+                    <p className="text-xs text-gray-700 leading-relaxed bg-white/70 rounded-lg px-2 py-1.5">{lead.message}</p>
+                  </div>
+                )}
               </div>
             )}
 

@@ -40,6 +40,17 @@ export interface Lead {
   type?: string;
   resource?: string;
   message?: string;
+  // Campos de serasanengineering.com (formulario de contacto)
+  apellidos?: string;
+  sector?: string;
+  cargo?: string;
+  servicios?: string[];
+  // Campos de reactivatuedificio.es (formulario de diagnóstico)
+  tipoInmueble?: string;
+  superficie?: string;
+  referenciaCatastral?: string;
+  localidad?: string;
+  direccion?: string;
   customFields?: Record<string, unknown>;
   data?: Record<string, unknown>; // Legacy raw data
   _collection?: string; // Track original collection for backward compat

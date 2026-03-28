@@ -22,12 +22,16 @@ function calculateSourceWeight(source: string): number {
 
 function calculateCompleteness(lead: Lead): number {
   let filled = 0;
-  let total = 5;
+  const total = 7;
   if (lead.name && lead.name !== '—') filled++;
   if (lead.email && lead.email !== '—') filled++;
   if (lead.phone) filled++;
   if (lead.company) filled++;
   if (lead.message || lead.resource) filled++;
+  // Extended fields: professional data
+  if (lead.cargo || lead.sector) filled++;
+  // Extended fields: property data
+  if (lead.tipoInmueble || lead.localidad || lead.direccion) filled++;
   return Math.round((filled / total) * SCORE_CONFIG.weights.completeness);
 }
 
