@@ -213,6 +213,11 @@ function mapDocToLead(
     assignedTo: data.assignedTo,
     assignedAt: data.assignedAt,
     movedToStatusAt: data.movedToStatusAt,
+    cancellationReason: data.cancellationReason,
+    closedAt: data.closedAt,
+    closedBy: data.closedBy,
+    closedByName: data.closedByName,
+    stateHistory: data.stateHistory,
   };
 
   const { score, breakdown } = calculateLeadScore(unified);
