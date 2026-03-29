@@ -1,5 +1,7 @@
-import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell, Mail } from 'lucide-react';
+import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell, Mail, Wrench, RefreshCw } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { app } from '../lib/firebase';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { useLeads } from '../hooks/leads/useLeads';
@@ -241,6 +243,11 @@ export function SettingsPage() {
           </div>
         </RoleGuard>
 
+        {/* Maintenance — Admin only */}
+        <RoleGuard requires="canManageUsers">
+          <MaintenancePanel addToast={addToast} />
+        </RoleGuard>
+
         {/* Current User Profile */}
         <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
           <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
@@ -285,6 +292,82 @@ export function SettingsPage() {
         />
       )}
     </>
+  );
+}
+
+// ─── Maintenance Panel ────────────────────────────────────────────
+
+interface MaintenancePanelProps {
+  addToast: (toast: { message: string; type: 'success' | 'error' | 'info' }) => void;
+}
+
+function MaintenancePanel({ addToast }: MaintenancePanelProps) {
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillResult, setBackfillResult] = useState<{ fixed: number; skipped: number } | null>(null);
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    setBackfillResult(null);
+    try {
+      const functions = getFunctions(app, 'europe-west1');
+      const backfillFn = httpsCallable<unknown, { success: boolean; fixed: number; skipped: number }>(
+        functions,
+        'backfillCreatedAt'
+      );
+      const result = await backfillFn({});
+      setBackfillResult({ fixed: result.data.fixed, skipped: result.data.skipped });
+      addToast({
+        message: `Migración completada: ${result.data.fixed} leads actualizados, ${result.data.skipped} ya tenían fecha`,
+        type: 'success'
+      });
+    } catch (err: unknown) {
+      const e = err as { message?: string };
+      addToast({ message: `Error en migración: ${e?.message || 'desconocido'}`, type: 'error' });
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
+      <h2 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+        <Wrench size={20} />
+        Mantenimiento
+      </h2>
+      <p className="text-sm text-gray-500 mb-6">Herramientas para mantener la integridad de los datos.</p>
+
+      <div className="border border-amber-200 bg-amber-50/60 rounded-xl p-4">
+        <div className="flex items-start gap-3 mb-3">
+          <RefreshCw size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-gray-900 mb-1">Normalizar fechas de leads</p>
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Los formularios web antiguos guardaban la fecha con el nombre <code className="bg-amber-100 px-1 rounded text-[11px]">fecha</code> en lugar de <code className="bg-amber-100 px-1 rounded text-[11px]">createdAt</code>.
+              Este proceso añade el campo <code className="bg-amber-100 px-1 rounded text-[11px]">createdAt</code> a todos los leads que lo tengan ausente,
+              asegurando que aparezcan en la lista correctamente.
+            </p>
+          </div>
+        </div>
+
+        {backfillResult && (
+          <div className="mb-3 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 font-medium">
+            ✓ {backfillResult.fixed} leads actualizados · {backfillResult.skipped} ya tenían fecha
+          </div>
+        )}
+
+        <button
+          onClick={handleBackfill}
+          disabled={backfilling}
+          className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm font-semibold rounded-xl hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {backfilling ? (
+            <><Loader2 size={15} className="animate-spin" /> Procesando...</>
+          ) : (
+            <><RefreshCw size={15} /> Ejecutar migración</>
+          )}
+        </button>
+      </div>
+    </div>
   );
 }
 

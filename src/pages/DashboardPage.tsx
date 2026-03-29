@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
 import { useLeads } from '../hooks/leads/useLeads';
@@ -9,10 +10,10 @@ import { FunnelChart } from '../components/Dashboard/FunnelChart';
 import { SourceChart } from '../components/Dashboard/SourceChart';
 import { ScoreDistributionChart } from '../components/Dashboard/ScoreDistributionChart';
 import { StaleLeadsWidget } from '../components/Dashboard/StaleLeadsWidget';
-import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 
 export function DashboardPage() {
   const { appUser } = useAuth();
+  const navigate = useNavigate();
   const { leads, loading } = useLeads();
   const [dateRangeFilter, setDateRangeFilter] = useState<'7' | '30' | '90' | 'all'>('all');
 
@@ -24,9 +25,6 @@ export function DashboardPage() {
   };
 
   const metrics = useDashboardMetrics(leads, dateRanges[dateRangeFilter]);
-
-  // For stale leads filter
-  const { setStatusFilter } = useFilterLogic(leads);
 
   if (loading) {
     return (
@@ -58,12 +56,7 @@ export function DashboardPage() {
   }
 
   const handleViewAllStale = () => {
-    // Navigate to leads with stale filter
-    const staleWindow = window.open('/#/', '_blank');
-    if (staleWindow) {
-      // This would need to be handled through state management or context
-      // For now, we'll just open the leads page
-    }
+    navigate('/');
   };
 
   return (

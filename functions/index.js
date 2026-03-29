@@ -103,6 +103,19 @@ export const onNewLead = onDocumentCreated(
     const data = event.data?.data();
     if (!data) return;
 
+    // ─ NORMALIZE: ensure createdAt exists so Firestore orderBy('createdAt') queries work.
+    // Web forms (reactivatuedificio.es, serasanengineering.com) may write 'fecha' instead
+    // of 'createdAt', which silently excludes the document from the app's main query.
+    if (!data.createdAt) {
+      try {
+        await event.data.ref.update({
+          createdAt: data.fecha || FieldValue.serverTimestamp(),
+        });
+      } catch (err) {
+        console.error(`[onNewLead] Failed to normalize createdAt for ${event.params.docId}:`, err.message);
+      }
+    }
+
     const source = data.source || sourceByCollection[colName] || 'manual';
     const name = data.name || data.nombre || 'Sin nombre';
     const email = data.email || '';
@@ -469,7 +482,58 @@ export const dailyDigest = onSchedule(
   }
 );
 
-// ─── 5. APOLLO ENRICHMENT (callable) ─────────────────────────────
+// ─── 5. BACKFILL createdAt (callable, admin only) ────────────────
+// One-time migration: adds createdAt to existing docs that only have 'fecha'.
+// Run once from the app after deploying this function.
+
+export const backfillCreatedAt = onCall(
+  {
+    region: 'europe-west1',
+    maxInstances: 1,
+    timeoutSeconds: 540,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Debes estar autenticado.');
+    }
+    const userSnap = await db.doc(`users/${request.auth.uid}`).get();
+    if (!userSnap.exists || userSnap.data()?.role !== 'admin') {
+      throw new HttpsError('permission-denied', 'Solo los administradores pueden ejecutar esta función.');
+    }
+
+    let fixed = 0;
+    let skipped = 0;
+
+    for (const col of newLeadCollections) {
+      const snap = await db.collection(col).get();
+      const batch = db.batch();
+      let batchCount = 0;
+
+      for (const docSnap of snap.docs) {
+        const d = docSnap.data();
+        if (!d.createdAt) {
+          const ts = d.fecha || Timestamp.now();
+          batch.update(docSnap.ref, { createdAt: ts });
+          fixed++;
+          batchCount++;
+          // Firestore batch limit is 500
+          if (batchCount >= 490) {
+            await batch.commit();
+            batchCount = 0;
+          }
+        } else {
+          skipped++;
+        }
+      }
+      if (batchCount > 0) await batch.commit();
+    }
+
+    console.log(`backfillCreatedAt: fixed=${fixed}, skipped=${skipped}`);
+    return { success: true, fixed, skipped };
+  }
+);
+
+// ─── 6. APOLLO ENRICHMENT (callable) ──────────────────────────────
 // Called from the frontend via httpsCallable('enrichLead')
 // Requires APOLLO_API_KEY in environment variables.
 
@@ -655,7 +719,7 @@ export const enrichLead = onCall(
   }
 );
 
-// ─── 6. AUTO-ENRICH ON NEW LEAD (optional) ───────────────────────
+// ─── 7. AUTO-ENRICH ON NEW LEAD (optional) ───────────────────────
 // Automatically enriches new leads when they are created.
 // Only runs if APOLLO_API_KEY is set and settings/apollo.autoEnrich is true.
 
@@ -729,7 +793,7 @@ export const autoEnrichNewLead = onDocumentCreated(
   }
 );
 
-// ─── 7. CLEAN TEST DATA (callable, admin only) ───────────────────
+// ─── 8. CLEAN TEST DATA (callable, admin only) ───────────────────
 // Callable function to wipe all test data before production launch.
 // Requires: authenticated admin user + confirm: true parameter.
 
@@ -846,7 +910,7 @@ export const cleanTestData = onCall(
 );
 
 // ═══════════════════════════════════════════════════════════════════
-// 8. EMAIL SEQUENCE — AUTOMATED DRIP FOR LEADS
+// 9. EMAIL SEQUENCE — AUTOMATED DRIP FOR LEADS
 // ═══════════════════════════════════════════════════════════════════
 //
 // Sequence:
