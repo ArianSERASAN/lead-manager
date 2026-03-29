@@ -17,6 +17,8 @@ interface LeadTableProps {
   onToggleSelection: (id: string) => void;
   onToggleAll: (ids: string[]) => void;
   onDelete: (id: string) => void;
+  loading?: boolean;
+  hasActiveFilters?: boolean;
 }
 
 const SourceIcon = memo(({ source }: { source: Lead['source'] }) => {
@@ -103,7 +105,72 @@ const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
   );
 });
 
-export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onToggleAll, onDelete }: LeadTableProps) {
+function SkeletonRow() {
+  return (
+    <tr className="animate-pulse">
+      <td className="pl-4 pr-2 py-3"><div className="w-4 h-4 bg-gray-100 rounded" /></td>
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-gray-100 shrink-0" />
+          <div className="space-y-1.5">
+            <div className="w-28 h-3 bg-gray-100 rounded" />
+            <div className="w-20 h-2.5 bg-gray-100 rounded" />
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-3 hidden xl:table-cell"><div className="w-20 h-3 bg-gray-100 rounded" /></td>
+      <td className="px-3 py-3"><div className="w-16 h-5 bg-gray-100 rounded-md" /></td>
+      <td className="px-3 py-3 hidden lg:table-cell"><div className="w-12 h-3 bg-gray-100 rounded" /></td>
+      <td className="px-3 py-3"><div className="w-8 h-5 bg-gray-100 rounded-md" /></td>
+      <td className="px-3 py-3 hidden lg:table-cell"><div className="w-16 h-3 bg-gray-100 rounded" /></td>
+      <td className="pr-4 py-3"><div className="w-3 h-3 bg-gray-100 rounded" /></td>
+    </tr>
+  );
+}
+
+export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onToggleAll, onDelete, loading = false, hasActiveFilters = false }: LeadTableProps) {
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card overflow-hidden">
+        <div className="hidden md:block overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50/50">
+                <th className="pl-4 pr-2 py-3 w-10"><div className="w-4 h-4 bg-gray-100 rounded animate-pulse" /></th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Contacto</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden xl:table-cell">Empresa</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Estado</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Origen</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Score</th>
+                <th className="px-3 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Fecha</th>
+                <th className="pr-4 py-3 w-8" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {[...Array(6)].map((_, i) => <SkeletonRow key={i} />)}
+            </tbody>
+          </table>
+        </div>
+        <div className="md:hidden divide-y divide-gray-50">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="p-3.5 animate-pulse">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-gray-100 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="flex justify-between">
+                    <div className="w-24 h-3 bg-gray-100 rounded" />
+                    <div className="w-8 h-5 bg-gray-100 rounded-md" />
+                  </div>
+                  <div className="w-32 h-2.5 bg-gray-100 rounded" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (leads.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-12 animate-fade-in">
@@ -111,8 +178,17 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
           <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-3">
             <Inbox className="text-gray-400" size={24} />
           </div>
-          <h3 className="text-base font-bold text-gray-900 mb-1">Sin resultados</h3>
-          <p className="text-sm text-gray-400 max-w-xs">No hay leads que coincidan con los filtros.</p>
+          {hasActiveFilters ? (
+            <>
+              <h3 className="text-base font-bold text-gray-900 mb-1">Sin resultados</h3>
+              <p className="text-sm text-gray-400 max-w-xs">No hay leads que coincidan con los filtros activos. Prueba a ampliar los criterios de búsqueda.</p>
+            </>
+          ) : (
+            <>
+              <h3 className="text-base font-bold text-gray-900 mb-1">Aún no hay leads</h3>
+              <p className="text-sm text-gray-400 max-w-xs">Los leads de los formularios web aparecerán aquí automáticamente. También puedes crear uno manualmente.</p>
+            </>
+          )}
         </div>
       </div>
     );

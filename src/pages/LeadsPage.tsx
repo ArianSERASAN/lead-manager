@@ -129,6 +129,8 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
             }}
             onToggleAll={(ids) => setSelectedIds(ids)}
             onDelete={deleteLead}
+            loading={leadsLoading}
+            hasActiveFilters={activeFilterCount > 0}
           />
           {hasMore && (
             <div className="mt-4 text-center">
