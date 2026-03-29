@@ -28,10 +28,20 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // Helper: allow public creates from external web forms (reactivatuedificio.es, serasanengineering.com).
+    // These forms write directly to Firestore without Firebase Auth. Requires at least an email or
+    // nombre/name field to prevent trivial spam. All other operations remain auth-gated.
+    function isExternalFormSubmit() {
+      return !isAuthenticated() &&
+        (request.resource.data.get('email', '') != '' ||
+         request.resource.data.get('nombre', '') != '' ||
+         request.resource.data.get('name', '') != '');
+    }
+
     // Colecciones de leads (leads, leads_descargas, solicitudes_contacto)
     match /leads/{leadId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrComercial();
+      allow create: if isAdminOrComercial() || isExternalFormSubmit();
       allow update: if isAdminOrComercial();
       allow delete: if isAdmin();
 
@@ -44,7 +54,7 @@ service cloud.firestore {
 
     match /leads_descargas/{leadId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrComercial();
+      allow create: if isAdminOrComercial() || isExternalFormSubmit();
       allow update: if isAdminOrComercial();
       allow delete: if isAdmin();
 
@@ -56,7 +66,7 @@ service cloud.firestore {
 
     match /solicitudes_contacto/{leadId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrComercial();
+      allow create: if isAdminOrComercial() || isExternalFormSubmit();
       allow update: if isAdminOrComercial();
       allow delete: if isAdmin();
 

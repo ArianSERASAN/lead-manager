@@ -97,15 +97,14 @@ export const onNewLead = onDocumentCreated(
     const colName = event.params.collection;
     if (!newLeadCollections.includes(colName)) return;
 
-    const config = await getAlertConfig();
-    if (!config) return;
-
     const data = event.data?.data();
     if (!data) return;
 
     // ─ NORMALIZE: ensure createdAt exists so Firestore orderBy('createdAt') queries work.
     // Web forms (reactivatuedificio.es, serasanengineering.com) may write 'fecha' instead
-    // of 'createdAt', which silently excludes the document from the app's main query.
+    // of 'createdAt', or no timestamp at all — both cases are handled here.
+    // IMPORTANT: this runs before the config check so it always executes, even if
+    // alerts are not configured (avoids leads disappearing when settings/alerts is empty).
     if (!data.createdAt) {
       try {
         await event.data.ref.update({
@@ -115,6 +114,9 @@ export const onNewLead = onDocumentCreated(
         console.error(`[onNewLead] Failed to normalize createdAt for ${event.params.docId}:`, err.message);
       }
     }
+
+    const config = await getAlertConfig();
+    if (!config) return;
 
     const source = data.source || sourceByCollection[colName] || 'manual';
     const name = data.name || data.nombre || 'Sin nombre';
