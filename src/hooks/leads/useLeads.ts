@@ -202,7 +202,7 @@ function mapDocToLead(
     servicios: data.servicios || [],
     tipoInmueble: data.tipoInmueble || data.tipo_inmueble || data.buildingType || '',
     superficie: data.superficie !== undefined ? String(data.superficie) : (data.surface !== undefined ? String(data.surface) : ''),
-    referenciaCatastral: data.referenciaCatastral || data.referencia_catastral || '',
+    referenciaCatastral: data.referenciaCatastral || data.referencia_catastral || data.catastro || '',
     localidad: data.localidad || data.locality || '',
     direccion: data.direccion || data['dirección'] || data.address || '',
     customFields: data.customFields || {},
