@@ -1,6 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
-import { doc, updateDoc, deleteDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../lib/firebase';
+import { useCallback } from 'react';
 import { Lead, LeadStatus } from '../../types/domain';
 import * as LeadService from '../../services/LeadService';
 import * as ActivityService from '../../services/ActivityService';
@@ -18,100 +16,61 @@ export function useLeadActions(
   userId?: string,
   userName?: string
 ) {
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
-  const timeoutRefs = useRef<Map<string, any>>(new Map());
+  const cancelLead = useCallback(async (id: string, reason: string) => {
+    const lead = leads.find(l => l.id === id);
+    if (!lead || !userId || !userName) return;
+    try {
+      await LeadService.cancelLead(lead, reason, userId, userName);
+      addToast({ message: `${lead.name} cancelado`, type: 'success' });
 
-  const cancelDeletion = useCallback((ids: string | string[]) => {
-    const idList = Array.isArray(ids) ? ids : [ids];
+      await ActivityService.recordActivity(
+        lead.id,
+        lead._collection || LeadService.getCollectionName(lead.source),
+        userId,
+        userName,
+        'cancelled',
+        { field: 'status', oldValue: lead.status, newValue: 'cancelado', note: reason }
+      );
+    } catch (error) {
+      addToast({ message: 'Error al cancelar el lead', type: 'error' });
+    }
+  }, [leads, addToast, userId, userName]);
 
-    idList.forEach(id => {
-      const timeoutId = timeoutRefs.current.get(id);
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-        timeoutRefs.current.delete(id);
-      }
-    });
+  const bulkCancelLeads = useCallback(async (selectedIds: string[], reason: string) => {
+    if (selectedIds.length === 0 || !userId || !userName) return;
+    try {
+      const leadsToCancel = leads.filter(l => selectedIds.includes(l.id));
+      await Promise.all(leadsToCancel.map(lead =>
+        LeadService.cancelLead(lead, reason, userId, userName)
+      ));
+      addToast({ message: `${selectedIds.length} leads cancelados`, type: 'success' });
 
-    setPendingDeleteIds(prev => prev.filter(pid => !idList.includes(pid)));
-    console.log(`Borrado cancelado para: ${idList.join(', ')}`);
-  }, []);
+      await Promise.all(leadsToCancel.map(lead =>
+        ActivityService.recordActivity(
+          lead.id,
+          lead._collection || LeadService.getCollectionName(lead.source),
+          userId,
+          userName,
+          'cancelled',
+          { field: 'status', oldValue: lead.status, newValue: 'cancelado', note: reason }
+        )
+      ));
 
-  const deleteLead = useCallback(async (id: string) => {
-    const leadToDelete = leads.find(l => l.id === id);
-    if (!leadToDelete) return;
-
-    setPendingDeleteIds(prev => [...prev, id]);
-
-    addToast({
-      message: `${leadToDelete.name} será borrado...`,
-      type: 'undo',
-      onUndo: () => cancelDeletion(id)
-    });
-
-    const timeout = setTimeout(async () => {
-      if (timeoutRefs.current.has(id)) {
-        try {
-          await LeadService.deleteLeadDoc(leadToDelete);
-          timeoutRefs.current.delete(id);
-          setPendingDeleteIds(prev => prev.filter(pid => pid !== id));
-        } catch (err) {
-          console.error("Error deleting lead:", err);
-          setPendingDeleteIds(prev => prev.filter(pid => pid !== id));
-        }
-      }
-    }, 5000);
-
-    timeoutRefs.current.set(id, timeout);
-  }, [leads, addToast, cancelDeletion]);
-
-  const bulkDelete = useCallback(async (selectedIds: string[]) => {
-    if (selectedIds.length === 0) return;
-
-    const idsToProcess = [...selectedIds];
-    const leadNames = leads
-      .filter(l => idsToProcess.includes(l.id))
-      .map(l => l.name)
-      .slice(0, 2)
-      .join(', ') + (idsToProcess.length > 2 ? '...' : '');
-
-    // Optimistic UI
-    setPendingDeleteIds(prev => [...prev, ...idsToProcess]);
-    clearSelection();
-
-    addToast({
-      message: `${idsToProcess.length} leads serán borrados (${leadNames})`,
-      type: 'undo',
-      onUndo: () => cancelDeletion(idsToProcess)
-    });
-
-    const timeout = setTimeout(async () => {
-      // Check if the first ID is still in the pending map (to verify the batch wasn't canceled)
-      if (timeoutRefs.current.has(idsToProcess[0])) {
-        console.log(`Ejecutando borrado masivo para ${idsToProcess.length} leads...`);
-        try {
-          const leadsToDelete = leads.filter(l => idsToProcess.includes(l.id));
-          await LeadService.bulkDeleteLeads(leadsToDelete);
-
-          idsToProcess.forEach(id => timeoutRefs.current.delete(id));
-          setPendingDeleteIds(prev => prev.filter(pid => !idsToProcess.includes(pid)));
-        } catch (err) {
-          console.error("Error in bulk delete batch:", err);
-          setPendingDeleteIds(prev => prev.filter(pid => !idsToProcess.includes(pid)));
-        }
-      }
-    }, 5000);
-
-    idsToProcess.forEach(id => timeoutRefs.current.set(id, timeout));
-  }, [leads, addToast, cancelDeletion, clearSelection]);
+      clearSelection();
+    } catch (error) {
+      addToast({ message: 'Error al cancelar los leads', type: 'error' });
+    }
+  }, [leads, addToast, clearSelection, userId, userName]);
 
   const updateLeadStatus = useCallback(async (id: string, status: LeadStatus) => {
     try {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
-      await LeadService.updateLeadStatus(lead, status);
-      addToast({ message: `Estado actualizado a ${status}`, type: 'success' });
+      await LeadService.updateLeadStatus(lead, status, userId, userName);
 
-      // Record activity
+      const label = status === 'cerrado' ? 'Cerrado como ganado' : `Estado: ${status}`;
+      addToast({ message: label, type: 'success' });
+
       if (userId && userName) {
         const colName = lead._collection || LeadService.getCollectionName(lead.source);
         await ActivityService.recordActivity(
@@ -119,7 +78,7 @@ export function useLeadActions(
           colName,
           userId,
           userName,
-          'status_change',
+          status === 'cerrado' ? 'closed' : 'status_change',
           { field: 'status', oldValue: lead.status, newValue: status }
         );
       }
@@ -135,7 +94,6 @@ export function useLeadActions(
       await LeadService.updateLeadNotes(lead, notes);
       addToast({ message: 'Notas guardadas', type: 'success' });
 
-      // Record activity
       if (userId && userName) {
         const colName = lead._collection || LeadService.getCollectionName(lead.source);
         await ActivityService.recordActivity(
@@ -159,7 +117,6 @@ export function useLeadActions(
       await LeadService.bulkUpdateStatus(leadsToUpdate, status);
       addToast({ message: `${selectedIds.length} leads actualizados`, type: 'success' });
 
-      // Record activity for each lead
       if (userId && userName) {
         for (const lead of leadsToUpdate) {
           const colName = lead._collection || LeadService.getCollectionName(lead.source);
@@ -187,32 +144,16 @@ export function useLeadActions(
       await LeadService.updateLeadTags(lead, tags);
       addToast({ message: 'Etiquetas actualizadas', type: 'success' });
 
-      // Record activity
       if (userId && userName) {
         const colName = lead._collection || LeadService.getCollectionName(lead.source);
         const addedTags = tags.filter(t => !(lead.tags || []).includes(t));
         const removedTags = (lead.tags || []).filter(t => !tags.includes(t));
 
         if (addedTags.length > 0) {
-          await ActivityService.recordActivity(
-            lead.id,
-            colName,
-            userId,
-            userName,
-            'tag_added',
-            { newValue: addedTags }
-          );
+          await ActivityService.recordActivity(lead.id, colName, userId, userName, 'tag_added', { newValue: addedTags });
         }
-
         if (removedTags.length > 0) {
-          await ActivityService.recordActivity(
-            lead.id,
-            colName,
-            userId,
-            userName,
-            'tag_removed',
-            { oldValue: removedTags }
-          );
+          await ActivityService.recordActivity(lead.id, colName, userId, userName, 'tag_removed', { oldValue: removedTags });
         }
       }
     } catch (error) {
@@ -227,17 +168,9 @@ export function useLeadActions(
       await LeadService.assignLead(lead, assignedUserId);
       addToast({ message: 'Lead asignado', type: 'success' });
 
-      // Record activity
       if (userId && userName) {
         const colName = lead._collection || LeadService.getCollectionName(lead.source);
-        await ActivityService.recordActivity(
-          lead.id,
-          colName,
-          userId,
-          userName,
-          'assigned',
-          { newValue: assignedUserId }
-        );
+        await ActivityService.recordActivity(lead.id, colName, userId, userName, 'assigned', { newValue: assignedUserId });
       }
     } catch (error) {
       addToast({ message: 'Error al asignar lead', type: 'error' });
@@ -249,9 +182,8 @@ export function useLeadActions(
     updateLeadNotes,
     updateLeadTags,
     assignLead,
-    deleteLead,
+    cancelLead,
+    bulkCancelLeads,
     bulkStatusUpdate,
-    bulkDelete,
-    pendingDeleteIds
   };
 }

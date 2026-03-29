@@ -6,6 +6,7 @@ import { LeadTable } from '../components/LeadViews/LeadTable';
 import { LeadDetail } from '../components/LeadViews/LeadDetail';
 import { LeadCreateForm } from '../components/LeadViews/LeadCreateForm';
 import { SelectionHUD } from '../components/Shared/SelectionHUD';
+import { CancellationModal } from '../components/Shared/CancellationModal';
 import { useLeads } from '../hooks/leads/useLeads';
 import { useLeadActions } from '../hooks/leads/useLeadActions';
 import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
@@ -20,11 +21,17 @@ interface LeadsPageProps {
   onCloseCreateForm?: () => void;
 }
 
+interface CancellationTarget {
+  type: 'single' | 'bulk';
+  ids: string[];
+}
+
 export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCreateForm }: LeadsPageProps) {
   const { appUser } = useAuth();
   const { addToast } = useToast();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [cancellationTarget, setCancellationTarget] = useState<CancellationTarget | null>(null);
 
   const { leads, loading: leadsLoading, hasMore, loadMore, loadingMore } = useLeads();
 
@@ -33,10 +40,9 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
     updateLeadNotes,
     updateLeadTags,
     assignLead,
-    deleteLead,
+    cancelLead,
+    bulkCancelLeads,
     bulkStatusUpdate,
-    bulkDelete,
-    pendingDeleteIds
   } = useLeadActions(leads, addToast, () => setSelectedIds([]), appUser?.uid, appUser?.name);
 
   const {
@@ -65,14 +71,45 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
     applyFilterState,
     clearAllFilters,
     getCurrentFilterState
-  } = useFilterLogic(leads, pendingDeleteIds);
+  } = useFilterLogic(leads);
 
-  // Direct execution — no confirmation modals. Bulk delete already has 5s undo toast.
-  const handleBulkDelete = () => bulkDelete(selectedIds);
   const handleBulkStatusUpdate = (status: LeadStatus) => {
     if (!status) return;
     bulkStatusUpdate(selectedIds, status);
   };
+
+  /** Abre el modal de cancelación para un lead individual (desde LeadDetail) */
+  const handleRequestCancelSingle = () => {
+    if (!selectedLead) return;
+    setCancellationTarget({ type: 'single', ids: [selectedLead.id] });
+  };
+
+  /** Abre el modal de cancelación para la selección masiva */
+  const handleRequestCancelBulk = () => {
+    if (selectedIds.length === 0) return;
+    setCancellationTarget({ type: 'bulk', ids: [...selectedIds] });
+  };
+
+  /** Confirma la cancelación con el motivo elegido */
+  const handleConfirmCancellation = async (reason: string) => {
+    if (!cancellationTarget) return;
+    const { type, ids } = cancellationTarget;
+    setCancellationTarget(null);
+
+    if (type === 'single') {
+      await cancelLead(ids[0], reason);
+      // Si el lead cancelado estaba seleccionado, deseleccionarlo
+      if (selectedLead?.id === ids[0]) setSelectedLead(null);
+    } else {
+      await bulkCancelLeads(ids, reason);
+      setSelectedIds([]);
+      setSelectedLead(null);
+    }
+  };
+
+  const cancellationLeadName = cancellationTarget?.type === 'single'
+    ? leads.find(l => l.id === cancellationTarget.ids[0])?.name
+    : undefined;
 
   return (
     <>
@@ -112,7 +149,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
       {selectedIds.length > 0 && (
         <SelectionHUD
           selectedCount={selectedIds.length}
-          onBulkDelete={handleBulkDelete}
+          onBulkCancel={handleRequestCancelBulk}
           onBulkStatusUpdate={handleBulkStatusUpdate}
           onClearSelection={() => setSelectedIds([])}
         />
@@ -128,7 +165,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
               setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
             }}
             onToggleAll={(ids) => setSelectedIds(ids)}
-            onDelete={deleteLead}
+            onDelete={() => {}} // no-op: delete replaced by cancel flow
             loading={leadsLoading}
             hasActiveFilters={activeFilterCount > 0}
           />
@@ -174,6 +211,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
               onNotesChange={(notes) => updateLeadNotes(selectedLead.id, notes)}
               onTagsChange={(tags) => updateLeadTags(selectedLead.id, tags)}
               onAssign={(userId) => assignLead(selectedLead.id, userId)}
+              onCancel={handleRequestCancelSingle}
             />
           </div>
         )}
@@ -190,6 +228,15 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
         }}
         userId={appUser?.uid}
         userName={appUser?.name}
+      />
+
+      <CancellationModal
+        isOpen={!!cancellationTarget}
+        leadName={cancellationLeadName}
+        isBulk={cancellationTarget?.type === 'bulk'}
+        bulkCount={cancellationTarget?.ids.length ?? 0}
+        onConfirm={handleConfirmCancellation}
+        onClose={() => setCancellationTarget(null)}
       />
     </>
   );

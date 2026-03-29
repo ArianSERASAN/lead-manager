@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LayoutDashboard, Users, LogOut, CheckSquare, Settings, Kanban, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, CheckSquare, Settings, Kanban, Menu, X, Archive } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AppUser } from '../../types/domain';
 
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'pipeline', path: '/pipeline', label: 'Pipeline', icon: Kanban },
   { id: 'tasks', path: '/tasks', label: 'Tareas', icon: CheckSquare },
+  { id: 'historial', path: '/historial', label: 'Historial', icon: Archive },
   { id: 'settings', path: '/settings', label: 'Ajustes', icon: Settings },
 ];
 

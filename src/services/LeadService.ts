@@ -1,6 +1,6 @@
-import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Lead, LeadStatus } from '../types/domain';
+import { Lead, LeadStatus, StateChange } from '../types/domain';
 
 // Map source to original collection name (backward compat during transition)
 export function getCollectionName(source: string): string {
@@ -18,7 +18,8 @@ const UPDATABLE_FIELDS = new Set([
   'name', 'email', 'phone', 'company', 'source', 'status',
   'notes', 'tags', 'message', 'assignedTo', 'assignedAt',
   'score', 'scoreBreakdown', 'pipelinePosition', 'customFields',
-  'enrichment', 'enrichedAt'
+  'enrichment', 'enrichedAt',
+  'cancellationReason', 'closedAt', 'closedBy', 'closedByName', 'stateHistory'
 ]);
 
 export async function createLead(leadData: Partial<Lead>): Promise<string> {
@@ -55,17 +56,75 @@ export async function updateLeadField(lead: Lead, field: string, value: unknown)
   }
 }
 
-export async function updateLeadStatus(lead: Lead, status: LeadStatus): Promise<void> {
+export async function updateLeadStatus(
+  lead: Lead,
+  status: LeadStatus,
+  actor?: string,
+  actorName?: string
+): Promise<void> {
   try {
     const colName = lead._collection || getCollectionName(lead.source);
-    await updateDoc(doc(db, colName, lead.id), {
+    const updates: Record<string, unknown> = {
       status,
       updatedAt: serverTimestamp(),
       movedToStatusAt: serverTimestamp(),
-    });
+    };
+
+    // Registrar quién cerró el lead como ganado
+    if (status === 'cerrado' && actor) {
+      updates.closedAt = serverTimestamp();
+      updates.closedBy = actor;
+      if (actorName) updates.closedByName = actorName;
+    }
+
+    // Añadir entrada al historial de cambios de estado
+    if (actor) {
+      const stateChange: StateChange = {
+        timestamp: new Date().toISOString(),
+        actor,
+        actorName,
+        fromStatus: lead.status,
+        toStatus: status,
+      };
+      updates.stateHistory = arrayUnion(stateChange);
+    }
+
+    await updateDoc(doc(db, colName, lead.id), updates);
   } catch (error) {
     console.error('Error al actualizar estado:', error);
     throw new Error('No se pudo cambiar el estado. Inténtalo de nuevo.');
+  }
+}
+
+/** Soft-cancel: marca el lead como cancelado con motivo, sin borrar de la BD */
+export async function cancelLead(
+  lead: Lead,
+  reason: string,
+  actor: string,
+  actorName: string
+): Promise<void> {
+  try {
+    const colName = lead._collection || getCollectionName(lead.source);
+    const stateChange: StateChange = {
+      timestamp: new Date().toISOString(),
+      actor,
+      actorName,
+      fromStatus: lead.status,
+      toStatus: 'cancelado',
+      reason,
+    };
+    await updateDoc(doc(db, colName, lead.id), {
+      status: 'cancelado',
+      cancellationReason: reason,
+      closedAt: serverTimestamp(),
+      closedBy: actor,
+      closedByName: actorName,
+      updatedAt: serverTimestamp(),
+      stateHistory: arrayUnion(stateChange),
+    });
+  } catch (error) {
+    console.error('Error al cancelar lead:', error);
+    throw new Error('No se pudo cancelar el lead. Inténtalo de nuevo.');
   }
 }
 

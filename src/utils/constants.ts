@@ -2,8 +2,19 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
   'nuevo': { label: 'Nuevo', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
   'contactado': { label: 'Contactado', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
   'en-progreso': { label: 'En progreso', color: 'text-violet-700', bgColor: 'bg-violet-50', borderColor: 'border-violet-200' },
-  'cerrado': { label: 'Cerrado', color: 'text-red-700', bgColor: 'bg-red-50', borderColor: 'border-red-200' },
+  'cerrado': { label: 'Cerrado (ganado)', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+  'cancelado': { label: 'Cancelado', color: 'text-gray-500', bgColor: 'bg-gray-100', borderColor: 'border-gray-200' },
 };
+
+/** Motivos de cancelación predefinidos. "Otro" habilita un campo libre. */
+export const CANCELLATION_REASONS = [
+  'No interesado',
+  'Presupuesto insuficiente',
+  'Datos incorrectos',
+  'Duplicado',
+  'Sin respuesta',
+  'Otro',
+] as const;
 
 export const SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
   'landing': { label: 'Landing Page', color: 'text-blue-600' },

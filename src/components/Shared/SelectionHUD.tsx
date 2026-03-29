@@ -1,14 +1,14 @@
-import { Trash2, X, CheckCircle2 } from 'lucide-react';
+import { XCircle, X, CheckCircle2 } from 'lucide-react';
 import { LeadStatus } from '../../types/domain';
 
 interface SelectionHUDProps {
   selectedCount: number;
   onClearSelection: () => void;
   onBulkStatusUpdate: (status: LeadStatus) => void;
-  onBulkDelete: () => void;
+  onBulkCancel: () => void;
 }
 
-export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpdate, onBulkDelete }: SelectionHUDProps) {
+export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpdate, onBulkCancel }: SelectionHUDProps) {
   if (selectedCount === 0) return null;
 
   return (
@@ -38,7 +38,7 @@ export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpda
               <option value="nuevo" className="bg-gray-900">Marcar Nuevo</option>
               <option value="contactado" className="bg-gray-900">Marcar Contactado</option>
               <option value="en-progreso" className="bg-gray-900">En Progreso</option>
-              <option value="cerrado" className="bg-gray-900">Cerrar Leads</option>
+              <option value="cerrado" className="bg-gray-900">Cerrar (ganado)</option>
             </select>
             <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-white/40">
               <CheckCircle2 size={14} />
@@ -46,11 +46,11 @@ export function SelectionHUD({ selectedCount, onClearSelection, onBulkStatusUpda
           </div>
 
           <button
-            onClick={onBulkDelete}
-            className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl transition-colors duration-150 border border-red-500/20 btn-press"
-            title="Eliminar permanentemente"
+            onClick={onBulkCancel}
+            className="p-2.5 bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white rounded-2xl transition-colors duration-150 border border-orange-500/20 btn-press"
+            title="Cancelar leads seleccionados"
           >
-            <Trash2 size={20} />
+            <XCircle size={20} />
           </button>
 
           <div className="w-px h-8 bg-white/10 mx-1 hidden xs:block" />

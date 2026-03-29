@@ -12,11 +12,21 @@ export function toJSDate(ts: TimestampLike): Date {
   return new Date(0);
 }
 
-export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado';
+export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado' | 'cancelado';
 export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual';
 export type UserRole = 'admin' | 'comercial' | 'read_only';
-export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched' | 'email_sent';
+export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched' | 'email_sent' | 'cancelled' | 'closed';
 export type TaskPriority = 'low' | 'medium' | 'high';
+
+/** Registro de un cambio de estado dentro del documento del lead */
+export interface StateChange {
+  timestamp: string;          // ISO string (serverTimestamp no puede usarse en arrays)
+  actor: string;              // User ID
+  actorName?: string;
+  fromStatus: LeadStatus;     // Stage del pipeline antes del cambio
+  toStatus: LeadStatus;
+  reason?: string;            // Motivo (obligatorio en cancelaciones)
+}
 
 export interface Lead {
   id: string;
@@ -54,6 +64,13 @@ export interface Lead {
   customFields?: Record<string, unknown>;
   data?: Record<string, unknown>; // Legacy raw data
   _collection?: string; // Track original collection for backward compat
+
+  // ─── Cierre / Cancelación ───────────────────────────────────────────
+  cancellationReason?: string;                    // Motivo de cancelación
+  closedAt?: Timestamp | Date | string;           // Fecha de cierre o cancelación
+  closedBy?: string;                              // UID del usuario que cerró/canceló
+  closedByName?: string;                          // Nombre del usuario que cerró/canceló
+  stateHistory?: StateChange[];                   // Historial de cambios de estado
 
   // ─── Apollo Enrichment Data ─────────────────────────────────────
   enrichment?: ApolloEnrichment;

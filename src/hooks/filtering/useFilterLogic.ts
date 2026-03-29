@@ -45,8 +45,8 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
-      // Hide if marked for deletion
-      if (pendingDeleteIds.includes(lead.id)) return false;
+      // Excluir leads cancelados de la vista principal (van al historial)
+      if (lead.status === 'cancelado') return false;
 
       // Tab filter
       if (activeTab === 'descargas' && lead.source !== 'web-download') return false;

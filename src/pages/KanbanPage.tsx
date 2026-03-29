@@ -15,14 +15,17 @@ export function KanbanPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const { leads, loading: leadsLoading } = useLeads();
+  const { leads: allLeads, loading: leadsLoading } = useLeads();
+
+  // Excluir cancelados del pipeline — sólo van al historial
+  const leads = allLeads.filter(l => l.status !== 'cancelado');
 
   const {
     updateLeadStatus,
     updateLeadNotes,
     updateLeadTags,
     assignLead
-  } = useLeadActions(leads, addToast, () => {}, appUser?.uid, appUser?.name);
+  } = useLeadActions(allLeads, addToast, () => {}, appUser?.uid, appUser?.name);
 
   const stats = {
     total: leads.length,

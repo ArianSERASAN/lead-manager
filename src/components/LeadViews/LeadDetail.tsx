@@ -1,6 +1,6 @@
 import { Lead, LeadStatus } from '../../types/domain';
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Lock } from 'lucide-react';
+import { Save, Loader2, Lock, XCircle } from 'lucide-react';
 import { formatTimestamp } from '../../utils/format';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
 import { TagEditor } from '../Tags/TagEditor';
@@ -18,12 +18,13 @@ interface LeadDetailProps {
   onNotesChange: (notes: string) => void;
   onTagsChange: (tags: string[]) => void;
   onAssign: (userId: string) => void;
+  onCancel?: () => void;
   onEnriched?: () => void;
 }
 
 type TabType = 'info' | 'actividad' | 'tareas';
 
-export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign, onEnriched }: LeadDetailProps) {
+export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign, onCancel, onEnriched }: LeadDetailProps) {
   const [notes, setNotes] = useState(lead.notes || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -153,7 +154,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
                   <option value="nuevo">Nuevo</option>
                   <option value="contactado">Contactado</option>
                   <option value="en-progreso">En Progreso</option>
-                  <option value="cerrado">Cerrado</option>
+                  <option value="cerrado">Cerrado (ganado)</option>
                 </select>
               </RoleGuard>
             </div>
@@ -279,6 +280,21 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
               <ApolloEnrichmentPanel lead={lead} onEnriched={onEnriched} />
             </RoleGuard>
           </div>
+
+          {/* Cancel lead */}
+          {onCancel && (
+            <RoleGuard requires="canEdit">
+              <div className="mb-6 pb-6 border-b border-gray-200">
+                <button
+                  onClick={onCancel}
+                  className="flex items-center gap-2 w-full px-3 py-2.5 rounded-xl text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-200 transition-colors duration-100 active:scale-[0.98]"
+                >
+                  <XCircle size={16} />
+                  <span>Cancelar / Descartar lead</span>
+                </button>
+              </div>
+            </RoleGuard>
+          )}
 
           {/* Notes */}
           <div>
