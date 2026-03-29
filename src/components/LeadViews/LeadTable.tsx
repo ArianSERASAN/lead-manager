@@ -4,7 +4,7 @@ import { Download, MessageSquare, Users, Eye, ChevronRight, CheckSquare, Square,
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
-import { formatRelativeTime } from '../../utils/format';
+import { formatTimestamp } from '../../utils/format';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -94,7 +94,7 @@ const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
         <ScoreBadge score={lead.score} size="sm" />
       </td>
       <td className="px-3 py-3 hidden lg:table-cell">
-        <span className="text-xs text-gray-400">{formatRelativeTime(lead.createdAt)}</span>
+        <span className="text-xs text-gray-400">{formatTimestamp(lead.createdAt)}</span>
       </td>
       <td className="pr-4 py-3">
         <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
@@ -187,6 +187,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
                       {status.label}
                     </span>
                   </div>
+                  <p className="text-[10px] text-gray-300 mt-0.5">{formatTimestamp(lead.createdAt)}</p>
                 </div>
                 <ChevronRight size={14} className="text-gray-300 shrink-0" />
               </div>

@@ -27,9 +27,11 @@ export function useLeads() {
     const allLeadsMap: Record<string, Lead[]> = {};
 
     collections.forEach((colInfo) => {
-      // Use limit for initial load to avoid downloading entire collections
+      // Order by createdAt desc so the 50 most recent leads are always fetched
+      // and new leads trigger real-time updates via onSnapshot
       const q = query(
         collection(db, colInfo.name),
+        orderBy('createdAt', 'desc'),
         limit(PAGE_SIZE)
       );
 
@@ -87,6 +89,7 @@ export function useLeads() {
 
       const q = query(
         collection(db, colInfo.name),
+        orderBy('createdAt', 'desc'),
         startAfter(cursor),
         limit(PAGE_SIZE)
       );

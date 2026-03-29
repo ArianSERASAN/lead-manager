@@ -7,7 +7,7 @@ export function formatTimestamp(ts: TimestampLike): string {
   const date = toJSDate(ts);
   if (isToday(date)) return `Hoy, ${format(date, 'HH:mm')}`;
   if (isYesterday(date)) return `Ayer, ${format(date, 'HH:mm')}`;
-  return format(date, "d MMM yyyy", { locale: es });
+  return format(date, "d MMM, HH:mm", { locale: es });
 }
 
 export function formatRelativeTime(ts: TimestampLike): string {
