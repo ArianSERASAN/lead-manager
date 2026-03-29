@@ -186,7 +186,7 @@ function mapDocToLead(
     name: data.name || data.nombre || '—',
     email: data.email || '—',
     phone: data.phone || data.telefono || '',
-    company: data.company || '',
+    company: data.company || data.empresa || '',
     source: colInfo.source,
     status: data.status || 'nuevo',
     createdAt,
