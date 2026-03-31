@@ -27,3 +27,4 @@ test_leads.xlsx
 dist_*/
 screenshots_mobile/
 *.docx
+nohup.out
