@@ -6,6 +6,7 @@ import { useToast } from './contexts/ToastContext';
 import { Login } from './components/Shared/Login';
 import { Toast } from './components/Shared/Toast';
 import { MainLayout } from './components/Layout/MainLayout';
+import { useLeadSubscription } from './stores/useLeadStore';
 
 // Lazy load pages for performance
 const LeadsPage = lazy(() => import('./pages/LeadsPage').then(m => ({ default: m.LeadsPage })));
@@ -28,6 +29,7 @@ function AppContent() {
   const { firebaseUser, appUser, loading, logout } = useAuth();
   const { toasts, removeToast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  useLeadSubscription();
 
   if (loading) {
     return (

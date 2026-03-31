@@ -409,3 +409,15 @@ export function useActiveFilterCount(): number {
     return count;
   }, [f]);
 }
+
+/**
+ * Bootstraps the Zustand lead store's Firestore subscription.
+ * Must be called once from a top-level authenticated component (e.g. AppContent).
+ * Cleans up the subscription on unmount.
+ */
+export function useLeadSubscription(): void {
+  useEffect(() => {
+    const unsub = useLeadStore.getState().subscribe();
+    return unsub;
+  }, []);
+}

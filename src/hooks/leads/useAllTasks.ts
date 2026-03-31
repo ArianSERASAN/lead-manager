@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Task, toJSDate } from '../../types/domain';
 
@@ -29,32 +29,30 @@ export function useAllTasks() {
   useEffect(() => {
     const fetchAllTasks = async () => {
       try {
-        let allTasksList: TaskWithLead[] = [];
-
-        // Single collection query
+        // Fetch all leads first, then all task subcollections in parallel
         const leadsSnapshot = await getDocs(collection(db, COLLECTION));
 
-        for (const leadDoc of leadsSnapshot.docs) {
-          const leadId = leadDoc.id;
-          const leadData = leadDoc.data();
-          const tasksRef = collection(db, COLLECTION, leadId, 'tasks');
+        const perLeadResults = await Promise.all(
+          leadsSnapshot.docs.map(async (leadDoc) => {
+            const leadId = leadDoc.id;
+            const leadData = leadDoc.data();
+            const tasksRef = collection(db, COLLECTION, leadId, 'tasks');
+            try {
+              const tasksSnapshot = await getDocs(query(tasksRef, orderBy('dueAt', 'asc')));
+              return tasksSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                leadName: leadData.name || leadData.nombre || '—',
+                leadEmail: leadData.email || '—',
+                leadCollection: COLLECTION,
+              } as TaskWithLead));
+            } catch {
+              return [] as TaskWithLead[];
+            }
+          })
+        );
 
-          try {
-            const tasksSnapshot = await getDocs(query(tasksRef, orderBy('dueAt', 'asc')));
-
-            const leadTasks: TaskWithLead[] = tasksSnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data(),
-              leadName: leadData.name || leadData.nombre || '—',
-              leadEmail: leadData.email || '—',
-              leadCollection: COLLECTION
-            } as TaskWithLead));
-
-            allTasksList = [...allTasksList, ...leadTasks];
-          } catch {
-            // Collection might not exist yet, continue
-          }
-        }
+        let allTasksList: TaskWithLead[] = perLeadResults.flat();
 
         // Sort by dueAt
         allTasksList.sort((a, b) => {
@@ -68,8 +66,6 @@ export function useAllTasks() {
         // Group tasks
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
 
         const grouped: GroupedTasks = {
           overdue: [],
