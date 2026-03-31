@@ -418,6 +418,12 @@ export function useActiveFilterCount(): number {
 export function useLeadSubscription(): void {
   useEffect(() => {
     const unsub = useLeadStore.getState().subscribe();
-    return unsub;
+    return () => {
+      unsub();
+      // Clear _unsub so that a subsequent subscribe() call (e.g. React StrictMode
+      // double-invokes effects in dev) creates a fresh Firestore subscription
+      // instead of returning the now-dead unsub and leaving loading=true forever.
+      useLeadStore.setState({ _unsub: null });
+    };
   }, []);
 }

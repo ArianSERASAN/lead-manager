@@ -72,6 +72,9 @@ export interface Lead {
   closedByName?: string;                          // Nombre del usuario que cerró/canceló
   stateHistory?: StateChange[];                   // Historial de cambios de estado
 
+  // ─── Adjuntos ────────────────────────────────────────────────────
+  attachments?: LeadAttachment[];
+
   // ─── Apollo Enrichment Data ─────────────────────────────────────
   enrichment?: ApolloEnrichment;
   enrichedAt?: Timestamp | Date | string;
@@ -281,4 +284,30 @@ export interface DetectedUnknownField {
   suggestedType: FieldType;
   isKnownAlias: boolean;
   aliasMapsTo?: string;
+}
+
+// ─── Attachments ──────────────────────────────────────────────────
+
+export interface LeadAttachment {
+  name: string;
+  url: string;
+  size: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  uploadedByName: string;
+}
+
+// ─── Notifications ─────────────────────────────────────────────────
+
+export type NotificationType = 'new_lead' | 'hot_lead' | 'stale_lead' | 'assigned';
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string | Date;
+  leadId?: string;
 }
