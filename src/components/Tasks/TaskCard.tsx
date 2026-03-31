@@ -1,5 +1,5 @@
 import { Task } from '../../types/domain';
-import { CheckCircle2, Circle } from 'lucide-react';
+import { CheckCircle2, Circle, AlertTriangle, Calendar } from 'lucide-react';
 import { formatTimestamp, daysSince } from '../../utils/format';
 
 interface TaskCardProps {
@@ -45,7 +45,7 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
         {/* Checkbox */}
         <button
           onClick={() => onToggleComplete(task.id)}
-          className="flex-shrink-0 mt-0.5 p-2 -ml-2 text-gray-400 hover:text-blue-600 active:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          className="flex-shrink-0 mt-0.5 p-2 -ml-2 text-gray-400 hover:text-primary-600 active:text-primary-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           {task.completed ? (
             <CheckCircle2 size={20} className="text-green-600" />
@@ -68,8 +68,8 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
 
             {/* Due Date */}
             <span className={`text-xs font-semibold ${getDueDateColor(task.dueAt)}`}>
-              {isOverdue && '⚠️ '}
-              {isDueToday && '📅 '}
+              {isOverdue && <AlertTriangle size={12} className="inline mr-0.5" />}
+              {isDueToday && <Calendar size={12} className="inline mr-0.5" />}
               {formatTimestamp(task.dueAt)}
             </span>
           </div>
@@ -83,7 +83,7 @@ export function TaskCard({ task, onToggleComplete, onDelete, onSelectLead }: Tas
           <div className="flex items-center justify-between gap-2">
             <button
               onClick={onSelectLead}
-              className="text-xs text-blue-600 hover:underline font-semibold truncate min-w-0"
+              className="text-xs text-primary-600 hover:underline font-semibold truncate min-w-0"
             >
               {task.leadName} {task.leadEmail && `(${task.leadEmail})`}
             </button>

@@ -3,17 +3,19 @@ import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Task } from '../../types/domain';
 
-export function useLeadTasks(leadCollection: string, leadId: string) {
+const COLLECTION = 'leads';
+
+export function useLeadTasks(_leadCollection: string, leadId: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!leadId || !leadCollection) {
+    if (!leadId) {
       setLoading(false);
       return;
     }
 
-    const tasksRef = collection(db, leadCollection, leadId, 'tasks');
+    const tasksRef = collection(db, COLLECTION, leadId, 'tasks');
     const q = query(tasksRef, orderBy('dueAt', 'asc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -30,7 +32,7 @@ export function useLeadTasks(leadCollection: string, leadId: string) {
     });
 
     return () => unsubscribe();
-  }, [leadId, leadCollection]);
+  }, [leadId]);
 
   return { tasks, loading };
 }

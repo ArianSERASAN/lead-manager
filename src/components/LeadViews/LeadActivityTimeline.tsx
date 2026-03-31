@@ -20,7 +20,7 @@ interface LeadActivityTimelineProps {
 function getActionIcon(action: ActivityAction) {
   switch (action) {
     case 'status_change':
-      return <ArrowRight size={16} className="text-blue-600" />;
+      return <ArrowRight size={16} className="text-primary-600" />;
     case 'note_added':
       return <MessageSquare size={16} className="text-purple-600" />;
     case 'created':
@@ -45,7 +45,7 @@ function getActionIcon(action: ActivityAction) {
 function getActionColor(action: ActivityAction): string {
   switch (action) {
     case 'status_change':
-      return 'bg-blue-100';
+      return 'bg-primary-100';
     case 'note_added':
       return 'bg-purple-100';
     case 'created':

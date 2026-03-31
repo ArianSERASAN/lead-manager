@@ -47,7 +47,7 @@ export function TaskForm({ onSubmit, onCancel, isLoading = false }: TaskFormProp
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Nombre de la tarea..."
           required
-          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
         />
       </div>
 
@@ -60,7 +60,7 @@ export function TaskForm({ onSubmit, onCancel, isLoading = false }: TaskFormProp
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Detalles opcionales..."
-          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-20"
+          className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none resize-none h-20"
         />
       </div>
 
@@ -75,7 +75,7 @@ export function TaskForm({ onSubmit, onCancel, isLoading = false }: TaskFormProp
             value={dueAt}
             onChange={(e) => setDueAt(e.target.value)}
             required
-            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
           />
         </div>
 
@@ -86,7 +86,7 @@ export function TaskForm({ onSubmit, onCancel, isLoading = false }: TaskFormProp
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value as TaskPriority)}
-            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
           >
             <option value="low">Baja</option>
             <option value="medium">Media</option>
@@ -100,7 +100,7 @@ export function TaskForm({ onSubmit, onCancel, isLoading = false }: TaskFormProp
         <button
           type="submit"
           disabled={isLoading || !title || !dueAt}
-          className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="flex-1 bg-primary-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isLoading ? (
             <>

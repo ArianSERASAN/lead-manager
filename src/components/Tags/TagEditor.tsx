@@ -85,7 +85,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
 
     // Update lead in database
     try {
-      const lead = { id: leadId, _collection: leadCollection, name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
+      const lead = { id: leadId, _collection: 'leads', name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
       await LeadService.updateLeadTags(lead, updatedTags);
     } catch (error) {
       console.error('Error updating tags:', error);
@@ -114,7 +114,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
 
     // Update lead in database
     try {
-      const lead = { id: leadId, _collection: leadCollection, name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
+      const lead = { id: leadId, _collection: 'leads', name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
       await LeadService.updateLeadTags(lead, updatedTags);
     } catch (error) {
       console.error('Error updating tags:', error);
@@ -179,7 +179,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
               }, 200);
             }}
             placeholder="Escriba una etiqueta..."
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary-500 outline-none"
           />
 
           {filteredSuggestions.length > 0 && (
@@ -190,7 +190,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
                   onClick={() => handleAddTag(suggestion)}
                   className={`w-full text-left px-3 py-2 text-sm ${
                     index === selectedSuggestion
-                      ? 'bg-blue-50 text-blue-700'
+                      ? 'bg-primary-50 text-primary-700'
                       : 'hover:bg-gray-50'
                   } transition-colors`}
                 >

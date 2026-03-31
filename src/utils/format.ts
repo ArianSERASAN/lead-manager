@@ -38,14 +38,14 @@ export function daysSince(ts: TimestampLike): number {
 
 export function getScoreColor(score: number): string {
   if (score >= 80) return 'text-emerald-600';
-  if (score >= 60) return 'text-blue-600';
+  if (score >= 60) return 'text-primary-600';
   if (score >= 40) return 'text-amber-600';
   return 'text-gray-400';
 }
 
 export function getScoreBgColor(score: number): string {
   if (score >= 80) return 'bg-emerald-50 border-emerald-200';
-  if (score >= 60) return 'bg-blue-50 border-blue-200';
+  if (score >= 60) return 'bg-primary-50 border-primary-200';
   if (score >= 40) return 'bg-amber-50 border-amber-200';
   return 'bg-gray-50 border-gray-200';
 }

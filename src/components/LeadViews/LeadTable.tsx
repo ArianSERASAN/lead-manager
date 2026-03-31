@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { Lead } from '../../types/domain';
 import { Download, MessageSquare, Users, Eye, ChevronRight, CheckSquare, Square, Inbox } from 'lucide-react';
+import { EmptyState } from '../ui/EmptyState';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
@@ -19,11 +20,12 @@ interface LeadTableProps {
   onDelete: (id: string) => void;
   loading?: boolean;
   hasActiveFilters?: boolean;
+  onNewLead?: () => void;
 }
 
 const SourceIcon = memo(({ source }: { source: Lead['source'] }) => {
   switch (source) {
-    case 'landing': return <Users size={14} className="text-blue-500" />;
+    case 'landing': return <Users size={14} className="text-primary-500" />;
     case 'web-download': return <Download size={14} className="text-emerald-500" />;
     case 'web-contact': return <MessageSquare size={14} className="text-purple-500" />;
     case 'manual': return <Eye size={14} className="text-gray-400" />;
@@ -44,7 +46,7 @@ const statusConfig = (status: Lead['status']) => {
     case 'nuevo': return { label: 'Nuevo', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
     case 'contactado': return { label: 'Contactado', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
     case 'en-progreso': return { label: 'En Progreso', cls: 'bg-purple-50 text-purple-700 border-purple-200' };
-    case 'cerrado': return { label: 'Cerrado', cls: 'bg-red-50 text-red-700 border-red-200' };
+    case 'cerrado': return { label: 'Cerrado', cls: 'bg-primary-50 text-primary-700 border-primary-200' };
     default: return { label: status, cls: 'bg-gray-50 text-gray-700 border-gray-200' };
   }
 };
@@ -57,19 +59,19 @@ const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
     <tr
       className={cn(
         "group cursor-pointer transition-colors duration-100",
-        isSelected ? "bg-blue-50/60" : "hover:bg-gray-50/80",
+        isSelected ? "bg-primary-50/60" : "hover:bg-gray-50/80",
         lead.isStale && "bg-orange-50/30"
       )}
       onClick={onSelect}
     >
       <td className="pl-4 pr-2 py-3" onClick={(e) => e.stopPropagation()}>
         <button onClick={onToggle} aria-label={isSelected ? 'Deseleccionar lead' : 'Seleccionar lead'} className="text-gray-300 hover:text-gray-500">
-          {isSelected ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} className="group-hover:text-gray-400" />}
+          {isSelected ? <CheckSquare size={16} className="text-primary-600" /> : <Square size={16} className="group-hover:text-gray-400" />}
         </button>
       </td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-[11px] font-bold shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-[11px] font-bold shrink-0">
             {lead.name.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
@@ -82,7 +84,7 @@ const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
         {lead.company || <span className="text-gray-300">—</span>}
       </td>
       <td className="px-3 py-3">
-        <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold border", status.cls)}>
+        <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold border transition-colors duration-300", status.cls)}>
           {status.label}
         </span>
       </td>
@@ -99,7 +101,7 @@ const LeadRow = memo(({ lead, isSelected, onSelect, onToggle }: {
         <span className="text-xs text-gray-400">{formatTimestamp(lead.createdAt)}</span>
       </td>
       <td className="pr-4 py-3">
-        <ChevronRight size={14} className="text-gray-300 group-hover:text-blue-500 transition-colors" />
+        <ChevronRight size={14} className="text-gray-300 group-hover:text-primary-500 transition-colors" />
       </td>
     </tr>
   );
@@ -128,7 +130,7 @@ function SkeletonRow() {
   );
 }
 
-export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onToggleAll, onDelete, loading = false, hasActiveFilters = false }: LeadTableProps) {
+export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect, onToggleSelection, onToggleAll, onDelete, loading = false, hasActiveFilters = false, onNewLead }: LeadTableProps) {
   if (loading) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card overflow-hidden">
@@ -173,23 +175,21 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
 
   if (leads.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-12 animate-fade-in">
-        <div className="flex flex-col items-center justify-center text-center">
-          <div className="w-14 h-14 bg-gray-100 rounded-2xl flex items-center justify-center mb-3">
-            <Inbox className="text-gray-400" size={24} />
-          </div>
-          {hasActiveFilters ? (
-            <>
-              <h3 className="text-base font-bold text-gray-900 mb-1">Sin resultados</h3>
-              <p className="text-sm text-gray-400 max-w-xs">No hay leads que coincidan con los filtros activos. Prueba a ampliar los criterios de búsqueda.</p>
-            </>
-          ) : (
-            <>
-              <h3 className="text-base font-bold text-gray-900 mb-1">Aún no hay leads</h3>
-              <p className="text-sm text-gray-400 max-w-xs">Los leads de los formularios web aparecerán aquí automáticamente. También puedes crear uno manualmente.</p>
-            </>
-          )}
-        </div>
+      <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card">
+        {hasActiveFilters ? (
+          <EmptyState
+            icon={<Inbox size={26} />}
+            title="Sin resultados"
+            subtitle="No hay leads que coincidan con los filtros activos. Prueba a ampliar los criterios de búsqueda."
+          />
+        ) : (
+          <EmptyState
+            icon={<Inbox size={26} />}
+            title="Aún no hay leads"
+            subtitle="Los leads de los formularios web aparecerán aquí automáticamente. También puedes crear uno manualmente."
+            action={onNewLead ? { label: 'Crear lead', onClick: onNewLead } : undefined}
+          />
+        )}
       </div>
     );
   }
@@ -197,10 +197,10 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
   return (
     <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card overflow-hidden">
       {/* Desktop Table */}
-      <div className="hidden md:block overflow-x-auto">
+      <div className="hidden md:block overflow-auto max-h-[calc(100vh-300px)]">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-gray-100 bg-gray-50/50">
+            <tr className="border-b border-gray-100 bg-white sticky top-0 z-10">
               <th className="pl-4 pr-2 py-3 w-10">
                 <button
                   onClick={() => {
@@ -211,7 +211,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
                   className="text-gray-300 hover:text-gray-500"
                 >
                   {selectedIds.length === leads.length && leads.length > 0
-                    ? <CheckSquare size={16} className="text-blue-600" />
+                    ? <CheckSquare size={16} className="text-primary-600" />
                     : <Square size={16} />}
                 </button>
               </th>
@@ -224,7 +224,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
               <th className="pr-4 py-3 w-8"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-gray-50 stagger-children">
             {leads.map((lead) => (
               <LeadRow
                 key={lead.id}
@@ -249,7 +249,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
               onClick={() => onSelect(lead)}
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {lead.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">

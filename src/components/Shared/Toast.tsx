@@ -35,7 +35,7 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
     success: 'bg-green-600',
     error: 'bg-red-600',
     undo: 'bg-gray-900',
-    info: 'bg-blue-600'
+    info: 'bg-primary-600'
   };
 
   const Icon = type === 'success' ? CheckCircle2 : type === 'error' ? AlertCircle : type === 'undo' ? RotateCcw : CheckCircle2;

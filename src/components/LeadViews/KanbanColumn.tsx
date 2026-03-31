@@ -2,6 +2,7 @@ import { Lead, LeadStatus } from '../../types/domain';
 import { KanbanCard } from './KanbanCard';
 import { STATUS_CONFIG } from '../../utils/constants';
 import { useDroppable } from '@dnd-kit/core';
+import { ArrowDownToLine, Inbox } from 'lucide-react';
 
 interface KanbanColumnProps {
   status: LeadStatus;
@@ -22,7 +23,7 @@ export function KanbanColumn({ status, leads, onCardClick, draggedLeadId, readon
       ref={setNodeRef}
       className={`flex flex-col min-w-[240px] sm:min-w-[280px] flex-1 rounded-2xl border-2 transition-colors duration-200 ${
         isOver
-          ? 'border-blue-400 bg-blue-50/60 shadow-lg scale-[1.01]'
+          ? 'border-primary-400 bg-primary-50/60 shadow-lg scale-[1.01]'
           : isDragging
             ? 'border-dashed border-gray-300 bg-gray-50/50'
             : 'border-gray-200 bg-gradient-to-b from-gray-50/80 to-white'
@@ -60,16 +61,16 @@ export function KanbanColumn({ status, leads, onCardClick, draggedLeadId, readon
           ))
         ) : (
           <div className={`flex flex-col items-center justify-center py-12 rounded-xl transition-colors ${
-            isOver ? 'bg-blue-100/40' : 'text-gray-400'
+            isOver ? 'bg-primary-100/40' : 'text-gray-400'
           }`}>
             {isOver ? (
               <>
-                <div className="text-3xl mb-2">👇</div>
-                <p className="text-sm font-medium text-blue-600">Soltar aquí</p>
+                <ArrowDownToLine size={28} className="text-primary-500 mb-2" />
+                <p className="text-sm font-medium text-primary-600">Soltar aquí</p>
               </>
             ) : (
               <>
-                <div className="text-3xl mb-2">📭</div>
+                <Inbox size={28} className="text-gray-300 mb-2" />
                 <p className="text-sm font-medium">Sin leads</p>
               </>
             )}
@@ -78,8 +79,8 @@ export function KanbanColumn({ status, leads, onCardClick, draggedLeadId, readon
 
         {/* Drop indicator when column has cards */}
         {isOver && leads.length > 0 && (
-          <div className="border-2 border-dashed border-blue-300 rounded-xl p-4 text-center">
-            <p className="text-xs font-medium text-blue-500">Soltar aquí</p>
+          <div className="border-2 border-dashed border-primary-300 rounded-xl p-4 text-center">
+            <p className="text-xs font-medium text-primary-500">Soltar aquí</p>
           </div>
         )}
       </div>

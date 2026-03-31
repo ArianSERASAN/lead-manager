@@ -72,6 +72,9 @@ export interface Lead {
   closedByName?: string;                          // Nombre del usuario que cerró/canceló
   stateHistory?: StateChange[];                   // Historial de cambios de estado
 
+  // ─── Adjuntos ────────────────────────────────────────────────────
+  attachments?: LeadAttachment[];
+
   // ─── Apollo Enrichment Data ─────────────────────────────────────
   enrichment?: ApolloEnrichment;
   enrichedAt?: Timestamp | Date | string;
@@ -240,3 +243,71 @@ export interface EmailSequenceConfig {
 
 // Legacy type alias for backward compatibility
 export type { Lead as LeadLegacy };
+
+// ─── Custom Field Schema ───────────────────────────────────────────
+
+export type FieldType =
+  | 'text'
+  | 'number'
+  | 'email'
+  | 'phone'
+  | 'url'
+  | 'date'
+  | 'select'
+  | 'multi-select'
+  | 'textarea'
+  | 'checkbox';
+
+export interface FieldOption {
+  value: string;
+  label: string;
+}
+
+export interface FieldDefinition {
+  id: string;
+  name: string;        // key used in lead.customFields (slug)
+  label: string;       // display label
+  type: FieldType;
+  options?: FieldOption[];  // for select / multi-select
+  order: number;
+  visible: boolean;
+  required: boolean;
+  section?: string;    // optional group heading
+  createdAt: string;   // ISO date string
+  createdBy: string;   // uid
+}
+
+export interface DetectedUnknownField {
+  key: string;
+  sampleValue: unknown;
+  suggestedLabel: string;
+  suggestedType: FieldType;
+  isKnownAlias: boolean;
+  aliasMapsTo?: string;
+}
+
+// ─── Attachments ──────────────────────────────────────────────────
+
+export interface LeadAttachment {
+  name: string;
+  url: string;
+  size: number;
+  uploadedAt: string;
+  uploadedBy: string;
+  uploadedByName: string;
+}
+
+// ─── Notifications ─────────────────────────────────────────────────
+
+export type NotificationType = 'new_lead' | 'hot_lead' | 'stale_lead' | 'assigned';
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string | Date;
+  leadId?: string;
+}

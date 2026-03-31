@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { X, Loader2, Check } from 'lucide-react';
+import { X, Loader2, Check, AlertTriangle } from 'lucide-react';
 import { Lead, LeadStatus } from '../../types/domain';
 import * as LeadService from '../../services/LeadService';
 import * as ActivityService from '../../services/ActivityService';
@@ -72,6 +72,7 @@ export function LeadCreateForm({
   const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<{ name: string; status: string } | null>(null);
 
   const validateForm = useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -122,10 +123,9 @@ export function LeadCreateForm({
 
       // Record activity
       if (userId && userName) {
-        const colName = LeadService.getCollectionName(formData.source);
         await ActivityService.recordActivity(
           leadId,
-          colName,
+          'leads',
           userId,
           userName,
           'created',
@@ -191,6 +191,19 @@ export function LeadCreateForm({
     }));
   }, []);
 
+  const handleEmailBlur = async () => {
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setDuplicateWarning(null);
+      return;
+    }
+    try {
+      const existing = await LeadService.checkDuplicateEmail(formData.email);
+      setDuplicateWarning(existing);
+    } catch {
+      setDuplicateWarning(null);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -238,7 +251,7 @@ export function LeadCreateForm({
                   className={`w-full px-4 py-3 rounded-xl border-2 transition-colors duration-150 focus:outline-none ${
                     errors.name
                       ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500'
-                      : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500'
+                      : 'border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500'
                   }`}
                 />
                 {errors.name && (
@@ -255,7 +268,7 @@ export function LeadCreateForm({
                   value={formData.apellidos}
                   onChange={(e) => handleChange('apellidos', e.target.value)}
                   placeholder="Apellidos"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
                 />
               </div>
             </div>
@@ -273,16 +286,25 @@ export function LeadCreateForm({
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'lead-email-error' : undefined}
                 value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
+                onChange={(e) => { handleChange('email', e.target.value); setDuplicateWarning(null); }}
+                onBlur={handleEmailBlur}
                 placeholder="correo@ejemplo.com"
                 className={`w-full px-4 py-3 rounded-xl border-2 transition-colors duration-150 focus:outline-none ${
                   errors.email
                     ? 'border-red-300 bg-red-50 focus:ring-2 focus:ring-red-500'
-                    : 'border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500'
+                    : 'border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500'
                 }`}
               />
               {errors.email && (
                 <p id="lead-email-error" role="alert" className="text-xs text-red-600 mt-1">{errors.email}</p>
+              )}
+              {duplicateWarning && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg mt-1">
+                  <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-700">
+                    Ya existe un lead con este email: <span className="font-bold">{duplicateWarning.name}</span> ({duplicateWarning.status})
+                  </p>
+                </div>
               )}
             </div>
 
@@ -297,7 +319,7 @@ export function LeadCreateForm({
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 placeholder="+34 600 000 000"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
               />
             </div>
 
@@ -313,7 +335,7 @@ export function LeadCreateForm({
                   value={formData.company}
                   onChange={(e) => handleChange('company', e.target.value)}
                   placeholder="Nombre empresa"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
                 />
               </div>
               <div className="flex-1">
@@ -326,7 +348,7 @@ export function LeadCreateForm({
                   value={formData.cargo}
                   onChange={(e) => handleChange('cargo', e.target.value)}
                   placeholder="Cargo"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
                 />
               </div>
             </div>
@@ -342,7 +364,7 @@ export function LeadCreateForm({
                 value={formData.sector}
                 onChange={(e) => handleChange('sector', e.target.value)}
                 placeholder="Sector de la empresa"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
               />
             </div>
 
@@ -355,7 +377,7 @@ export function LeadCreateForm({
                 id="lead-source"
                 value={formData.source}
                 onChange={(e) => handleChange('source', e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none font-semibold text-gray-700"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none font-semibold text-gray-700"
               >
                 {SOURCE_OPTIONS.map(opt => (
                   <option key={opt.value} value={opt.value}>
@@ -375,7 +397,7 @@ export function LeadCreateForm({
                       type="checkbox"
                       checked={formData.servicios.includes(servicio)}
                       onChange={() => handleServicioToggle(servicio)}
-                      className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     />
                     <span className="text-sm text-gray-700 group-hover:text-gray-900">{servicio}</span>
                   </label>
@@ -396,7 +418,7 @@ export function LeadCreateForm({
                     id="lead-tipo-inmueble"
                     value={formData.tipoInmueble}
                     onChange={(e) => handleChange('tipoInmueble', e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none text-gray-700"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none text-gray-700"
                   >
                     <option value="">Seleccionar tipo...</option>
                     {TIPO_INMUEBLE_OPTIONS.map(opt => (
@@ -417,7 +439,7 @@ export function LeadCreateForm({
                       value={formData.superficie}
                       onChange={(e) => handleChange('superficie', e.target.value)}
                       placeholder="Ej: 500"
-                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
                     />
                   </div>
                   <div className="flex-1">
@@ -430,7 +452,7 @@ export function LeadCreateForm({
                       value={formData.localidad}
                       onChange={(e) => handleChange('localidad', e.target.value)}
                       placeholder="Ciudad o CP"
-                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -446,7 +468,7 @@ export function LeadCreateForm({
                     value={formData.direccion}
                     onChange={(e) => handleChange('direccion', e.target.value)}
                     placeholder="Dirección del edificio"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none"
                   />
                 </div>
 
@@ -461,7 +483,7 @@ export function LeadCreateForm({
                     value={formData.referenciaCatastral}
                     onChange={(e) => handleChange('referenciaCatastral', e.target.value)}
                     placeholder="Ref. catastral (opcional)"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none font-mono"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none font-mono"
                   />
                 </div>
               </div>
@@ -480,7 +502,7 @@ export function LeadCreateForm({
                   onChange={(e) => handleChange('message', e.target.value)}
                   placeholder="Mensaje del lead (opcional)"
                   rows={2}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none resize-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none resize-none"
                 />
               </div>
 
@@ -495,7 +517,7 @@ export function LeadCreateForm({
                   onChange={(e) => handleChange('notes', e.target.value)}
                   placeholder="Notas internas (opcional)"
                   rows={2}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 transition-colors duration-150 focus:outline-none resize-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 bg-gray-50 focus:border-primary-500 focus:ring-2 focus:ring-primary-500 transition-colors duration-150 focus:outline-none resize-none"
                 />
               </div>
             </div>
@@ -516,7 +538,7 @@ export function LeadCreateForm({
               type="submit"
               form="create-lead-form"
               disabled={isLoading}
-              className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold hover:shadow-lg hover:shadow-blue-600/30 transition-shadow duration-200 btn-press disabled:opacity-60 flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-bold hover:shadow-lg hover:shadow-primary-600/30 transition-shadow duration-200 btn-press disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {isLoading ? (
                 <>

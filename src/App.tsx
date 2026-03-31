@@ -6,6 +6,7 @@ import { useToast } from './contexts/ToastContext';
 import { Login } from './components/Shared/Login';
 import { Toast } from './components/Shared/Toast';
 import { MainLayout } from './components/Layout/MainLayout';
+import { useLeadSubscription } from './stores/useLeadStore';
 
 // Lazy load pages for performance
 const LeadsPage = lazy(() => import('./pages/LeadsPage').then(m => ({ default: m.LeadsPage })));
@@ -14,6 +15,7 @@ const KanbanPage = lazy(() => import('./pages/KanbanPage').then(m => ({ default:
 const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const HistorialPage = lazy(() => import('./pages/HistorialPage').then(m => ({ default: m.HistorialPage })));
+const LeadProfilePage = lazy(() => import('./pages/LeadProfilePage').then(m => ({ default: m.LeadProfilePage })));
 
 function PageLoader() {
   return (
@@ -27,6 +29,7 @@ function AppContent() {
   const { firebaseUser, appUser, loading, logout } = useAuth();
   const { toasts, removeToast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
+  useLeadSubscription();
 
   if (loading) {
     return (
@@ -60,6 +63,7 @@ function AppContent() {
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/historial" element={<HistorialPage />} />
+          <Route path="/leads/:collection/:id" element={<LeadProfilePage />} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
-import { useLeads } from '../hooks/leads/useLeads';
+import { useLeadStore } from '../stores/useLeadStore';
 import { useDashboardMetrics } from '../hooks/dashboard/useDashboardMetrics';
 import { StatsCards } from '../components/Dashboard/StatsCards';
 import { TrendChart } from '../components/Dashboard/TrendChart';
@@ -10,11 +10,13 @@ import { FunnelChart } from '../components/Dashboard/FunnelChart';
 import { SourceChart } from '../components/Dashboard/SourceChart';
 import { ScoreDistributionChart } from '../components/Dashboard/ScoreDistributionChart';
 import { StaleLeadsWidget } from '../components/Dashboard/StaleLeadsWidget';
+import { SourceROIChart } from '../components/Dashboard/SourceROIChart';
 
 export function DashboardPage() {
   const { appUser } = useAuth();
   const navigate = useNavigate();
-  const { leads, loading } = useLeads();
+  const leads = useLeadStore((s) => s.leads);
+  const loading = useLeadStore((s) => s.loading);
   const [dateRangeFilter, setDateRangeFilter] = useState<'7' | '30' | '90' | 'all'>('all');
 
   const dateRanges = {
@@ -70,7 +72,7 @@ export function DashboardPage() {
             onClick={() => setDateRangeFilter('7')}
             className={`px-3 sm:px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors min-h-[44px] ${
               dateRangeFilter === '7'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -80,7 +82,7 @@ export function DashboardPage() {
             onClick={() => setDateRangeFilter('30')}
             className={`px-3 sm:px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors min-h-[44px] ${
               dateRangeFilter === '30'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -90,7 +92,7 @@ export function DashboardPage() {
             onClick={() => setDateRangeFilter('90')}
             className={`px-3 sm:px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors min-h-[44px] ${
               dateRangeFilter === '90'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -100,7 +102,7 @@ export function DashboardPage() {
             onClick={() => setDateRangeFilter('all')}
             className={`px-3 sm:px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors min-h-[44px] ${
               dateRangeFilter === 'all'
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -135,6 +137,9 @@ export function DashboardPage() {
 
         {/* Row 4: Stale Leads Widget */}
         <StaleLeadsWidget leads={leads} onViewAll={handleViewAllStale} />
+
+        {/* Row 5: Source ROI Chart */}
+        <SourceROIChart data={metrics.sourceROI} />
       </div>
     </>
   );

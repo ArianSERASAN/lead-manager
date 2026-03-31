@@ -1,4 +1,4 @@
-import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell, Mail, Wrench, RefreshCw } from 'lucide-react';
+import { Users, Shield, UserPlus, Pencil, Check, X, ToggleLeft, ToggleRight, Loader2, AlertTriangle, Eye, EyeOff, Bell, Mail, Wrench, RefreshCw, LayoutList } from 'lucide-react';
 import { useEffect, useState, useCallback } from 'react';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '../lib/firebase';
@@ -11,6 +11,7 @@ import { useToast } from '../contexts/ToastContext';
 import * as UserService from '../services/UserService';
 import { AlertSettings } from '../components/Settings/AlertSettings';
 import { EmailSequenceSettings } from '../components/Settings/EmailSequenceSettings';
+import { FieldSchemaManager } from '../components/Settings/FieldSchemaManager';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; color: string; bgColor: string; description: string }[] = [
   { value: 'admin', label: 'Administrador', color: 'text-red-700', bgColor: 'bg-red-50 border-red-200', description: 'Acceso completo: gestión de usuarios, leads, configuración' },
@@ -218,6 +219,22 @@ export function SettingsPage() {
                 ))}
               </div>
             </div>
+          </div>
+        </RoleGuard>
+
+        {/* Custom Field Schema — Admin/Editor */}
+        <RoleGuard requires="canEdit">
+          <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-1">
+                <LayoutList size={20} />
+                Campos Personalizados
+              </h2>
+              <p className="text-sm text-gray-500">
+                Define campos adicionales que aparecerán en la ficha de cada lead. Visible para todos los usuarios.
+              </p>
+            </div>
+            <FieldSchemaManager />
           </div>
         </RoleGuard>
 

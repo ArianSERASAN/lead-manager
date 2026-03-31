@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { AppUser } from '../../types/domain';
 import { Sidebar } from './Sidebar';
+import { MobileBottomNav } from './MobileBottomNav';
 
 interface MainLayoutProps {
   children: ReactNode;
@@ -15,10 +16,13 @@ export function MainLayout({ children, user, onLogout, onNewLeadClick }: MainLay
       <Sidebar user={user} onLogout={onLogout} onNewLeadClick={onNewLeadClick} />
 
       <main className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50/80 relative min-w-0">
-        <div className="w-full px-2 sm:px-4 md:px-8 lg:px-10 py-3 md:py-7 max-w-[1600px] mx-auto">
+        {/* Extra bottom padding on mobile so content clears the bottom nav */}
+        <div className="w-full px-2 sm:px-4 md:px-8 lg:px-10 py-3 md:py-7 pb-20 md:pb-7 max-w-[1600px] mx-auto">
           {children}
         </div>
       </main>
+
+      <MobileBottomNav />
     </div>
   );
 }

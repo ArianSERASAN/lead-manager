@@ -1,4 +1,4 @@
-import { CheckSquare, Plus } from 'lucide-react';
+import { CheckSquare, Plus, AlertTriangle, Calendar, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { Header } from '../components/Layout/Header';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,13 +6,13 @@ import { useAllTasks, TaskWithLead } from '../hooks/leads/useAllTasks';
 import { TaskCard } from '../components/Tasks/TaskCard';
 import { deleteTask, completeTask } from '../services/TaskService';
 import { useToast } from '../contexts/ToastContext';
-import { useLeads } from '../hooks/leads/useLeads';
+import { useLeadStore } from '../stores/useLeadStore';
 
 export function TasksPage() {
   const { appUser } = useAuth();
   const { addToast } = useToast();
   const { groupedTasks, loading } = useAllTasks();
-  const { leads } = useLeads();
+  const leads = useLeadStore((s) => s.leads);
   const [selectedLeadForNewTask, setSelectedLeadForNewTask] = useState<string | null>(null);
 
   const handleCompleteTask = async (task: TaskWithLead) => {
@@ -90,7 +90,7 @@ export function TasksPage() {
             {groupedTasks.overdue && groupedTasks.overdue.length > 0 && (
               <div>
                 <h2 className="text-lg font-bold text-red-600 mb-4 flex items-center gap-2">
-                  ⚠️ Vencidas ({groupedTasks.overdue.length})
+                  <AlertTriangle size={18} /> Vencidas ({groupedTasks.overdue.length})
                 </h2>
                 <div className="space-y-3">
                   {groupedTasks.overdue.map(task => (
@@ -110,7 +110,7 @@ export function TasksPage() {
             {groupedTasks.today && groupedTasks.today.length > 0 && (
               <div>
                 <h2 className="text-lg font-bold text-amber-600 mb-4 flex items-center gap-2">
-                  📅 Hoy ({groupedTasks.today.length})
+                  <Calendar size={18} /> Hoy ({groupedTasks.today.length})
                 </h2>
                 <div className="space-y-3">
                   {groupedTasks.today.map(task => (
@@ -129,8 +129,8 @@ export function TasksPage() {
             {/* Upcoming */}
             {groupedTasks.upcoming && groupedTasks.upcoming.length > 0 && (
               <div>
-                <h2 className="text-lg font-bold text-blue-600 mb-4 flex items-center gap-2">
-                  📍 Próximas ({groupedTasks.upcoming.length})
+                <h2 className="text-lg font-bold text-primary-600 mb-4 flex items-center gap-2">
+                  <MapPin size={18} /> Próximas ({groupedTasks.upcoming.length})
                 </h2>
                 <div className="space-y-3">
                   {groupedTasks.upcoming.map(task => (

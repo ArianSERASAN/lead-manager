@@ -240,7 +240,7 @@ tr.row-interactive {
 
 @media (hover: hover) and (pointer: fine) {
   tr.row-interactive:hover {
-    background: linear-gradient(90deg, rgba(59, 130, 246, 0.04) 0%, rgba(59, 130, 246, 0.02) 100%);
+    background: linear-gradient(90deg, rgba(124, 58, 237, 0.04) 0%, rgba(124, 58, 237, 0.02) 100%);
   }
 }
 
@@ -257,7 +257,7 @@ tr.row-interactive {
   transform: translateY(-50%);
   width: 4px;
   height: 60%;
-  background: linear-gradient(180deg, #3b82f6, #6366f1);
+  background: linear-gradient(180deg, #7c3aed, #6366f1);
   border-radius: 0 4px 4px 0;
 }
 

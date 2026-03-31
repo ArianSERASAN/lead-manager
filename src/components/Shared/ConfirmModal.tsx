@@ -23,7 +23,7 @@ export function ConfirmModal({
 
   const colors = {
     red: 'bg-red-600 hover:bg-red-700 shadow-red-200',
-    blue: 'bg-blue-600 hover:bg-blue-700 shadow-blue-200',
+    blue: 'bg-primary-600 hover:bg-primary-700 shadow-primary-200',
     orange: 'bg-orange-600 hover:bg-orange-700 shadow-orange-200'
   };
 

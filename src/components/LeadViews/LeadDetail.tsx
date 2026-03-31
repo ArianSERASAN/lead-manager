@@ -1,6 +1,7 @@
 import { Lead, LeadStatus } from '../../types/domain';
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Lock, XCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Save, Loader2, Lock, XCircle, ExternalLink } from 'lucide-react';
 import { formatTimestamp } from '../../utils/format';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
 import { TagEditor } from '../Tags/TagEditor';
@@ -20,11 +21,14 @@ interface LeadDetailProps {
   onAssign: (userId: string) => void;
   onCancel?: () => void;
   onEnriched?: () => void;
+  /** Ordered list of leads for prev/next navigation in the profile page */
+  siblingLeads?: Lead[];
 }
 
 type TabType = 'info' | 'actividad' | 'tareas';
 
-export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign, onCancel, onEnriched }: LeadDetailProps) {
+export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign, onCancel, onEnriched, siblingLeads }: LeadDetailProps) {
+  const navigate = useNavigate();
   const [notes, setNotes] = useState(lead.notes || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -82,6 +86,18 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
               className="flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <ScoreBadge score={lead.score} size="md" />
+            </button>
+            <button
+              onClick={() =>
+                navigate(`/leads/${lead._collection || 'leads'}/${lead.id}`, {
+                  state: { leads: siblingLeads || [] },
+                })
+              }
+              className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+              title="Abrir ficha completa"
+            >
+              <ExternalLink size={11} />
+              Ver ficha completa
             </button>
           </div>
         </div>

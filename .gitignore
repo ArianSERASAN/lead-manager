@@ -20,3 +20,11 @@ ui-debug.log*
 .DS_Store
 *.pem
 functions/node_modules
+
+# Temp / local files
+test_leads.xlsx
+*.xlsx
+dist_*/
+screenshots_mobile/
+*.docx
+nohup.out

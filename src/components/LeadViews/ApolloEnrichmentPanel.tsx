@@ -108,7 +108,7 @@ export function ApolloEnrichmentPanel({ lead, onEnriched }: ApolloEnrichmentPane
                 href={data.linkedinUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline break-all"
+                className="text-sm text-primary-600 hover:underline break-all"
               >
                 Ver perfil
               </a>
@@ -166,7 +166,7 @@ export function ApolloEnrichmentPanel({ lead, onEnriched }: ApolloEnrichmentPane
                 href={data.organizationWebsite.startsWith('http') ? data.organizationWebsite : `https://${data.organizationWebsite}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline break-all"
+                className="text-sm text-primary-600 hover:underline break-all"
               >
                 {data.organizationDomain || data.organizationWebsite}
               </a>
@@ -183,7 +183,7 @@ export function ApolloEnrichmentPanel({ lead, onEnriched }: ApolloEnrichmentPane
                 href={data.organizationLinkedin}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-sm text-blue-600 hover:underline"
+                className="text-sm text-primary-600 hover:underline"
               >
                 Ver página
               </a>

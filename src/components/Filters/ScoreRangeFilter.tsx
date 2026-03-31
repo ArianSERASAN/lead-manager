@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Flame, Snowflake } from 'lucide-react';
 
 interface ScoreRangeFilterProps {
   scoreMin: number;
@@ -46,14 +47,14 @@ export function ScoreRangeFilter({ scoreMin, scoreMax, onScoreRangeChange }: Sco
               : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
           }`}
         >
-          🔥 Calientes (80+)
+          <Flame size={14} className="inline mr-1" /> Calientes (80+)
         </button>
 
         <button
           onClick={() => handleQuickButton(60, 80)}
           className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors border-2 ${
             scoreMin === 60 && scoreMax === 80
-              ? 'bg-blue-50 border-blue-300 text-blue-700'
+              ? 'bg-primary-50 border-primary-300 text-primary-700'
               : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
           }`}
         >
@@ -68,7 +69,7 @@ export function ScoreRangeFilter({ scoreMin, scoreMax, onScoreRangeChange }: Sco
               : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
           }`}
         >
-          ❄️ Fríos (&lt;40)
+          <Snowflake size={14} className="inline mr-1" /> Fríos (&lt;40)
         </button>
       </div>
 
@@ -83,7 +84,7 @@ export function ScoreRangeFilter({ scoreMin, scoreMax, onScoreRangeChange }: Sco
               max="100"
               value={localMin}
               onChange={(e) => handleMinChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
               placeholder="0"
             />
           </div>
@@ -95,7 +96,7 @@ export function ScoreRangeFilter({ scoreMin, scoreMax, onScoreRangeChange }: Sco
               max="100"
               value={localMax}
               onChange={(e) => handleMaxChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-primary-500 outline-none"
               placeholder="100"
             />
           </div>
@@ -103,7 +104,7 @@ export function ScoreRangeFilter({ scoreMin, scoreMax, onScoreRangeChange }: Sco
 
         <button
           onClick={applyRange}
-          className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors"
+          className="w-full px-3 py-2 bg-primary-600 text-white rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors"
         >
           Aplicar Rango
         </button>

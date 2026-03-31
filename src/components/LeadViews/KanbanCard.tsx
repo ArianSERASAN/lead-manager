@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Lead } from '../../types/domain';
-import { ChevronDown, Mail, Building, Clock } from 'lucide-react';
+import { ChevronDown, Mail, Building, Clock, Globe, Download, MessageSquare, Hand } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/format';
 import { TAG_COLORS } from '../../utils/constants';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
@@ -16,10 +16,10 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
 
   const getSourceIcon = (source: Lead['source']) => {
     switch (source) {
-      case 'landing': return '🌐';
-      case 'web-download': return '📥';
-      case 'web-contact': return '💬';
-      case 'manual': return '✋';
+      case 'landing': return <Globe size={12} className="text-primary-500" />;
+      case 'web-download': return <Download size={12} className="text-emerald-500" />;
+      case 'web-contact': return <MessageSquare size={12} className="text-purple-500" />;
+      case 'manual': return <Hand size={12} className="text-gray-400" />;
     }
   };
 
@@ -42,9 +42,9 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
     <div
       className={`bg-white rounded-lg border select-none ${
         isDragging
-          ? 'shadow-2xl border-blue-300 ring-2 ring-blue-200'
+          ? 'shadow-2xl border-primary-300 ring-2 ring-primary-200'
           : `shadow-sm cursor-grab active:cursor-grabbing active:scale-[0.98] md:hover-lift transition-transform duration-150 ${
-              lead.isStale ? 'border-orange-200' : 'border-gray-100 md:hover:border-blue-200'
+              lead.isStale ? 'border-orange-200' : 'border-gray-100 md:hover:border-primary-200'
             }`
       }`}
     >
@@ -129,7 +129,7 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
             </div>
             {lead.assignedTo && (
               <div className="flex items-center gap-1">
-                <div className="w-4 h-4 rounded-full bg-blue-600 flex items-center justify-center text-[8px] font-bold text-white">
+                <div className="w-4 h-4 rounded-full bg-primary-600 flex items-center justify-center text-[8px] font-bold text-white">
                   {lead.assignedTo.substring(0, 1).toUpperCase()}
                 </div>
                 <span>Asignado</span>
@@ -140,7 +140,7 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           {/* Open detail button */}
           <button
             onClick={handleCardClick}
-            className="w-full text-center text-xs font-semibold text-blue-600 hover:text-blue-800 hover:bg-blue-50 active:bg-blue-100 py-3 rounded-lg transition-colors min-h-[44px]"
+            className="w-full text-center text-xs font-semibold text-primary-600 hover:text-primary-800 hover:bg-primary-50 active:bg-primary-100 py-3 rounded-lg transition-colors min-h-[44px]"
           >
             Ver detalle completo
           </button>

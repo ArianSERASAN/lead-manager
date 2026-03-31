@@ -90,7 +90,7 @@ export function AlertSettings() {
                   }}
                   className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
                     active
-                      ? 'bg-blue-50 border-blue-300 text-blue-700'
+                      ? 'bg-primary-50 border-primary-300 text-primary-700'
                       : 'bg-gray-50 border-gray-200 text-gray-500 hover:border-gray-300'
                   }`}
                 >
@@ -230,7 +230,7 @@ export function AlertSettings() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-600/30 transition-all disabled:opacity-50"
           >
             {saving ? (
               <><Loader2 size={18} className="animate-spin" /> Guardando...</>
@@ -262,7 +262,7 @@ function AlertCard({ icon, title, description, enabled, onToggle, children }: Al
     }`}>
       {/* Header — always visible */}
       <div className="flex items-center gap-3 p-4">
-        <div className={`p-2 rounded-lg ${enabled ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+        <div className={`p-2 rounded-lg ${enabled ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>
           {icon}
         </div>
         <div className="flex-1 min-w-0">
@@ -272,7 +272,7 @@ function AlertCard({ icon, title, description, enabled, onToggle, children }: Al
         <button
           onClick={() => onToggle(!enabled)}
           className={`relative w-11 h-6 rounded-full transition-colors ${
-            enabled ? 'bg-blue-600' : 'bg-gray-300'
+            enabled ? 'bg-primary-600' : 'bg-gray-300'
           }`}
         >
           <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
@@ -319,12 +319,12 @@ function RecipientList({ recipients, onChange }: { recipients: string[]; onChang
           {recipients.map(email => (
             <span
               key={email}
-              className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 pl-2.5 pr-1 py-1 rounded-lg"
+              className="inline-flex items-center gap-1 text-xs font-medium bg-primary-50 text-primary-700 pl-2.5 pr-1 py-1 rounded-lg"
             >
               {email}
               <button
                 onClick={() => removeEmail(email)}
-                className="p-0.5 rounded hover:bg-blue-200 transition-colors"
+                className="p-0.5 rounded hover:bg-primary-200 transition-colors"
               >
                 <X size={12} />
               </button>
@@ -339,12 +339,12 @@ function RecipientList({ recipients, onChange }: { recipients: string[]; onChang
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEmail(); } }}
           placeholder="email@ejemplo.com"
-          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-400"
         />
         <button
           onClick={addEmail}
           type="button"
-          className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+          className="p-1.5 bg-primary-50 text-primary-600 rounded-lg hover:bg-primary-100 transition-colors"
         >
           <Plus size={16} />
         </button>

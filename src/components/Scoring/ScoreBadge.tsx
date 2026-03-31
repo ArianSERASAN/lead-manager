@@ -20,9 +20,9 @@ export function ScoreBadge({ score, size = 'md', showTooltip = false }: ScoreBad
   return (
     <div className="relative inline-block" aria-label={`Puntuación: ${score} — ${scoreLabel}`} title={scoreLabel}>
       <div
-        className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold text-white border ${scoreBgColor} ${
-          score >= 80 ? 'bg-emerald-600' :
-          score >= 60 ? 'bg-blue-600' :
+        className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold text-white border tabular-nums transition-all duration-200 md:hover:scale-110 ${scoreBgColor} ${
+          score >= 80 ? 'bg-emerald-600 shadow-sm shadow-emerald-400/40' :
+          score >= 60 ? 'bg-primary-600 shadow-sm shadow-primary-400/30' :
           score >= 40 ? 'bg-amber-600' :
           'bg-gray-400'
         }`}

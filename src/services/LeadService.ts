@@ -1,17 +1,8 @@
-import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Lead, LeadStatus, StateChange } from '../types/domain';
 
-// Map source to original collection name (backward compat during transition)
-export function getCollectionName(source: string): string {
-  switch (source) {
-    case 'landing': return 'leads';
-    case 'web-download': return 'leads_descargas';
-    case 'web-contact': return 'solicitudes_contacto';
-    case 'manual': return 'leads'; // New manual leads go to main collection
-    default: return 'leads';
-  }
-}
+const COLLECTION = 'leads';
 
 // Whitelist of fields that can be updated via updateLeadField
 const UPDATABLE_FIELDS = new Set([
@@ -19,13 +10,13 @@ const UPDATABLE_FIELDS = new Set([
   'notes', 'tags', 'message', 'assignedTo', 'assignedAt',
   'score', 'scoreBreakdown', 'pipelinePosition', 'customFields',
   'enrichment', 'enrichedAt',
-  'cancellationReason', 'closedAt', 'closedBy', 'closedByName', 'stateHistory'
+  'cancellationReason', 'closedAt', 'closedBy', 'closedByName', 'stateHistory',
+  'attachments'
 ]);
 
 export async function createLead(leadData: Partial<Lead>): Promise<string> {
   try {
-    const colName = getCollectionName(leadData.source || 'manual');
-    const docRef = await addDoc(collection(db, colName), {
+    const docRef = await addDoc(collection(db, COLLECTION), {
       ...leadData,
       status: leadData.status || 'nuevo',
       tags: leadData.tags || [],
@@ -45,8 +36,7 @@ export async function updateLeadField(lead: Lead, field: string, value: unknown)
     throw new Error(`El campo "${field}" no se puede actualizar.`);
   }
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
-    await updateDoc(doc(db, colName, lead.id), {
+    await updateDoc(doc(db, COLLECTION, lead.id), {
       [field]: value,
       updatedAt: serverTimestamp()
     });
@@ -63,21 +53,18 @@ export async function updateLeadStatus(
   actorName?: string
 ): Promise<void> {
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
     const updates: Record<string, unknown> = {
       status,
       updatedAt: serverTimestamp(),
       movedToStatusAt: serverTimestamp(),
     };
 
-    // Registrar quién cerró el lead como ganado
     if (status === 'cerrado' && actor) {
       updates.closedAt = serverTimestamp();
       updates.closedBy = actor;
       if (actorName) updates.closedByName = actorName;
     }
 
-    // Añadir entrada al historial de cambios de estado
     if (actor) {
       const stateChange: StateChange = {
         timestamp: new Date().toISOString(),
@@ -89,14 +76,13 @@ export async function updateLeadStatus(
       updates.stateHistory = arrayUnion(stateChange);
     }
 
-    await updateDoc(doc(db, colName, lead.id), updates);
+    await updateDoc(doc(db, COLLECTION, lead.id), updates);
   } catch (error) {
     console.error('Error al actualizar estado:', error);
     throw new Error('No se pudo cambiar el estado. Inténtalo de nuevo.');
   }
 }
 
-/** Soft-cancel: marca el lead como cancelado con motivo, sin borrar de la BD */
 export async function cancelLead(
   lead: Lead,
   reason: string,
@@ -104,7 +90,6 @@ export async function cancelLead(
   actorName: string
 ): Promise<void> {
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
     const stateChange: StateChange = {
       timestamp: new Date().toISOString(),
       actor,
@@ -113,7 +98,7 @@ export async function cancelLead(
       toStatus: 'cancelado',
       reason,
     };
-    await updateDoc(doc(db, colName, lead.id), {
+    await updateDoc(doc(db, COLLECTION, lead.id), {
       status: 'cancelado',
       cancellationReason: reason,
       closedAt: serverTimestamp(),
@@ -130,8 +115,7 @@ export async function cancelLead(
 
 export async function updateLeadNotes(lead: Lead, notes: string): Promise<void> {
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
-    await updateDoc(doc(db, colName, lead.id), {
+    await updateDoc(doc(db, COLLECTION, lead.id), {
       notes,
       updatedAt: serverTimestamp()
     });
@@ -143,8 +127,7 @@ export async function updateLeadNotes(lead: Lead, notes: string): Promise<void> 
 
 export async function updateLeadTags(lead: Lead, tags: string[]): Promise<void> {
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
-    await updateDoc(doc(db, colName, lead.id), {
+    await updateDoc(doc(db, COLLECTION, lead.id), {
       tags,
       updatedAt: serverTimestamp()
     });
@@ -156,8 +139,7 @@ export async function updateLeadTags(lead: Lead, tags: string[]): Promise<void> 
 
 export async function assignLead(lead: Lead, userId: string): Promise<void> {
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
-    await updateDoc(doc(db, colName, lead.id), {
+    await updateDoc(doc(db, COLLECTION, lead.id), {
       assignedTo: userId,
       assignedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -170,8 +152,7 @@ export async function assignLead(lead: Lead, userId: string): Promise<void> {
 
 export async function deleteLeadDoc(lead: Lead): Promise<void> {
   try {
-    const colName = lead._collection || getCollectionName(lead.source);
-    await deleteDoc(doc(db, colName, lead.id));
+    await deleteDoc(doc(db, COLLECTION, lead.id));
   } catch (error) {
     console.error('Error al eliminar lead:', error);
     throw new Error('No se pudo eliminar el lead. Inténtalo de nuevo.');
@@ -182,8 +163,7 @@ export async function bulkUpdateStatus(leads: Lead[], status: LeadStatus): Promi
   try {
     const batch = writeBatch(db);
     leads.forEach(lead => {
-      const colName = lead._collection || getCollectionName(lead.source);
-      batch.update(doc(db, colName, lead.id), {
+      batch.update(doc(db, COLLECTION, lead.id), {
         status,
         updatedAt: serverTimestamp(),
         movedToStatusAt: serverTimestamp(),
@@ -200,12 +180,63 @@ export async function bulkDeleteLeads(leads: Lead[]): Promise<void> {
   try {
     const batch = writeBatch(db);
     leads.forEach(lead => {
-      const colName = lead._collection || getCollectionName(lead.source);
-      batch.delete(doc(db, colName, lead.id));
+      batch.delete(doc(db, COLLECTION, lead.id));
     });
     await batch.commit();
   } catch (error) {
     console.error('Error en eliminación masiva:', error);
     throw new Error(`No se pudieron eliminar ${leads.length} leads. Inténtalo de nuevo.`);
+  }
+}
+
+/**
+ * Checks if a lead with the given email already exists.
+ * Returns the matching lead or null.
+ */
+export async function checkDuplicateEmail(email: string): Promise<{ id: string; name: string; status: string } | null> {
+  const normalized = email.toLowerCase().trim();
+  if (!normalized) return null;
+
+  const q = query(
+    collection(db, COLLECTION),
+    where('email', '==', normalized),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+
+  const d = snapshot.docs[0];
+  const data = d.data();
+  return { id: d.id, name: data.name || data.nombre || '\u2014', status: data.status || 'nuevo' };
+}
+
+export async function bulkAssign(leads: Lead[], userId: string): Promise<void> {
+  const BATCH_LIMIT = 499;
+  for (let i = 0; i < leads.length; i += BATCH_LIMIT) {
+    const chunk = leads.slice(i, i + BATCH_LIMIT);
+    const batch = writeBatch(db);
+    for (const lead of chunk) {
+      batch.update(doc(db, COLLECTION, lead.id), {
+        assignedTo: userId,
+        assignedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+}
+
+export async function bulkAddTag(leads: Lead[], tag: string): Promise<void> {
+  const BATCH_LIMIT = 499;
+  for (let i = 0; i < leads.length; i += BATCH_LIMIT) {
+    const chunk = leads.slice(i, i + BATCH_LIMIT);
+    const batch = writeBatch(db);
+    for (const lead of chunk) {
+      batch.update(doc(db, COLLECTION, lead.id), {
+        tags: arrayUnion(tag),
+        updatedAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
   }
 }

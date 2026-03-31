@@ -2,13 +2,15 @@ import { collection, addDoc, updateDoc, deleteDoc, serverTimestamp, doc } from '
 import { db } from '../lib/firebase';
 import { Task } from '../types/domain';
 
+const COLLECTION = 'leads';
+
 export async function createTask(
-  leadCollection: string,
+  _leadCollection: string,
   leadId: string,
   task: Omit<Task, 'id' | 'createdAt'>
 ): Promise<string> {
   try {
-    const taskRef = collection(db, leadCollection, leadId, 'tasks');
+    const taskRef = collection(db, COLLECTION, leadId, 'tasks');
     const docRef = await addDoc(taskRef, {
       ...task,
       createdAt: serverTimestamp(),
@@ -21,13 +23,13 @@ export async function createTask(
 }
 
 export async function updateTask(
-  leadCollection: string,
+  _leadCollection: string,
   leadId: string,
   taskId: string,
   data: Partial<Task>
 ): Promise<void> {
   try {
-    const taskRef = doc(db, leadCollection, leadId, 'tasks', taskId);
+    const taskRef = doc(db, COLLECTION, leadId, 'tasks', taskId);
     await updateDoc(taskRef, {
       ...data,
       updatedAt: serverTimestamp()
@@ -39,12 +41,12 @@ export async function updateTask(
 }
 
 export async function deleteTask(
-  leadCollection: string,
+  _leadCollection: string,
   leadId: string,
   taskId: string
 ): Promise<void> {
   try {
-    const taskRef = doc(db, leadCollection, leadId, 'tasks', taskId);
+    const taskRef = doc(db, COLLECTION, leadId, 'tasks', taskId);
     await deleteDoc(taskRef);
   } catch (error) {
     console.error('Error al eliminar tarea:', error);
@@ -53,13 +55,13 @@ export async function deleteTask(
 }
 
 export async function completeTask(
-  leadCollection: string,
+  _leadCollection: string,
   leadId: string,
   taskId: string,
   userId: string
 ): Promise<void> {
   try {
-    const taskRef = doc(db, leadCollection, leadId, 'tasks', taskId);
+    const taskRef = doc(db, COLLECTION, leadId, 'tasks', taskId);
     await updateDoc(taskRef, {
       completed: true,
       completedAt: serverTimestamp(),
@@ -71,10 +73,9 @@ export async function completeTask(
   }
 }
 
-// Helper to create a top-level tasks collection for easier querying
 export async function recordTaskActivity(
   leadId: string,
-  leadCollection: string,
+  _leadCollection: string,
   taskId: string,
   action: 'created' | 'completed' | 'deleted',
   createdBy: string
@@ -83,7 +84,7 @@ export async function recordTaskActivity(
     const tasksRef = collection(db, 'tasks');
     await addDoc(tasksRef, {
       leadId,
-      leadCollection,
+      leadCollection: COLLECTION,
       taskId,
       action,
       createdBy,
