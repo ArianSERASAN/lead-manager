@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { AppUser } from '../../types/domain';
+import { Check } from 'lucide-react';
 
 interface AssigneeFilterProps {
   selectedAssignees: string[];
@@ -71,11 +72,11 @@ export function AssigneeFilter({ selectedAssignees, onAssigneeChange, currentUse
             onClick={handleAssignedToMe}
             className={`w-full text-left px-3 py-2 rounded-lg text-sm font-semibold transition-colors border-2 ${
               selectedAssignees.includes(currentUserId)
-                ? 'bg-blue-50 border-blue-300 text-blue-700'
+                ? 'bg-primary-50 border-primary-300 text-primary-700'
                 : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
             }`}
           >
-            ✓ Asignados a mí
+            <Check size={14} className="inline mr-0.5" /> Asignados a mí
           </button>
         )}
 
@@ -91,7 +92,7 @@ export function AssigneeFilter({ selectedAssignees, onAssigneeChange, currentUse
                 onAssigneeChange([...selectedAssignees, 'unassigned']);
               }
             }}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
           />
           <span className="text-gray-700">Sin asignar</span>
         </label>
@@ -112,7 +113,7 @@ export function AssigneeFilter({ selectedAssignees, onAssigneeChange, currentUse
                   type="checkbox"
                   checked={selectedAssignees.includes(user.uid)}
                   onChange={() => toggleAssignee(user.uid)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-gray-700">{user.name}</span>
                 <span className="text-xs text-gray-500">({user.role})</span>

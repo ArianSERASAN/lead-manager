@@ -38,7 +38,7 @@ service cloud.firestore {
          request.resource.data.get('name', '') != '');
     }
 
-    // Colecciones de leads (leads, leads_descargas, solicitudes_contacto)
+    // Colección unificada de leads (todas las fuentes: landing, web-download, web-contact, manual)
     match /leads/{leadId} {
       allow read: if isAuthenticated();
       allow create: if isAdminOrComercial() || isExternalFormSubmit();
@@ -52,27 +52,24 @@ service cloud.firestore {
       }
     }
 
+    // Legacy collections — read-only access for backward compat, no new writes
     match /leads_descargas/{leadId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrComercial() || isExternalFormSubmit();
-      allow update: if isAdminOrComercial();
-      allow delete: if isAdmin();
+      allow write: if false;
 
       match /{subcol}/{docId} {
         allow read: if isAuthenticated();
-        allow write: if isAdminOrComercial();
+        allow write: if false;
       }
     }
 
     match /solicitudes_contacto/{leadId} {
       allow read: if isAuthenticated();
-      allow create: if isAdminOrComercial() || isExternalFormSubmit();
-      allow update: if isAdminOrComercial();
-      allow delete: if isAdmin();
+      allow write: if false;
 
       match /{subcol}/{docId} {
         allow read: if isAuthenticated();
-        allow write: if isAdminOrComercial();
+        allow write: if false;
       }
     }
 

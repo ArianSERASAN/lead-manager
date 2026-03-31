@@ -12,7 +12,7 @@ interface StatsCardsProps {
 export function StatsCards({ total, conversionRate, avgScore, staleCount, newThisWeek }: StatsCardsProps) {
   const getTrendIndicator = () => {
     if (newThisWeek > 5) return { icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', label: `+${newThisWeek} esta semana` };
-    if (newThisWeek > 0) return { icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50', label: `+${newThisWeek} esta semana` };
+    if (newThisWeek > 0) return { icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-50', label: `+${newThisWeek} esta semana` };
     return { icon: TrendingDown, color: 'text-red-500', bg: 'bg-red-50', label: 'Sin movimiento' };
   };
 
@@ -24,8 +24,8 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
       {/* Total Leads */}
       <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150">
         <div className="flex items-start justify-between mb-4">
-          <div className="inline-flex items-center justify-center w-11 h-11 bg-blue-100 rounded-xl md:group-hover:scale-110 transition-transform duration-200">
-            <Users className="text-blue-600" size={22} />
+          <div className="inline-flex items-center justify-center w-11 h-11 bg-primary-100 rounded-xl md:group-hover:scale-110 transition-transform duration-200">
+            <Users className="text-primary-600" size={22} />
           </div>
           <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.bg} ${trend.color}`}>
             <TrendIcon size={14} />
@@ -54,7 +54,7 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
       <div className="bg-white rounded-2xl shadow-card border border-gray-100/80 p-5 sm:p-6 active:scale-[0.98] md:hover:shadow-card-hover md:hover-lift group cursor-default transition-transform duration-150">
         <div className="flex items-start justify-between mb-4">
           <div className={`inline-flex items-center justify-center w-11 h-11 rounded-xl md:group-hover:scale-110 transition-transform duration-200 ${
-            avgScore >= 80 ? 'bg-emerald-100' : avgScore >= 60 ? 'bg-blue-100' : avgScore >= 40 ? 'bg-amber-100' : 'bg-gray-100'
+            avgScore >= 80 ? 'bg-emerald-100' : avgScore >= 60 ? 'bg-primary-100' : avgScore >= 40 ? 'bg-amber-100' : 'bg-gray-100'
           }`}>
             <Zap className={`${getScoreColor(avgScore)}`} size={22} />
           </div>

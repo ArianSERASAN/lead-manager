@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Lead, LeadStatus, toJSDate } from '../types/domain';
-import { useLeads } from '../hooks/leads/useLeads';
+import { useLeadStore } from '../stores/useLeadStore';
 import { formatTimestamp } from '../utils/format';
 import { STATUS_CONFIG } from '../utils/constants';
 import { Archive, CheckCircle2, XCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
@@ -19,7 +19,7 @@ function PipelineStageBadge({ status }: { status: LeadStatus }) {
 function StatusBadge({ status }: { status: 'cerrado' | 'cancelado' }) {
   if (status === 'cerrado') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-primary-50 text-primary-700 border border-primary-200">
         <CheckCircle2 size={12} />
         Cerrado (ganado)
       </span>
@@ -37,7 +37,8 @@ type SortField = 'closedAt' | 'name' | 'status';
 type SortDir = 'asc' | 'desc';
 
 export function HistorialPage() {
-  const { leads, loading } = useLeads();
+  const leads = useLeadStore((s) => s.leads);
+  const loading = useLeadStore((s) => s.loading);
   const [filterStatus, setFilterStatus] = useState<'all' | 'cerrado' | 'cancelado'>('all');
   const [search, setSearch] = useState('');
   const [sortField, setSortField] = useState<SortField>('closedAt');
@@ -93,8 +94,8 @@ export function HistorialPage() {
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <ChevronDown size={12} className="text-gray-300" />;
     return sortDir === 'desc'
-      ? <ChevronDown size={12} className="text-blue-500" />
-      : <ChevronUp size={12} className="text-blue-500" />;
+      ? <ChevronDown size={12} className="text-primary-500" />
+      : <ChevronUp size={12} className="text-primary-500" />;
   };
 
   /** Determina el stage en el que estaba cuando fue cerrado/cancelado */
@@ -113,12 +114,42 @@ export function HistorialPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center mx-auto mb-3 animate-pulse">
-            <Archive size={20} className="text-gray-300" />
+      <div className="space-y-4 animate-pulse">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="space-y-2">
+            <div className="skeleton w-28 h-5" />
+            <div className="skeleton w-40 h-3" />
           </div>
-          <p className="text-sm text-gray-400">Cargando historial...</p>
+          <div className="flex gap-2">
+            <div className="skeleton w-28 h-7 rounded-xl" />
+            <div className="skeleton w-28 h-7 rounded-xl" />
+          </div>
+        </div>
+        {/* Filters skeleton */}
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="skeleton flex-1 h-9 rounded-xl" />
+          <div className="flex gap-1.5">
+            {[...Array(3)].map((_, i) => <div key={i} className="skeleton w-20 h-9 rounded-xl" />)}
+          </div>
+        </div>
+        {/* Table skeleton */}
+        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="border-b border-gray-100 bg-gray-50/50 px-4 py-3 flex gap-6">
+            {[...Array(5)].map((_, i) => <div key={i} className="skeleton h-3 w-16" />)}
+          </div>
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="px-4 py-3 flex items-center gap-4 border-b border-gray-50 last:border-0">
+              <div className="skeleton w-7 h-7 rounded-lg shrink-0" />
+              <div className="space-y-1.5 flex-1">
+                <div className="skeleton w-32 h-3" />
+                <div className="skeleton w-44 h-2.5" />
+              </div>
+              <div className="skeleton w-20 h-5 rounded-lg" />
+              <div className="skeleton w-16 h-5 rounded-lg hidden lg:block" />
+              <div className="skeleton w-24 h-2.5 hidden md:block" />
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -137,9 +168,9 @@ export function HistorialPage() {
         </div>
         {/* Stats */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 rounded-xl border border-blue-100">
-            <CheckCircle2 size={14} className="text-blue-600" />
-            <span className="text-xs font-bold text-blue-700">{totals.cerrado} cerrados</span>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 rounded-xl border border-primary-100">
+            <CheckCircle2 size={14} className="text-primary-600" />
+            <span className="text-xs font-bold text-primary-700">{totals.cerrado} cerrados</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded-xl border border-gray-200">
             <XCircle size={14} className="text-gray-500" />
@@ -157,7 +188,7 @@ export function HistorialPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Buscar por nombre, email, motivo..."
-            className="w-full pl-8 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-8 pr-3 py-2 text-sm bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
           />
         </div>
         <div className="flex gap-1.5">
@@ -168,7 +199,7 @@ export function HistorialPage() {
               className={`px-3 py-2 rounded-xl text-xs font-bold transition-colors duration-100 border ${
                 filterStatus === s
                   ? s === 'cerrado'
-                    ? 'bg-blue-600 text-white border-blue-600'
+                    ? 'bg-primary-600 text-white border-primary-600'
                     : s === 'cancelado'
                     ? 'bg-gray-700 text-white border-gray-700'
                     : 'bg-gray-900 text-white border-gray-900'
@@ -241,7 +272,7 @@ export function HistorialPage() {
                             <div className="flex items-center gap-2.5">
                               <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0 ${
                                 lead.status === 'cerrado'
-                                  ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                                  ? 'bg-gradient-to-br from-primary-500 to-indigo-600'
                                   : 'bg-gradient-to-br from-gray-400 to-gray-500'
                               }`}>
                                 {lead.name.charAt(0).toUpperCase()}
@@ -266,7 +297,7 @@ export function HistorialPage() {
                             {lead.cancellationReason ? (
                               <span className="text-xs text-gray-600 truncate block">{lead.cancellationReason}</span>
                             ) : lead.status === 'cerrado' ? (
-                              <span className="text-xs text-blue-400 font-medium">Deal ganado</span>
+                              <span className="text-xs text-primary-400 font-medium">Deal ganado</span>
                             ) : (
                               <span className="text-xs text-gray-300">—</span>
                             )}
@@ -287,7 +318,7 @@ export function HistorialPage() {
 
                         {/* Expanded state history */}
                         {isExpanded && lead.stateHistory && lead.stateHistory.length > 0 && (
-                          <tr key={`${lead.id}-history`} className="bg-blue-50/30">
+                          <tr key={`${lead.id}-history`} className="bg-primary-50/30">
                             <td colSpan={6} className="px-6 py-4">
                               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">
                                 Historial de cambios de estado
@@ -336,7 +367,7 @@ export function HistorialPage() {
                       <div className="flex items-start gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 ${
                           lead.status === 'cerrado'
-                            ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                            ? 'bg-gradient-to-br from-primary-500 to-indigo-600'
                             : 'bg-gradient-to-br from-gray-400 to-gray-500'
                         }`}>
                           {lead.name.charAt(0).toUpperCase()}
@@ -373,7 +404,7 @@ export function HistorialPage() {
 
                     {/* Mobile expanded history */}
                     {isExpanded && lead.stateHistory && lead.stateHistory.length > 0 && (
-                      <div className="bg-blue-50/30 px-4 py-3 border-t border-blue-100/50">
+                      <div className="bg-primary-50/30 px-4 py-3 border-t border-primary-100/50">
                         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
                           Historial de estados
                         </p>

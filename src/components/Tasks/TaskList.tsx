@@ -110,7 +110,7 @@ export function TaskList({ tasks, leadId, leadCollection, leadName, leadEmail }:
       {!isFormOpen && (
         <button
           onClick={() => setIsFormOpen(true)}
-          className="w-full bg-blue-50 border-2 border-dashed border-blue-300 text-blue-600 px-4 py-3 rounded-lg text-sm font-bold hover:bg-blue-100 transition-colors duration-150 btn-press flex items-center justify-center gap-2"
+          className="w-full bg-primary-50 border-2 border-dashed border-primary-300 text-primary-600 px-4 py-3 rounded-lg text-sm font-bold hover:bg-primary-100 transition-colors duration-150 btn-press flex items-center justify-center gap-2"
         >
           <Plus size={18} />
           Nueva Tarea

@@ -2,17 +2,18 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Activity, ActivityAction } from '../types/domain';
 
+const COLLECTION = 'leads';
+
 export async function recordActivity(
   leadId: string,
-  leadCollection: string,
+  _leadCollection: string, // kept for API compat, ignored — always uses 'leads'
   actor: string,
   actorName: string,
   action: ActivityAction,
   details: Activity['details']
 ): Promise<void> {
   try {
-    // Store activity in a subcollection of the lead
-    const activityRef = collection(db, leadCollection, leadId, 'activity');
+    const activityRef = collection(db, COLLECTION, leadId, 'activity');
     await addDoc(activityRef, {
       leadId,
       timestamp: serverTimestamp(),

@@ -1,9 +1,10 @@
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentWritten } from 'firebase-functions/v2/firestore';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import nodemailer from 'nodemailer';
+import { calculateLeadScore, isLeadStale } from './scoring.js';
 
 initializeApp();
 const db = getFirestore();
@@ -152,6 +153,34 @@ export const onNewLead = onDocumentCreated(
         <p style="font-size:14px;color:#374151"><strong>${name}</strong> (${email}) tiene un score de <span style="color:#ea580c;font-weight:700">${score}</span>, por encima del umbral de ${hl.scoreThreshold}.</p>
         <p style="font-size:13px;color:#6b7280;margin-top:8px">Origen: ${sourceLabel(source)}${company ? ` · Empresa: ${company}` : ''}</p>`;
       await sendEmail(GMAIL_USER, GMAIL_APP_PASS, hl.recipients, `🔥 Lead caliente: ${name} (score ${score})`, emailTemplate('Lead Caliente', body));
+    }
+
+    // ─── Auto-assign (round-robin) ────────────────────────────────
+    try {
+      const autoAssignSnap = await db.doc('settings/autoAssign').get();
+      if (autoAssignSnap.exists) {
+        const autoConfig = autoAssignSnap.data();
+        if (autoConfig.enabled && autoConfig.userIds && autoConfig.userIds.length > 0) {
+          const currentIndex = autoConfig.currentIndex || 0;
+          const assignToId = autoConfig.userIds[currentIndex % autoConfig.userIds.length];
+
+          // Assign the lead
+          await event.data.ref.update({
+            assignedTo: assignToId,
+            assignedAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          });
+
+          // Advance the index
+          await db.doc('settings/autoAssign').update({
+            currentIndex: (currentIndex + 1) % autoConfig.userIds.length,
+          });
+
+          console.log(`Auto-assigned lead ${event.data.id} to user ${assignToId} (index ${currentIndex})`);
+        }
+      }
+    } catch (err) {
+      console.error('Auto-assign error:', err);
     }
   }
 );
@@ -1405,5 +1434,119 @@ export const initEmailSequenceConfig = onCall(
 
     await ref.set(defaultConfig);
     return { success: true, message: 'Default config created', config: defaultConfig };
+  }
+);
+
+// ─── Server-Side Scoring ─────────────────────────────────────────
+
+/**
+ * Recalculates lead score on every write to leads/{docId}.
+ * Guard: only writes back if score or isStale actually changed (prevents infinite loop).
+ */
+export const onLeadWrite = onDocumentWritten(
+  { document: 'leads/{docId}', region: 'europe-west1' },
+  async (event) => {
+    const after = event.data?.after?.data();
+    if (!after) return; // Document was deleted
+
+    const { score, breakdown } = calculateLeadScore(after);
+    const stale = isLeadStale(after);
+
+    // Only write if values actually changed
+    if (after.score === score && after.isStale === stale) return;
+
+    await event.data.after.ref.update({
+      score,
+      scoreBreakdown: breakdown,
+      isStale: stale,
+    });
+  }
+);
+
+/**
+ * One-time backfill: computes scores for all existing leads.
+ * Call via Firebase console or client SDK. Requires admin role.
+ */
+export const backfillScores = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Auth required');
+
+    const userDoc = await db.doc(`users/${request.auth.uid}`).get();
+    if (!userDoc.exists || userDoc.data()?.role !== 'admin') {
+      throw new HttpsError('permission-denied', 'Admin only');
+    }
+
+    const snapshot = await db.collection('leads').get();
+    let updated = 0;
+    let skipped = 0;
+    const BATCH_LIMIT = 499;
+    let batch = db.batch();
+    let batchCount = 0;
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      const { score, breakdown } = calculateLeadScore(data);
+      const stale = isLeadStale(data);
+
+      if (data.score === score && data.isStale === stale) {
+        skipped++;
+        continue;
+      }
+
+      batch.update(doc.ref, { score, scoreBreakdown: breakdown, isStale: stale });
+      batchCount++;
+      updated++;
+
+      if (batchCount >= BATCH_LIMIT) {
+        await batch.commit();
+        batch = db.batch();
+        batchCount = 0;
+      }
+    }
+
+    if (batchCount > 0) await batch.commit();
+
+    return { updated, skipped, total: snapshot.size };
+  }
+);
+
+// ─── Send email to a lead ─────────────────────────────────────────────────────
+
+export const sendLeadEmail = onCall(
+  { region: 'europe-west1' },
+  async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Auth required');
+
+    const { to, subject, body, leadId } = request.data;
+    if (!to || !subject || !body) throw new HttpsError('invalid-argument', 'Missing fields');
+
+    if (!GMAIL_USER || !GMAIL_APP_PASS) {
+      throw new HttpsError('failed-precondition', 'Gmail credentials not configured');
+    }
+
+    const transporter = getTransporter(GMAIL_USER, GMAIL_APP_PASS);
+    await transporter.sendMail({
+      from: `"SERASAN Lead Manager" <${GMAIL_USER}>`,
+      to,
+      subject,
+      html: emailTemplate(subject, `<p style="font-size:14px;color:#333;line-height:1.6">${body.replace(/\n/g, '<br>')}</p>`),
+    });
+
+    // Record activity
+    if (leadId) {
+      const userDoc = await db.doc(`users/${request.auth.uid}`).get();
+      const userName = userDoc.exists ? (userDoc.data().name || userDoc.data().email) : request.auth.uid;
+
+      await db.collection('leads').doc(leadId).collection('activity').add({
+        action: 'email_sent',
+        actor: request.auth.uid,
+        actorName: userName,
+        details: { subject, to },
+        timestamp: Timestamp.now(),
+      });
+    }
+
+    return { success: true };
   }
 );

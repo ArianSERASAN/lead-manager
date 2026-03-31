@@ -24,6 +24,8 @@ export function Sidebar({ user, onLogout }: SidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const getActiveId = () => {
+    // /leads/:collection/:id profile pages belong to the leads section
+    if (location.pathname.startsWith('/leads/')) return 'leads';
     const match = NAV_ITEMS.find(item =>
       item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path)
     );

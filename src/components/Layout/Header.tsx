@@ -17,7 +17,7 @@ export function Header({ title, subtitle, leadCount, onNewLeadClick, actions }: 
           {title}
         </h2>
         {leadCount !== undefined && (
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">
+          <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-lg">
             {leadCount} leads
           </span>
         )}
@@ -32,7 +32,7 @@ export function Header({ title, subtitle, leadCount, onNewLeadClick, actions }: 
           <RoleGuard requires="canEdit">
             <button
               onClick={onNewLeadClick}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/20 transition-shadow duration-200 btn-press text-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 text-white font-semibold rounded-xl hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-600/20 transition-shadow duration-200 btn-press text-sm"
             >
               <Plus size={18} />
               <span className="hidden sm:inline">Nuevo Lead</span>

@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Lead, FilterState, LeadStatus, LeadSource, toJSDate } from '../../types/domain';
 import { daysSince } from '../../utils/format';
+import { countFilledFields } from '../../lib/scoring-engine';
 
 // Debounce hook for search
 function useDebouncedValue<T>(value: T, delay: number): T {
@@ -23,6 +24,7 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
   const [scoreMin, setScoreMin] = useState(0);
   const [scoreMax, setScoreMax] = useState(100);
   const [staleDays, setStaleDays] = useState<number | null>(null);
+  const [filledFieldsMin, setFilledFieldsMin] = useState(0);
 
   // Debounce search query to avoid filtering on every keystroke
   const debouncedSearch = useDebouncedValue(searchQuery, 200);
@@ -116,9 +118,14 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
         if (days < staleDays) return false;
       }
 
+      // Filled fields minimum filter
+      if (filledFieldsMin > 0) {
+        if (countFilledFields(lead) < filledFieldsMin) return false;
+      }
+
       return true;
     });
-  }, [leads, activeTab, debouncedSearch, statusFilter, sourceFilter, dateFilter, tags, assignedTo, scoreMin, scoreMax, staleDays, pendingDeleteIds, searchIndex]);
+  }, [leads, activeTab, debouncedSearch, statusFilter, sourceFilter, dateFilter, tags, assignedTo, scoreMin, scoreMax, staleDays, filledFieldsMin, pendingDeleteIds, searchIndex]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -130,8 +137,9 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
     if (assignedTo.length > 0) count++;
     if (scoreMin > 0 || scoreMax < 100) count++;
     if (staleDays !== null) count++;
+    if (filledFieldsMin > 0) count++;
     return count;
-  }, [searchQuery, statusFilter, sourceFilter, dateFilter, tags, assignedTo, scoreMin, scoreMax, staleDays]);
+  }, [searchQuery, statusFilter, sourceFilter, dateFilter, tags, assignedTo, scoreMin, scoreMax, staleDays, filledFieldsMin]);
 
   // Apply filter state from saved filters
   const applyFilterState = (filterState: FilterState) => {
@@ -156,6 +164,7 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
     setScoreMin(0);
     setScoreMax(100);
     setStaleDays(null);
+    setFilledFieldsMin(0);
   };
 
   return {
@@ -169,6 +178,7 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
     scoreMin, setScoreMin,
     scoreMax, setScoreMax,
     staleDays, setStaleDays,
+    filledFieldsMin, setFilledFieldsMin,
     filteredLeads,
     activeFilterCount,
     applyFilterState,

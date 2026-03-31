@@ -89,9 +89,9 @@ export function EmailSequenceSettings() {
       {config.enabled && (
         <>
           {/* Info banner */}
-          <div className="flex items-start gap-2.5 px-4 py-3 bg-blue-50/80 border border-blue-100 rounded-xl">
-            <Info size={16} className="text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700 leading-relaxed">
+          <div className="flex items-start gap-2.5 px-4 py-3 bg-primary-50/80 border border-primary-100 rounded-xl">
+            <Info size={16} className="text-primary-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-primary-700 leading-relaxed">
               Los emails se envían automáticamente al lead usando las credenciales de Gmail configuradas. Cada paso puede activarse o desactivarse individualmente.
             </p>
           </div>
@@ -190,7 +190,7 @@ export function EmailSequenceSettings() {
               value={config.senderName}
               onChange={(e) => update({ senderName: e.target.value })}
               placeholder="SERASAN Engineering"
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
             />
             <p className="text-[11px] text-gray-400 mt-1.5">
               Aparece como "De: {config.senderName || 'SERASAN Engineering'} &lt;gmail configurado&gt;"
@@ -205,7 +205,7 @@ export function EmailSequenceSettings() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition-all disabled:opacity-50"
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 shadow-lg shadow-primary-600/30 transition-all disabled:opacity-50"
           >
             {saving ? (
               <><Loader2 size={18} className="animate-spin" /> Guardando...</>
@@ -240,14 +240,14 @@ function StepCard({ icon, title, description, timing, enabled, onToggle, subject
     }`}>
       {/* Header */}
       <div className="flex items-center gap-3 p-4">
-        <div className={`p-2 rounded-lg ${enabled ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>
+        <div className={`p-2 rounded-lg ${enabled ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-400'}`}>
           {icon}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <h4 className={`text-sm font-bold ${enabled ? 'text-gray-900' : 'text-gray-500'}`}>{title}</h4>
             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-              enabled ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-400'
+              enabled ? 'bg-primary-50 text-primary-600' : 'bg-gray-100 text-gray-400'
             }`}>
               {timing}
             </span>
@@ -257,7 +257,7 @@ function StepCard({ icon, title, description, timing, enabled, onToggle, subject
         <button
           onClick={() => onToggle(!enabled)}
           className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
-            enabled ? 'bg-blue-600' : 'bg-gray-300'
+            enabled ? 'bg-primary-600' : 'bg-gray-300'
           }`}
         >
           <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
@@ -277,7 +277,7 @@ function StepCard({ icon, title, description, timing, enabled, onToggle, subject
               type="text"
               value={subject}
               onChange={(e) => onSubjectChange(e.target.value)}
-              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-400"
             />
             {children}
           </div>

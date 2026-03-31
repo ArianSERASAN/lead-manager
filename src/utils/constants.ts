@@ -2,7 +2,7 @@ export const STATUS_CONFIG: Record<string, { label: string; color: string; bgCol
   'nuevo': { label: 'Nuevo', color: 'text-emerald-700', bgColor: 'bg-emerald-50', borderColor: 'border-emerald-200' },
   'contactado': { label: 'Contactado', color: 'text-amber-700', bgColor: 'bg-amber-50', borderColor: 'border-amber-200' },
   'en-progreso': { label: 'En progreso', color: 'text-violet-700', bgColor: 'bg-violet-50', borderColor: 'border-violet-200' },
-  'cerrado': { label: 'Cerrado (ganado)', color: 'text-blue-700', bgColor: 'bg-blue-50', borderColor: 'border-blue-200' },
+  'cerrado': { label: 'Cerrado (ganado)', color: 'text-primary-700', bgColor: 'bg-primary-50', borderColor: 'border-primary-200' },
   'cancelado': { label: 'Cancelado', color: 'text-gray-500', bgColor: 'bg-gray-100', borderColor: 'border-gray-200' },
 };
 
@@ -17,14 +17,14 @@ export const CANCELLATION_REASONS = [
 ] as const;
 
 export const SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
-  'landing': { label: 'Landing Page', color: 'text-blue-600' },
+  'landing': { label: 'Landing Page', color: 'text-primary-600' },
   'web-download': { label: 'Descarga PDF', color: 'text-green-600' },
   'web-contact': { label: 'Formulario Web', color: 'text-purple-600' },
   'manual': { label: 'Manual', color: 'text-gray-600' },
 };
 
 export const SCORE_CONFIG = {
-  weights: { source: 25, completeness: 25, recency: 25, responseQuality: 25 },
+  weights: { source: 20, completeness: 50, recency: 20, responseQuality: 10 },
   sourceWeights: { 'landing': 20, 'web-download': 15, 'web-contact': 25, 'manual': 10 },
   staleDays: 30,
 };
@@ -32,7 +32,7 @@ export const SCORE_CONFIG = {
 export const PIPELINE_STAGES: string[] = ['nuevo', 'contactado', 'en-progreso', 'cerrado'];
 
 export const TAG_COLORS: string[] = [
-  'bg-blue-100 text-blue-700',
+  'bg-primary-100 text-primary-700',
   'bg-green-100 text-green-700',
   'bg-purple-100 text-purple-700',
   'bg-pink-100 text-pink-700',

@@ -4,7 +4,7 @@ import { Header } from '../components/Layout/Header';
 import { LeadKanban } from '../components/LeadViews/LeadKanban';
 import { LeadDetail } from '../components/LeadViews/LeadDetail';
 import { LeadCreateForm } from '../components/LeadViews/LeadCreateForm';
-import { useLeads } from '../hooks/leads/useLeads';
+import { useLeadStore } from '../stores/useLeadStore';
 import { useLeadActions } from '../hooks/leads/useLeadActions';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
@@ -15,7 +15,8 @@ export function KanbanPage() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const { leads: allLeads, loading: leadsLoading } = useLeads();
+  const allLeads = useLeadStore((s) => s.leads);
+  const leadsLoading = useLeadStore((s) => s.loading);
 
   // Excluir cancelados del pipeline — sólo van al historial
   const leads = allLeads.filter(l => l.status !== 'cancelado');

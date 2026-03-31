@@ -66,6 +66,8 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
     setScoreMax,
     staleDays,
     setStaleDays,
+    filledFieldsMin,
+    setFilledFieldsMin,
     filteredLeads,
     activeFilterCount,
     applyFilterState,
@@ -140,7 +142,11 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
           setScoreMin(min);
           setScoreMax(max);
         }}
+        filledFieldsMin={filledFieldsMin}
+        onFilledFieldsMinChange={setFilledFieldsMin}
         activeFilterCount={activeFilterCount}
+        filteredCount={filteredLeads.length}
+        totalCount={leads.filter(l => l.status !== 'cancelado').length}
         onApplyFilterState={applyFilterState}
         getCurrentFilterState={getCurrentFilterState}
         onClearAllFilters={clearAllFilters}
@@ -212,6 +218,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
               onTagsChange={(tags) => updateLeadTags(selectedLead.id, tags)}
               onAssign={(userId) => assignLead(selectedLead.id, userId)}
               onCancel={handleRequestCancelSingle}
+              siblingLeads={filteredLeads}
             />
           </div>
         )}

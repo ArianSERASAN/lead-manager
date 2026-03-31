@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    port: 5173,
+    hmr: { port: 5173 },
+  },
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react-is'],
+  },
   build: {
     // Chunk splitting óptimo
     rollupOptions: {

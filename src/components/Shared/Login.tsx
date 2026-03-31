@@ -25,17 +25,17 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center p-6 relative overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/40">
+    <div className="min-h-screen flex flex-col justify-center items-center p-6 relative overflow-hidden bg-gradient-to-br from-slate-50 via-primary-50/30 to-indigo-50/40">
       {/* Decorative background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-blue-200/30 to-indigo-200/30 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-primary-200/30 to-indigo-200/30 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-emerald-200/20 to-teal-200/20 rounded-full blur-3xl" />
         <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-purple-200/10 rounded-full blur-3xl" />
       </div>
 
       {/* Card */}
       <div className="w-full max-w-md relative animate-fade-in-up">
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-blue-900/5 p-8 border border-white/80">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-primary-900/5 p-8 border border-white/80">
           {/* Logo area */}
           <div className="flex flex-col items-center mb-8">
             <div className="mb-5 animate-scale-in">
@@ -62,10 +62,10 @@ export function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full bg-gray-50/80 border-2 border-gray-200/80 rounded-2xl pl-12 pr-4 py-3.5 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all duration-200"
+                  className="w-full bg-gray-50/80 border-2 border-gray-200/80 rounded-2xl pl-12 pr-4 py-3.5 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 outline-none transition-all duration-200"
                   placeholder="admin@serasan.es"
                 />
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={20} />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary-500 transition-colors" size={20} />
               </div>
             </div>
 
@@ -77,10 +77,10 @@ export function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-gray-50/80 border-2 border-gray-200/80 rounded-2xl pl-12 pr-4 py-3.5 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all duration-200"
+                  className="w-full bg-gray-50/80 border-2 border-gray-200/80 rounded-2xl pl-12 pr-4 py-3.5 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 outline-none transition-all duration-200"
                   placeholder="••••••••"
                 />
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-blue-500 transition-colors" size={20} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-primary-500 transition-colors" size={20} />
               </div>
             </div>
 
@@ -95,7 +95,7 @@ export function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 hover:from-gray-800 hover:via-gray-700 hover:to-gray-800 text-white py-4 rounded-2xl font-bold shadow-lg shadow-gray-900/10 transition-all duration-200 flex items-center justify-center space-x-2 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 group"
+                className="w-full bg-gradient-to-r from-primary-700 via-primary-600 to-primary-700 hover:from-primary-600 hover:via-primary-500 hover:to-primary-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-primary-900/20 transition-all duration-200 flex items-center justify-center space-x-2 active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 group"
               >
                 {loading ? (
                   <Loader2 className="animate-spin" size={20} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { AppUser } from '../../types/domain';
-import { ChevronDown, Loader2 } from 'lucide-react';
+import { ChevronDown, Loader2, Shield, BarChart3, Eye } from 'lucide-react';
 
 interface AssigneeDropdownProps {
   currentAssigneeId?: string;
@@ -51,7 +51,7 @@ export function AssigneeDropdown({ currentAssigneeId, onAssign, disabled = false
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label="Asignar lead a usuario"
-        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-left focus:ring-2 focus:ring-blue-500 outline-none hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
+        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm font-bold text-left focus:ring-2 focus:ring-primary-500 outline-none hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-between"
       >
         <span className="truncate">
           {loading ? 'Cargando...' : (currentUser ? `${currentUser.name} (${currentUser.email})` : 'Sin asignar')}
@@ -64,7 +64,7 @@ export function AssigneeDropdown({ currentAssigneeId, onAssign, disabled = false
           {/* Sin asignar option */}
           <button
             onClick={() => handleSelect('')}
-            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${!currentAssigneeId ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'}`}
+            className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${!currentAssigneeId ? 'bg-primary-50 text-primary-600 font-semibold' : 'text-gray-700'}`}
           >
             Sin asignar
           </button>
@@ -76,15 +76,15 @@ export function AssigneeDropdown({ currentAssigneeId, onAssign, disabled = false
                 key={user.uid}
                 onClick={() => handleSelect(user.uid)}
                 className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
-                  currentAssigneeId === user.uid ? 'bg-blue-50 text-blue-600 font-semibold' : 'text-gray-700'
+                  currentAssigneeId === user.uid ? 'bg-primary-50 text-primary-600 font-semibold' : 'text-gray-700'
                 }`}
               >
                 <div className="font-semibold">{user.name}</div>
                 <div className="text-xs text-gray-500">{user.email}</div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {user.role === 'admin' && '👑 Administrador'}
-                  {user.role === 'comercial' && '📊 Comercial'}
-                  {user.role === 'read_only' && '👁️ Lectura'}
+                  {user.role === 'admin' && <span className="inline-flex items-center gap-1"><Shield size={10} /> Administrador</span>}
+                  {user.role === 'comercial' && <span className="inline-flex items-center gap-1"><BarChart3 size={10} /> Comercial</span>}
+                  {user.role === 'read_only' && <span className="inline-flex items-center gap-1"><Eye size={10} /> Lectura</span>}
                 </div>
               </button>
             ))}

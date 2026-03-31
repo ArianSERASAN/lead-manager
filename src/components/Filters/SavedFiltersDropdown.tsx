@@ -23,7 +23,7 @@ export function SavedFiltersDropdown({
     return (
       <button
         onClick={onSaveCurrentFilter}
-        className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-blue-600 bg-blue-50 rounded-2xl border border-blue-200 hover:bg-blue-100 transition-colors"
+        className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-primary-600 bg-primary-50 rounded-2xl border border-primary-200 hover:bg-primary-100 transition-colors"
       >
         <Save size={16} />
         <span>Guardar Filtro</span>
@@ -79,7 +79,7 @@ export function SavedFiltersDropdown({
                 onSaveCurrentFilter();
                 setIsOpen(false);
               }}
-              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
             >
               <Save size={16} />
               <span>Guardar Filtro Actual</span>

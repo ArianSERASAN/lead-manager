@@ -3,23 +3,25 @@ import { collection, onSnapshot, query, orderBy, QueryConstraint } from 'firebas
 import { db } from '../../lib/firebase';
 import { Activity } from '../../types/domain';
 
+const COLLECTION = 'leads';
+
 interface UseLeadActivityResult {
   activities: Activity[];
   loading: boolean;
 }
 
-export function useLeadActivity(leadId: string, leadCollection: string): UseLeadActivityResult {
+export function useLeadActivity(leadId: string, _leadCollection?: string): UseLeadActivityResult {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!leadId || !leadCollection) {
+    if (!leadId) {
       setActivities([]);
       setLoading(false);
       return;
     }
 
-    const activityRef = collection(db, leadCollection, leadId, 'activity');
+    const activityRef = collection(db, COLLECTION, leadId, 'activity');
     const q = query(activityRef, orderBy('timestamp', 'desc') as QueryConstraint);
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -32,13 +34,12 @@ export function useLeadActivity(leadId: string, leadCollection: string): UseLead
       setLoading(false);
     }, (error) => {
       console.error('Error loading activities:', error);
-      // Handle the case where the subcollection doesn't exist yet
       setActivities([]);
       setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [leadId, leadCollection]);
+  }, [leadId]);
 
   return { activities, loading };
 }

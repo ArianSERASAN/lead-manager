@@ -3,6 +3,8 @@ import { Lead, LeadStatus } from '../../types/domain';
 import * as LeadService from '../../services/LeadService';
 import * as ActivityService from '../../services/ActivityService';
 
+const COLLECTION = 'leads';
+
 interface Toast {
   message: string;
   type: 'success' | 'error' | 'undo' | 'info';
@@ -24,14 +26,11 @@ export function useLeadActions(
       addToast({ message: `${lead.name} cancelado`, type: 'success' });
 
       await ActivityService.recordActivity(
-        lead.id,
-        lead._collection || LeadService.getCollectionName(lead.source),
-        userId,
-        userName,
+        lead.id, COLLECTION, userId, userName,
         'cancelled',
         { field: 'status', oldValue: lead.status, newValue: 'cancelado', note: reason }
       );
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error al cancelar el lead', type: 'error' });
     }
   }, [leads, addToast, userId, userName]);
@@ -47,17 +46,14 @@ export function useLeadActions(
 
       await Promise.all(leadsToCancel.map(lead =>
         ActivityService.recordActivity(
-          lead.id,
-          lead._collection || LeadService.getCollectionName(lead.source),
-          userId,
-          userName,
+          lead.id, COLLECTION, userId, userName,
           'cancelled',
           { field: 'status', oldValue: lead.status, newValue: 'cancelado', note: reason }
         )
       ));
 
       clearSelection();
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error al cancelar los leads', type: 'error' });
     }
   }, [leads, addToast, clearSelection, userId, userName]);
@@ -72,17 +68,13 @@ export function useLeadActions(
       addToast({ message: label, type: 'success' });
 
       if (userId && userName) {
-        const colName = lead._collection || LeadService.getCollectionName(lead.source);
         await ActivityService.recordActivity(
-          lead.id,
-          colName,
-          userId,
-          userName,
+          lead.id, COLLECTION, userId, userName,
           status === 'cerrado' ? 'closed' : 'status_change',
           { field: 'status', oldValue: lead.status, newValue: status }
         );
       }
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error al actualizar estado', type: 'error' });
     }
   }, [leads, addToast, userId, userName]);
@@ -95,17 +87,12 @@ export function useLeadActions(
       addToast({ message: 'Notas guardadas', type: 'success' });
 
       if (userId && userName) {
-        const colName = lead._collection || LeadService.getCollectionName(lead.source);
         await ActivityService.recordActivity(
-          lead.id,
-          colName,
-          userId,
-          userName,
-          'note_added',
-          { note: notes }
+          lead.id, COLLECTION, userId, userName,
+          'note_added', { note: notes }
         );
       }
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error al guardar notas', type: 'error' });
     }
   }, [leads, addToast, userId, userName]);
@@ -118,21 +105,17 @@ export function useLeadActions(
       addToast({ message: `${selectedIds.length} leads actualizados`, type: 'success' });
 
       if (userId && userName) {
-        for (const lead of leadsToUpdate) {
-          const colName = lead._collection || LeadService.getCollectionName(lead.source);
-          await ActivityService.recordActivity(
-            lead.id,
-            colName,
-            userId,
-            userName,
+        await Promise.all(leadsToUpdate.map(lead =>
+          ActivityService.recordActivity(
+            lead.id, COLLECTION, userId, userName,
             'status_change',
             { field: 'status', oldValue: lead.status, newValue: status }
-          );
-        }
+          )
+        ));
       }
 
       clearSelection();
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error en actualización masiva', type: 'error' });
     }
   }, [leads, addToast, clearSelection, userId, userName]);
@@ -145,18 +128,17 @@ export function useLeadActions(
       addToast({ message: 'Etiquetas actualizadas', type: 'success' });
 
       if (userId && userName) {
-        const colName = lead._collection || LeadService.getCollectionName(lead.source);
         const addedTags = tags.filter(t => !(lead.tags || []).includes(t));
         const removedTags = (lead.tags || []).filter(t => !tags.includes(t));
 
         if (addedTags.length > 0) {
-          await ActivityService.recordActivity(lead.id, colName, userId, userName, 'tag_added', { newValue: addedTags });
+          await ActivityService.recordActivity(lead.id, COLLECTION, userId, userName, 'tag_added', { newValue: addedTags });
         }
         if (removedTags.length > 0) {
-          await ActivityService.recordActivity(lead.id, colName, userId, userName, 'tag_removed', { oldValue: removedTags });
+          await ActivityService.recordActivity(lead.id, COLLECTION, userId, userName, 'tag_removed', { oldValue: removedTags });
         }
       }
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error al actualizar etiquetas', type: 'error' });
     }
   }, [leads, addToast, userId, userName]);
@@ -169,13 +151,36 @@ export function useLeadActions(
       addToast({ message: 'Lead asignado', type: 'success' });
 
       if (userId && userName) {
-        const colName = lead._collection || LeadService.getCollectionName(lead.source);
-        await ActivityService.recordActivity(lead.id, colName, userId, userName, 'assigned', { newValue: assignedUserId });
+        await ActivityService.recordActivity(lead.id, COLLECTION, userId, userName, 'assigned', { newValue: assignedUserId });
       }
-    } catch (error) {
+    } catch {
       addToast({ message: 'Error al asignar lead', type: 'error' });
     }
   }, [leads, addToast, userId, userName]);
+
+  const bulkAssignLeads = useCallback(async (selectedIds: string[], assignToUserId: string) => {
+    if (selectedIds.length === 0 || !assignToUserId) return;
+    try {
+      const leadsToAssign = leads.filter(l => selectedIds.includes(l.id));
+      await LeadService.bulkAssign(leadsToAssign, assignToUserId);
+      addToast({ message: `${selectedIds.length} leads asignados`, type: 'success' });
+      clearSelection();
+    } catch {
+      addToast({ message: 'Error al asignar leads', type: 'error' });
+    }
+  }, [leads, addToast, clearSelection]);
+
+  const bulkAddTagToLeads = useCallback(async (selectedIds: string[], tag: string) => {
+    if (selectedIds.length === 0 || !tag) return;
+    try {
+      const leadsToTag = leads.filter(l => selectedIds.includes(l.id));
+      await LeadService.bulkAddTag(leadsToTag, tag);
+      addToast({ message: `Etiqueta "${tag}" añadida a ${selectedIds.length} leads`, type: 'success' });
+      clearSelection();
+    } catch {
+      addToast({ message: 'Error al etiquetar leads', type: 'error' });
+    }
+  }, [leads, addToast, clearSelection]);
 
   return {
     updateLeadStatus,
@@ -185,5 +190,7 @@ export function useLeadActions(
     cancelLead,
     bulkCancelLeads,
     bulkStatusUpdate,
+    bulkAssignLeads,
+    bulkAddTagToLeads,
   };
 }

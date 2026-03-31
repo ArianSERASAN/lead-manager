@@ -14,7 +14,7 @@ import {
   useSensors,
   closestCorners,
 } from '@dnd-kit/core';
-import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2, ChevronLeft, ChevronRight, Target, Inbox } from 'lucide-react';
 import { usePermissions } from '../../hooks/auth/usePermissions';
 
 interface LeadKanbanProps {
@@ -150,11 +150,11 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
             placeholder="Buscar leads por nombre, email o empresa..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-300 transition-all text-sm"
+            className="w-full pl-11 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white/80 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-primary-500/40 focus:border-primary-300 transition-all text-sm"
           />
           {isUpdating && (
             <div className="absolute right-4 top-1/2 -translate-y-1/2">
-              <Loader2 size={16} className="animate-spin text-blue-600" />
+              <Loader2 size={16} className="animate-spin text-primary-600" />
             </div>
           )}
         </div>
@@ -235,7 +235,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
             ))
           ) : (
             <div className="flex flex-col items-center justify-center py-12 text-gray-400 px-2">
-              <div className="text-3xl mb-2">📭</div>
+              <Inbox size={28} className="text-gray-300 mb-2" />
               <p className="text-sm font-medium">Sin leads en {mobileActiveConfig.label.toLowerCase()}</p>
             </div>
           )}
@@ -283,7 +283,9 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
       {/* Empty State */}
       {filteredLeads.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16">
-          <div className="text-5xl mb-4">🎯</div>
+          <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
+            <Target size={32} className="text-gray-400" />
+          </div>
           <p className="text-gray-500 text-lg font-medium">
             {searchQuery ? 'No se encontraron leads' : 'Sin leads disponibles'}
           </p>

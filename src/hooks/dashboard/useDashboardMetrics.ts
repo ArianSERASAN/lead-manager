@@ -2,6 +2,15 @@ import { useMemo } from 'react';
 import { Lead, LeadStatus, toJSDate } from '../../types/domain';
 import { daysSince, getTimestampSeconds } from '../../utils/format';
 
+export interface SourceROI {
+  source: string;
+  label: string;
+  total: number;
+  closed: number;
+  conversionRate: number;
+  avgScore: number;
+}
+
 export interface DashboardMetrics {
   total: number;
   byStatus: Record<string, number>;
@@ -14,6 +23,7 @@ export interface DashboardMetrics {
   weeklyTrend: { week: string; count: number; source: string }[];
   funnel: { stage: string; count: number; percentage: number }[];
   scoreDistribution: { range: string; count: number }[];
+  sourceROI: SourceROI[];
 }
 
 export interface DateRange {
@@ -133,6 +143,30 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
       else scoreDistribution[4].count++;
     });
 
+    // Source ROI
+    const sources = ['landing', 'web-download', 'web-contact', 'manual'] as const;
+    const sourceLabels: Record<string, string> = {
+      landing: 'Landing',
+      'web-download': 'PDF Descarga',
+      'web-contact': 'Web Contacto',
+      manual: 'Manual',
+    };
+
+    const sourceROI = sources.map((source) => {
+      const sourceLeads = filteredLeads.filter((l) => l.source === source);
+      const closedCount = sourceLeads.filter((l) => l.status === 'cerrado').length;
+      const totalCount = sourceLeads.length;
+      const avgSourceScore = totalCount > 0 ? Math.round(sourceLeads.reduce((sum, l) => sum + l.score, 0) / totalCount) : 0;
+      return {
+        source,
+        label: sourceLabels[source] || source,
+        total: totalCount,
+        closed: closedCount,
+        conversionRate: totalCount > 0 ? Math.round((closedCount / totalCount) * 100) : 0,
+        avgScore: avgSourceScore,
+      };
+    }).filter((s) => s.total > 0);
+
     return {
       total,
       byStatus,
@@ -144,7 +178,8 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
       newThisMonth,
       weeklyTrend,
       funnel,
-      scoreDistribution
+      scoreDistribution,
+      sourceROI,
     };
   }, [leads, dateRange]);
 }
