@@ -136,9 +136,13 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
             )}
           </div>
 
-          {/* Open detail button */}
+          {/* Open detail button — stopPropagation on pointerDown to bypass dnd-kit drag listeners */}
           <button
-            onClick={handleCardClick}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
             className="w-full text-center text-xs font-semibold text-primary-600 hover:text-primary-800 hover:bg-primary-50 active:bg-primary-100 py-3 rounded-lg transition-colors min-h-[44px]"
           >
             Ver detalle completo
