@@ -47,6 +47,9 @@ export function useFilterLogic(leads: Lead[], pendingDeleteIds: string[] = []) {
 
   const filteredLeads = useMemo(() => {
     return leads.filter(lead => {
+      // Excluir leads marcados para eliminación (undo pendiente)
+      if (pendingDeleteIds.length > 0 && pendingDeleteIds.includes(lead.id)) return false;
+
       // Excluir leads cancelados de la vista principal (van al historial)
       if (lead.status === 'cancelado') return false;
 

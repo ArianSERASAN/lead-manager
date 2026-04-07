@@ -10,6 +10,7 @@ import { createMockLead } from './helpers';
 // Mock dependencies
 vi.mock('../utils/format', () => ({
   formatRelativeTime: vi.fn(() => 'hace 3 días'),
+  formatTimestamp: vi.fn(() => '07/04/2026'),
   getScoreColor: vi.fn(() => 'text-blue-600'),
   getScoreBgColor: vi.fn(() => 'bg-blue-50 border-blue-200'),
   getScoreLabel: vi.fn(() => 'Tibio'),
@@ -61,8 +62,8 @@ describe('LeadTable', () => {
   it('muestra estado vacío cuando no hay leads', () => {
     render(<LeadTable {...defaultProps} leads={[]} />);
 
-    expect(screen.getByText('Sin resultados')).toBeInTheDocument();
-    expect(screen.getByText('No hay leads que coincidan con los filtros.')).toBeInTheDocument();
+    expect(screen.getByText('Aún no hay leads')).toBeInTheDocument();
+    expect(screen.getByText('Los leads de los formularios web aparecerán aquí automáticamente. También puedes crear uno manualmente.')).toBeInTheDocument();
   });
 
   it('llama a onSelect cuando se hace click en un lead', async () => {

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Borrar Leads de Prueba — SERASAN</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 32px; max-width: 600px; width: 100%; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
+    .warning { background: #7f1d1d; border: 1px solid #ef4444; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .warning h3 { color: #fca5a5; margin-bottom: 8px; }
+    .warning ul { color: #fca5a5; list-style: disc; padding-left: 20px; font-size: 0.875rem; line-height: 1.8; }
+    .safe { background: #052e16; border: 1px solid #22c55e; border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+    .safe h3 { color: #86efac; margin-bottom: 8px; }
+    .safe ul { color: #86efac; list-style: disc; padding-left: 20px; font-size: 0.875rem; line-height: 1.8; }
+    .btn { width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .btn-login { background: #3b82f6; color: white; margin-bottom: 12px; }
+    .btn-login:hover { background: #2563eb; }
+    .btn-delete { background: #dc2626; color: white; }
+    .btn-delete:hover { background: #b91c1c; }
+    .btn-delete:disabled { background: #374151; color: #6b7280; cursor: not-allowed; }
+    #log { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 16px; margin-top: 20px; font-family: monospace; font-size: 0.8rem; max-height: 300px; overflow-y: auto; display: none; }
+    #log p { margin-bottom: 4px; }
+    .log-ok { color: #4ade80; }
+    .log-err { color: #f87171; }
+    .log-info { color: #60a5fa; }
+    .log-warn { color: #facc15; }
+    #status { margin-bottom: 16px; padding: 12px; border-radius: 8px; display: none; font-size: 0.9rem; }
+    .status-user { background: #134e4a; border: 1px solid #14b8a6; color: #99f6e4; }
+    .status-done { background: #052e16; border: 1px solid #22c55e; color: #86efac; }
+    .status-error { background: #7f1d1d; border: 1px solid #ef4444; color: #fca5a5; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>🗑️ Borrar Leads de Prueba</h1>
+  <p class="subtitle">Proyecto: <strong>serasan-web</strong> — Solo accesible para administradores</p>
+
+  <div class="warning">
+    <h3>⚠️ Se borrarán estas colecciones:</h3>
+    <ul>
+      <li><code>leads</code> (+ subcollecciones: <code>activity</code>, <code>tasks</code> por doc)</li>
+      <li><code>leads_descargas</code></li>
+      <li><code>solicitudes_contacto</code></li>
+      <li><code>notifications</code></li>
+      <li><code>tasks</code> (log global)</li>
+      <li><code>digest_log</code></li>
+    </ul>
+  </div>
+
+  <div class="safe">
+    <h3>✅ NO se toca:</h3>
+    <ul>
+      <li><code>users</code></li>
+      <li><code>settings</code> (fieldSchema, alerts, autoAssign, emailSequence, digest)</li>
+    </ul>
+  </div>
+
+  <div id="status"></div>
+
+  <button class="btn btn-login" id="btnLogin" onclick="loginGoogle()">🔑 Iniciar sesión con Google (admin)</button>
+  <button class="btn btn-delete" id="btnDelete" disabled onclick="confirmDelete()">🗑️ BORRAR TODOS LOS LEADS</button>
+
+  <div id="log"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import {
+    getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged
+  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import {
+    getFirestore, collection, getDocs, deleteDoc, writeBatch, doc
+  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCkG_tMe-XeJtY9vl3Hk_mFDSUzDmeJ3Qw",
+    authDomain: "serasan-web.firebaseapp.com",
+    projectId: "serasan-web",
+    storageBucket: "serasan-web.firebasestorage.app",
+    messagingSenderId: "130939515514",
+    appId: "1:130939515514:web:82f695051d1ee05cf301c3"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  const COLLECTIONS_TO_DELETE = [
+    'leads',
+    'leads_descargas',
+    'solicitudes_contacto',
+    'notifications',
+    'tasks',
+    'digest_log',
+  ];
+  const LEAD_SUBCOLLECTIONS = ['activity', 'tasks'];
+
+  function log(msg, type = 'info') {
+    const logEl = document.getElementById('log');
+    logEl.style.display = 'block';
+    const p = document.createElement('p');
+    p.className = `log-${type}`;
+    p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    logEl.appendChild(p);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = `status-${type}`;
+    el.style.display = 'block';
+  }
+
+  window.loginGoogle = async function() {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+    } catch(e) {
+      setStatus('Error al iniciar sesión: ' + e.message, 'error');
+    }
+  };
+
+  onAuthStateChanged(auth, user => {
+    if (user) {
+      setStatus(`✅ Conectado como: ${user.email}`, 'user');
+      document.getElementById('btnLogin').textContent = `✅ ${user.email}`;
+      document.getElementById('btnLogin').disabled = true;
+      document.getElementById('btnDelete').disabled = false;
+    }
+  });
+
+  async function deleteSubcollections(leadDocRef) {
+    for (const subName of LEAD_SUBCOLLECTIONS) {
+      const subCol = collection(db, `leads/${leadDocRef.id}/${subName}`);
+      let snap = await getDocs(subCol);
+      while (!snap.empty) {
+        const batch = writeBatch(db);
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        snap = await getDocs(subCol);
+      }
+    }
+  }
+
+  async function deleteCollection(colName) {
+    let total = 0;
+    const colRef = collection(db, colName);
+
+    while (true) {
+      const snap = await getDocs(colRef);
+      if (snap.empty) break;
+
+      // Para 'leads', borrar subcollecciones primero
+      if (colName === 'leads') {
+        for (const docSnap of snap.docs) {
+          await deleteSubcollections(docSnap);
+        }
+      }
+
+      // Borrar en batches de 400 (límite Firestore: 500)
+      const chunks = [];
+      for (let i = 0; i < snap.docs.length; i += 400) {
+        chunks.push(snap.docs.slice(i, i + 400));
+      }
+      for (const chunk of chunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        total += chunk.length;
+      }
+
+      log(`/${colName}: ${total} docs borrados...`, 'info');
+    }
+
+    return total;
+  }
+
+  window.confirmDelete = async function() {
+    if (!auth.currentUser) {
+      setStatus('Debes iniciar sesión primero.', 'error');
+      return;
+    }
+
+    const ok = confirm(
+      `⚠️ CONFIRMACIÓN FINAL\n\n` +
+      `Se borrarán TODOS los documentos de:\n` +
+      COLLECTIONS_TO_DELETE.map(c => `  • ${c}`).join('\n') +
+      `\n\n¿Confirmar borrado definitivo?`
+    );
+    if (!ok) return;
+
+    document.getElementById('btnDelete').disabled = true;
+    document.getElementById('btnDelete').textContent = '⏳ Borrando...';
+
+    let grand = 0;
+    try {
+      for (const col of COLLECTIONS_TO_DELETE) {
+        log(`Procesando /${col}...`, 'warn');
+        const count = await deleteCollection(col);
+        log(`✓ /${col}: ${count} documentos borrados`, 'ok');
+        grand += count;
+      }
+
+      setStatus(`✅ ¡Completado! ${grand} documentos borrados en total.`, 'done');
+      log(`\n✅ BORRADO COMPLETO — Total: ${grand} documentos`, 'ok');
+      document.getElementById('btnDelete').textContent = '✅ Completado';
+    } catch (err) {
+      log(`ERROR: ${err.message}`, 'err');
+      setStatus('Error: ' + err.message, 'error');
+      document.getElementById('btnDelete').disabled = false;
+      document.getElementById('btnDelete').textContent = '🗑️ BORRAR TODOS LOS LEADS';
+      console.error(err);
+    }
+  };
+</script>
+</body>
+</html>
