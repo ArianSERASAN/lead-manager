@@ -66,26 +66,26 @@ export function KanbanPage() {
         />
       </div>
 
-      {/* Lead Detail Sidebar */}
+      {/* Lead Detail Sidebar — fixed overlay on all screen sizes */}
       {selectedLead && (
-        <div className="fixed inset-0 z-40 md:relative md:inset-auto">
-          {/* Backdrop — mobile only */}
+        <div className="fixed inset-0 z-40">
+          {/* Backdrop */}
           <div
-            className="md:hidden absolute inset-0 bg-gray-900/50 backdrop-blur-sm modal-backdrop-enter"
+            className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm"
             onClick={() => setSelectedLead(null)}
           />
-          {/* Panel */}
-          <div className="absolute right-0 top-0 h-full w-full md:w-96 md:relative md:h-auto bg-white md:bg-transparent overflow-y-auto animate-slide-in-right md:animate-none">
-            <div className="md:hidden sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+          {/* Panel — slides in from right */}
+          <div className="absolute right-0 top-0 h-full w-full md:w-[480px] bg-white shadow-2xl overflow-y-auto animate-slide-in-right">
+            <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
               <button
                 onClick={() => setSelectedLead(null)}
-                className="flex items-center gap-2 text-sm font-semibold text-gray-600 active:text-gray-900 min-h-[44px] px-2"
+                className="flex items-center gap-2 text-sm font-semibold text-gray-600 hover:text-gray-900 active:text-gray-900 min-h-[44px] px-2"
               >
                 ← Volver
               </button>
-              <span className="text-sm font-bold text-gray-900 truncate max-w-[200px]">{selectedLead.name}</span>
+              <span className="text-sm font-bold text-gray-900 truncate max-w-[250px]">{selectedLead.name}</span>
             </div>
-            <div className="p-4 md:p-0">
+            <div className="p-4">
               <LeadDetail
                 lead={selectedLead}
                 onStatusChange={(status) => updateLeadStatus(selectedLead.id, status)}
