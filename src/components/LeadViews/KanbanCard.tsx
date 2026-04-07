@@ -63,7 +63,7 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
         }`} />
 
         {/* Name */}
-        <span className="text-sm font-medium text-gray-900 truncate flex-1 min-w-0">
+        <span className="text-sm font-medium text-gray-900 flex-1 min-w-0 break-words leading-tight">
           {lead.name}
         </span>
 
@@ -107,7 +107,7 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
 
           {/* Score + Tags row */}
           <div className="flex items-center gap-2 flex-wrap">
-            <ScoreBadge score={lead.score} size="sm" showTooltip={true} />
+            <ScoreBadge score={lead.score} size="sm" />
             {displayTags.map((tag, idx) => (
               <span
                 key={tag}

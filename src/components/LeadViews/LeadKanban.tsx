@@ -332,7 +332,6 @@ function MobileKanbanCard({ lead, onClick, currentStatus, onStatusChange }: {
           }`}
           role="img"
           aria-label={`Puntuación: ${lead.score} — ${lead.score >= 70 ? 'Alta' : lead.score >= 40 ? 'Media' : 'Baja'}`}
-          title={`Score: ${lead.score}`}
         />
 
         {/* Content */}
