@@ -9,9 +9,10 @@ interface KanbanCardProps {
   lead: Lead;
   onClick: () => void;
   isDragging?: boolean;
+  dragHandleProps?: Record<string, unknown>;
 }
 
-export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
+export function KanbanCard({ lead, onClick, isDragging, dragHandleProps }: KanbanCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const getSourceIcon = (source: Lead['source']) => {
@@ -45,15 +46,16 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
       className={`bg-white rounded-lg border select-none ${
         isDragging
           ? 'shadow-2xl border-primary-300 ring-2 ring-primary-200'
-          : `shadow-sm cursor-grab active:cursor-grabbing active:scale-[0.98] md:hover-lift transition-transform duration-150 ${
+          : `shadow-sm active:scale-[0.98] md:hover-lift transition-transform duration-150 ${
               lead.isStale ? 'border-orange-200' : 'border-gray-100 md:hover:border-primary-200'
             }`
       }`}
     >
-      {/* Compact row — always visible */}
+      {/* Compact row — always visible / drag handle */}
       <div
+        {...(dragHandleProps || {})}
         onClick={handleCardClick}
-        className="flex items-center gap-2 px-3 py-2"
+        className={`flex items-center gap-2 px-3 py-2 ${dragHandleProps ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
         {/* Score dot */}
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
@@ -136,14 +138,13 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
             )}
           </div>
 
-          {/* Open detail button — stopPropagation on pointerDown to bypass dnd-kit drag listeners */}
+          {/* Open detail button */}
           <button
-            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onClick();
             }}
-            className="w-full text-center text-xs font-semibold text-primary-600 hover:text-primary-800 hover:bg-primary-50 active:bg-primary-100 py-3 rounded-lg transition-colors min-h-[44px]"
+            className="w-full text-center text-xs font-semibold text-primary-600 hover:text-primary-800 hover:bg-primary-50 active:bg-primary-100 py-3 rounded-lg transition-colors min-h-[44px] cursor-pointer"
           >
             Ver detalle completo
           </button>

@@ -100,7 +100,6 @@ function DraggableCard({ lead, onClick, isBeingDragged }: { lead: Lead; onClick:
     <div
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
       className={`transition-opacity duration-150 ${
         isBeingDragged ? 'opacity-30' : ''
       }`}
@@ -109,6 +108,7 @@ function DraggableCard({ lead, onClick, isBeingDragged }: { lead: Lead; onClick:
         lead={lead}
         onClick={onClick}
         isDragging={isDragging}
+        dragHandleProps={listeners}
       />
     </div>
   );
