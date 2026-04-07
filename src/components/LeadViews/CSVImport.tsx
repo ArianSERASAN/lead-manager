@@ -1,13 +1,22 @@
 import { useState, useRef, useCallback } from 'react';
-import { X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import {
+  X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2,
+  Loader2, ChevronDown, ChevronRight, Tag,
+} from 'lucide-react';
 import {
   parseFile,
   autoMapHeaders,
   mapRow,
   validateRow,
   importLeads,
+  buildMissingFieldDefinitions,
+  STANDARD_FIELD_LABELS,
+  checkDuplicatesInBatch,
+  type DuplicateMatch,
 } from '../../services/CSVImportService';
-import type { MappedLead } from '../../services/CSVImportService';
+import { saveFieldSchema } from '../../services/FieldSchemaService';
+import { useFieldSchema } from '../../hooks/leads/useFieldSchema';
+import type { FieldDefinition } from '../../types/domain';
 
 interface CSVImportProps {
   isOpen: boolean;
@@ -17,48 +26,96 @@ interface CSVImportProps {
   userName?: string;
 }
 
+type Step = 'upload' | 'review' | 'importing' | 'results';
+
 export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVImportProps) {
-  // States: 'upload' | 'preview' | 'importing' | 'results'
-  const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'results'>('upload');
+  const { fields: existingSchema } = useFieldSchema();
+
+  const [step, setStep] = useState<Step>('upload');
   const [headers, setHeaders] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, string>[]>([]);
-  const [headerMapping, setHeaderMapping] = useState<Record<string, string>>({});
+  const [autoMapping, setAutoMapping] = useState<Record<string, string>>({});
+  const [columnSections, setColumnSections] = useState<Record<string, string>>({});
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [importResult, setImportResult] = useState({ imported: 0, errors: 0 });
+  const [showAutoMapped, setShowAutoMapped] = useState(false);
+  const [duplicates, setDuplicates] = useState<Map<string, DuplicateMatch>>(new Map());
+  const [skipDuplicates, setSkipDuplicates] = useState(true);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Available lead fields for mapping dropdowns
-  const LEAD_FIELDS = [
-    { value: '', label: '— Ignorar —' },
-    { value: 'name', label: 'Nombre' },
-    { value: 'apellidos', label: 'Apellidos' },
-    { value: 'email', label: 'Email' },
-    { value: 'phone', label: 'Teléfono' },
-    { value: 'company', label: 'Empresa' },
-    { value: 'cargo', label: 'Cargo' },
-    { value: 'sector', label: 'Sector' },
-    { value: 'localidad', label: 'Localidad' },
-    { value: 'direccion', label: 'Dirección' },
-    { value: 'tipoInmueble', label: 'Tipo inmueble' },
-    { value: 'superficie', label: 'Superficie' },
-    { value: 'referenciaCatastral', label: 'Ref. catastral' },
-    { value: 'message', label: 'Mensaje' },
-    { value: 'notes', label: 'Notas' },
-  ];
+  // ── Derived state ──────────────────────────────────────────────────────────
+
+  const validCount = rows.filter((row) => validateRow(mapRow(row, autoMapping)).length === 0).length;
+  const invalidCount = rows.length - validCount;
+
+  // Auto-mapped columns (map to a standard lead field)
+  const autoMappedEntries = headers.filter((h) => autoMapping[h]);
+
+  // Columns that will become new custom fields (not mapped, not already in schema)
+  const existingSlugs = new Set(existingSchema.map((f) => f.name));
+  const newFieldHeaders = headers.filter((h) => {
+    if (autoMapping[h]) return false; // mapped to standard field
+    const slug = h.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    return slug && !existingSlugs.has(slug);
+  });
+
+  // Group new fields by section
+  const newFieldsBySection: Record<string, string[]> = {};
+  for (const h of newFieldHeaders) {
+    const rawSection = columnSections[h] || '';
+    const section = rawSection.replace(/^[A-Z]\.\s+/, '').trim() || 'Sin sección';
+    if (!newFieldsBySection[section]) newFieldsBySection[section] = [];
+    newFieldsBySection[section].push(h);
+  }
+
+  // Already-in-schema custom fields (not shown as "new")
+  const existingCustomHeaders = headers.filter((h) => {
+    if (autoMapping[h]) return false;
+    const slug = h.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    return slug && existingSlugs.has(slug);
+  });
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleFile = useCallback(async (file: File) => {
     const result = await parseFile(file);
     setHeaders(result.headers);
     setRows(result.rows);
     setParseErrors(result.errors);
-    setHeaderMapping(autoMapHeaders(result.headers));
-    setStep('preview');
+    const mapping = autoMapHeaders(result.headers);
+    setAutoMapping(mapping);
+    setColumnSections(result.columnSections);
+    setStep('review');
+
+    // Check duplicates in background
+    setCheckingDuplicates(true);
+    try {
+      const emails = result.rows
+        .map((row) => {
+          const emailHeader = Object.keys(mapping).find((h) => mapping[h] === 'email');
+          return emailHeader ? row[emailHeader] : '';
+        })
+        .filter(Boolean);
+      const dupes = await checkDuplicatesInBatch(emails);
+      setDuplicates(dupes);
+    } catch {
+      // Non-blocking — continue without duplicate info
+    } finally {
+      setCheckingDuplicates(false);
+    }
   }, []);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file && (file.name.endsWith('.csv') || file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.type === 'text/csv')) {
+    if (
+      file &&
+      (file.name.endsWith('.csv') ||
+        file.name.endsWith('.xlsx') ||
+        file.name.endsWith('.xls') ||
+        file.type === 'text/csv')
+    ) {
       handleFile(file);
     }
   }, [handleFile]);
@@ -67,15 +124,35 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     if (!userId || !userName) return;
     setStep('importing');
 
-    const mappedLeads: MappedLead[] = [];
-    for (const row of rows) {
-      const mapped = mapRow(row, headerMapping);
-      const errors = validateRow(mapped);
-      if (errors.length === 0) mappedLeads.push(mapped);
+    // 1. Auto-create missing FieldDefinitions in Firestore
+    const newFieldDefs: FieldDefinition[] = buildMissingFieldDefinitions(
+      headers,
+      autoMapping,
+      columnSections,
+      existingSchema,
+      userId
+    );
+    if (newFieldDefs.length > 0) {
+      await saveFieldSchema([...existingSchema, ...newFieldDefs]);
     }
 
+    // 2. Map, validate, and optionally skip duplicates
+    let mappedLeads = rows
+      .map((row) => mapRow(row, autoMapping))
+      .filter((lead) => validateRow(lead).length === 0);
+
+    if (skipDuplicates && duplicates.size > 0) {
+      mappedLeads = mappedLeads.filter(
+        (lead) => !lead.email || !duplicates.has(lead.email.toLowerCase().trim())
+      );
+    }
+
+    // 3. Import to Firestore
     const result = await importLeads(mappedLeads, userId, userName);
-    setImportResult({ imported: result.imported, errors: rows.length - mappedLeads.length + result.errors });
+    setImportResult({
+      imported: result.imported,
+      errors: rows.length - mappedLeads.length + result.errors,
+    });
     setStep('results');
   };
 
@@ -83,8 +160,12 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     setStep('upload');
     setHeaders([]);
     setRows([]);
-    setHeaderMapping({});
+    setAutoMapping({});
+    setColumnSections({});
     setParseErrors([]);
+    setShowAutoMapped(false);
+    setDuplicates(new Map());
+    setSkipDuplicates(true);
     onClose();
   };
 
@@ -93,36 +174,33 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     handleClose();
   };
 
-  // Count valid rows
-  const validCount = rows.filter(row => {
-    const mapped = mapRow(row, headerMapping);
-    return validateRow(mapped).length === 0;
-  }).length;
-  const invalidCount = rows.length - validCount;
-
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
 
-      {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col animate-scale-in">
+      <div className="relative bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[88vh] overflow-hidden flex flex-col animate-scale-in">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2.5">
             <FileSpreadsheet size={20} className="text-primary-600" />
-            <h2 className="text-base font-bold text-gray-900">Importar leads desde CSV / Excel</h2>
+            <h2 className="text-base font-bold text-gray-900">
+              Importar leads desde CSV / Excel
+            </h2>
           </div>
-          <button onClick={handleClose} className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors">
+          <button
+            onClick={handleClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+          >
             <X size={18} />
           </button>
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* STEP: Upload */}
+
+          {/* ── STEP: Upload ── */}
           {step === 'upload' && (
             <div
               onDrop={handleDrop}
@@ -134,9 +212,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
               <p className="text-sm font-semibold text-gray-700 mb-1">
                 Arrastra un archivo CSV o Excel aquí
               </p>
-              <p className="text-xs text-gray-400">
-                Formatos: .csv, .xlsx
-              </p>
+              <p className="text-xs text-gray-400">Formatos: .csv, .xlsx</p>
               <input
                 ref={fileRef}
                 type="file"
@@ -150,135 +226,248 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
             </div>
           )}
 
-          {/* STEP: Preview */}
-          {step === 'preview' && (
-            <div className="space-y-4">
-              {/* Stats */}
+          {/* ── STEP: Review ── */}
+          {step === 'review' && (
+            <div className="space-y-5">
+              {/* Stats bar */}
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-sm text-gray-500">{rows.length} filas detectadas</span>
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg">
+                <span className="text-sm text-gray-500">
+                  {rows.length} filas detectadas
+                </span>
+                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg">
                   {validCount} válidas
                 </span>
                 {invalidCount > 0 && (
-                  <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-lg">
-                    {invalidCount} con errores
+                  <span className="text-xs font-bold text-red-500 bg-red-50 px-2.5 py-1 rounded-lg">
+                    {invalidCount} sin nombre/email
                   </span>
                 )}
-              </div>
-
-              {/* Column mapping */}
-              <div className="space-y-2">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Mapeo de columnas</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {headers.map((header) => (
-                    <div key={header} className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
-                      <span className="text-xs text-gray-600 font-medium truncate flex-1">{header}</span>
-                      <span className="text-gray-300">&rarr;</span>
-                      <select
-                        value={headerMapping[header] || ''}
-                        onChange={(e) => setHeaderMapping(prev => ({ ...prev, [header]: e.target.value }))}
-                        className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        {LEAD_FIELDS.map(f => (
-                          <option key={f.value} value={f.value}>{f.label}</option>
-                        ))}
-                      </select>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 mt-2">
-                  Las columnas marcadas como 'Ignorar' se guardarán automáticamente como campos adicionales del lead.
-                </p>
-              </div>
-
-              {/* Preview table (first 5 rows) */}
-              <div className="overflow-x-auto">
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Previsualización (primeras 5 filas)</p>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="border-b border-gray-100">
-                      <th className="px-2 py-1.5 text-left text-gray-400 font-semibold">#</th>
-                      {headers.filter(h => headerMapping[h]).map(h => (
-                        <th key={h} className="px-2 py-1.5 text-left text-gray-400 font-semibold truncate max-w-[120px]">
-                          {headerMapping[h]}
-                        </th>
-                      ))}
-                      <th className="px-2 py-1.5 text-left text-gray-400 font-semibold">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.slice(0, 5).map((row, i) => {
-                      const mapped = mapRow(row, headerMapping);
-                      const errors = validateRow(mapped);
-                      return (
-                        <tr key={i} className={`border-b border-gray-50 ${errors.length > 0 ? 'bg-red-50/50' : ''}`}>
-                          <td className="px-2 py-1.5 text-gray-400">{i + 1}</td>
-                          {headers.filter(h => headerMapping[h]).map(h => (
-                            <td key={h} className="px-2 py-1.5 text-gray-600 truncate max-w-[120px]">{row[h]}</td>
-                          ))}
-                          <td className="px-2 py-1.5">
-                            {errors.length > 0 ? (
-                              <span className="flex items-center gap-1 text-red-500">
-                                <AlertCircle size={12} />
-                                {errors[0]}
-                              </span>
-                            ) : (
-                              <CheckCircle2 size={14} className="text-emerald-500" />
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                <span className="text-xs text-gray-400 ml-auto">
+                  {headers.length} columnas
+                </span>
               </div>
 
               {parseErrors.length > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <p className="text-xs font-bold text-amber-700 mb-1">Advertencias del parser</p>
-                  {parseErrors.slice(0, 3).map((err, i) => (
+                  <p className="text-xs font-bold text-amber-700 mb-1">Advertencias</p>
+                  {parseErrors.slice(0, 2).map((err, i) => (
                     <p key={i} className="text-xs text-amber-600">{err}</p>
                   ))}
+                </div>
+              )}
+
+              {/* ── Duplicate warning ── */}
+              {duplicates.size > 0 && (
+                <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={15} className="text-orange-500" />
+                    <span className="text-sm font-semibold text-orange-800">
+                      {duplicates.size} emails ya existen en el sistema
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={skipDuplicates}
+                        onChange={() => setSkipDuplicates(true)}
+                        className="text-primary-600"
+                      />
+                      <span className="text-xs font-medium text-gray-700">Omitir duplicados</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={!skipDuplicates}
+                        onChange={() => setSkipDuplicates(false)}
+                        className="text-primary-600"
+                      />
+                      <span className="text-xs font-medium text-gray-700">Importar de todas formas</span>
+                    </label>
+                  </div>
+                  <div className="mt-2 max-h-24 overflow-y-auto space-y-0.5">
+                    {[...duplicates.entries()].slice(0, 5).map(([email, match]) => (
+                      <p key={email} className="text-[11px] text-orange-600">
+                        {email} → ya existe como &ldquo;{match.name}&rdquo; ({match.status})
+                      </p>
+                    ))}
+                    {duplicates.size > 5 && (
+                      <p className="text-[11px] text-orange-400">...y {duplicates.size - 5} más</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {checkingDuplicates && (
+                <div className="flex items-center gap-2 text-xs text-gray-400">
+                  <Loader2 size={12} className="animate-spin" />
+                  Comprobando duplicados...
+                </div>
+              )}
+
+              {/* ── Auto-mapped fields ── */}
+              {autoMappedEntries.length > 0 && (
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 overflow-hidden">
+                  <button
+                    onClick={() => setShowAutoMapped((v) => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 size={15} className="text-emerald-600" />
+                      <span className="text-sm font-semibold text-emerald-800">
+                        Detectados automáticamente
+                      </span>
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">
+                        {autoMappedEntries.length}
+                      </span>
+                    </div>
+                    {showAutoMapped ? (
+                      <ChevronDown size={14} className="text-emerald-500" />
+                    ) : (
+                      <ChevronRight size={14} className="text-emerald-500" />
+                    )}
+                  </button>
+
+                  {showAutoMapped && (
+                    <div className="px-4 pb-3 flex flex-wrap gap-2">
+                      {autoMappedEntries.map((h) => (
+                        <div
+                          key={h}
+                          className="flex items-center gap-1.5 bg-white border border-emerald-200 rounded-lg px-2.5 py-1 text-xs"
+                        >
+                          <span className="text-gray-500 truncate max-w-[90px]">{h}</span>
+                          <span className="text-emerald-400">→</span>
+                          <span className="font-semibold text-emerald-700">
+                            {STANDARD_FIELD_LABELS[autoMapping[h]] || autoMapping[h]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Already in schema ── */}
+              {existingCustomHeaders.length > 0 && (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag size={14} className="text-indigo-500" />
+                    <span className="text-sm font-semibold text-indigo-800">
+                      Ya en tus campos personalizados
+                    </span>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                      {existingCustomHeaders.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {existingCustomHeaders.map((h) => (
+                      <span
+                        key={h}
+                        className="text-xs bg-white border border-indigo-200 text-indigo-600 rounded-md px-2 py-0.5"
+                      >
+                        {h}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── New fields to create ── */}
+              {newFieldHeaders.length > 0 && (
+                <div className="rounded-xl border border-amber-100 bg-amber-50/40 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-100">
+                    <AlertCircle size={15} className="text-amber-500" />
+                    <span className="text-sm font-semibold text-amber-800">
+                      Campos nuevos a crear en la ficha
+                    </span>
+                    <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                      {newFieldHeaders.length}
+                    </span>
+                  </div>
+                  <div className="px-4 py-3 space-y-3">
+                    {Object.entries(newFieldsBySection).map(([section, sectionHeaders]) => (
+                      <div key={section}>
+                        <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1.5">
+                          {section}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {sectionHeaders.map((h) => (
+                            <span
+                              key={h}
+                              className="text-xs bg-white border border-amber-200 text-amber-700 rounded-md px-2 py-0.5"
+                            >
+                              {h}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {validCount === 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+                  <AlertCircle size={20} className="text-red-400 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-red-700">
+                    Ninguna fila tiene Nombre y Email válidos
+                  </p>
+                  <p className="text-xs text-red-500 mt-1">
+                    Asegúrate de que el archivo tiene columnas de nombre y email con datos.
+                  </p>
                 </div>
               )}
             </div>
           )}
 
-          {/* STEP: Importing */}
+          {/* ── STEP: Importing ── */}
           {step === 'importing' && (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 size={36} className="text-primary-600 animate-spin mb-4" />
-              <p className="text-sm font-semibold text-gray-700">Importando {validCount} leads...</p>
-              <p className="text-xs text-gray-400 mt-1">Esto puede tardar unos segundos</p>
+              <p className="text-sm font-semibold text-gray-700">
+                Importando {validCount} leads...
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Guardando campos y datos en Firestore</p>
             </div>
           )}
 
-          {/* STEP: Results */}
+          {/* ── STEP: Results ── */}
           {step === 'results' && (
             <div className="flex flex-col items-center justify-center py-12">
               <div className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mb-4">
                 <CheckCircle2 size={32} className="text-emerald-600" />
               </div>
-              <h3 className="text-base font-bold text-gray-900 mb-2">Importación completada</h3>
-              <div className="flex items-center gap-4 mt-2">
+              <h3 className="text-base font-bold text-gray-900 mb-3">
+                Importación completada
+              </h3>
+              <div className="flex items-center gap-6 mt-1">
                 <div className="text-center">
-                  <p className="text-2xl font-black text-emerald-600">{importResult.imported}</p>
-                  <p className="text-xs text-gray-400">importados</p>
+                  <p className="text-2xl font-black text-emerald-600">
+                    {importResult.imported}
+                  </p>
+                  <p className="text-xs text-gray-400">leads importados</p>
                 </div>
                 {importResult.errors > 0 && (
                   <div className="text-center">
-                    <p className="text-2xl font-black text-red-500">{importResult.errors}</p>
+                    <p className="text-2xl font-black text-red-500">
+                      {importResult.errors}
+                    </p>
                     <p className="text-xs text-gray-400">con errores</p>
                   </div>
                 )}
               </div>
+              {newFieldHeaders.length > 0 && (
+                <p className="text-xs text-gray-400 mt-4 text-center max-w-xs">
+                  Se han creado <strong className="text-gray-600">{newFieldHeaders.length} campos nuevos</strong>{' '}
+                  en la ficha del lead, organizados por sección.
+                </p>
+              )}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
-          {step === 'preview' && (
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2 shrink-0">
+          {step === 'review' && (
             <>
               <button
                 onClick={() => { setStep('upload'); setRows([]); setHeaders([]); }}
@@ -291,7 +480,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 disabled={validCount === 0 || !userId}
                 className="px-5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors"
               >
-                Importar {validCount} leads
+                Confirmar e importar {validCount} leads →
               </button>
             </>
           )}

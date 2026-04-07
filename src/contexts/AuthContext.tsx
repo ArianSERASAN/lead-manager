@@ -54,7 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setAppUser({ uid: user.uid, ...newUser } as AppUser);
           }
         } catch (err) {
-          console.error('Error loading user profile:', err);
+          console.error('Error al cargar perfil de usuario:', err);
           setAuthError('Error al cargar el perfil de usuario. Comprueba tu conexión e inténtalo de nuevo.');
           // Still set basic user info so the app doesn't hang
           setAppUser({

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { XCircle, X, CheckCircle2, UserPlus, Tag } from 'lucide-react';
+import { XCircle, X, CheckCircle2, UserPlus, Tag, Download, Loader2 } from 'lucide-react';
 import { LeadStatus } from '../../types/domain';
 
 interface SelectionHUDProps {
@@ -9,8 +9,10 @@ interface SelectionHUDProps {
   onBulkCancel: () => void;
   onBulkAssign?: (userId: string) => void;
   onBulkAddTag?: (tag: string) => void;
+  onExportSelected?: () => void;
   users?: { uid: string; name: string }[];
   allTags?: string[];
+  disabled?: boolean;
 }
 
 export function SelectionHUD({
@@ -20,8 +22,10 @@ export function SelectionHUD({
   onBulkCancel,
   onBulkAssign,
   onBulkAddTag,
+  onExportSelected,
   users = [],
   allTags = [],
+  disabled = false,
 }: SelectionHUDProps) {
   const [showTagInput, setShowTagInput] = useState(false);
   const [tagValue, setTagValue] = useState('');
@@ -54,11 +58,14 @@ export function SelectionHUD({
 
         {/* Actions Group */}
         <div className="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
+          {disabled && <Loader2 size={16} className="animate-spin text-white/60 shrink-0" />}
           {/* Status Dropdown */}
           <div className="relative group min-w-0">
             <select
               onChange={(e) => onBulkStatusUpdate(e.target.value as LeadStatus)}
-              className="appearance-none bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-bold py-2 sm:py-2.5 pl-2.5 sm:pl-4 pr-7 sm:pr-10 rounded-xl sm:rounded-2xl border border-white/5 outline-none transition-colors duration-150 cursor-pointer max-w-[130px] sm:max-w-none truncate"
+              disabled={disabled}
+              aria-label="Cambiar estado de leads seleccionados"
+              className="appearance-none bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-bold py-2 sm:py-2.5 pl-2.5 sm:pl-4 pr-7 sm:pr-10 rounded-xl sm:rounded-2xl border border-white/5 outline-none transition-colors duration-150 cursor-pointer max-w-[130px] sm:max-w-none truncate disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <option value="" className="bg-gray-900">Cambiar Estado...</option>
               <option value="nuevo" className="bg-gray-900">Marcar Nuevo</option>
@@ -79,7 +86,9 @@ export function SelectionHUD({
                   if (e.target.value) onBulkAssign(e.target.value);
                   e.target.value = '';
                 }}
-                className="appearance-none bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-bold py-2 sm:py-2.5 pl-2.5 sm:pl-4 pr-7 sm:pr-10 rounded-xl sm:rounded-2xl border border-white/5 outline-none transition-colors duration-150 cursor-pointer max-w-[120px] sm:max-w-none truncate"
+                disabled={disabled}
+                aria-label="Asignar leads seleccionados"
+                className="appearance-none bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-bold py-2 sm:py-2.5 pl-2.5 sm:pl-4 pr-7 sm:pr-10 rounded-xl sm:rounded-2xl border border-white/5 outline-none transition-colors duration-150 cursor-pointer max-w-[120px] sm:max-w-none truncate disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <option value="" className="bg-gray-900">Asignar...</option>
                 {users.map((u) => (
@@ -121,8 +130,10 @@ export function SelectionHUD({
               ) : (
                 <button
                   onClick={() => setShowTagInput(true)}
-                  className="p-2.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white rounded-2xl transition-colors duration-150 border border-blue-500/20 btn-press"
+                  disabled={disabled}
+                  className="p-2.5 bg-blue-500/10 hover:bg-blue-500 text-blue-400 hover:text-white rounded-2xl transition-colors duration-150 border border-blue-500/20 btn-press disabled:opacity-40 disabled:cursor-not-allowed"
                   title="Etiquetar leads seleccionados"
+                  aria-label="Etiquetar leads seleccionados"
                 >
                   <Tag size={20} />
                 </button>
@@ -130,10 +141,24 @@ export function SelectionHUD({
             </>
           )}
 
+          {onExportSelected && (
+            <button
+              onClick={onExportSelected}
+              disabled={disabled}
+              className="p-2.5 bg-green-500/10 hover:bg-green-500 text-green-400 hover:text-white rounded-2xl transition-colors duration-150 border border-green-500/20 btn-press disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Exportar seleccionados a Excel"
+              aria-label="Exportar seleccionados a Excel"
+            >
+              <Download size={20} />
+            </button>
+          )}
+
           <button
             onClick={onBulkCancel}
-            className="p-2.5 bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white rounded-2xl transition-colors duration-150 border border-orange-500/20 btn-press"
+            disabled={disabled}
+            className="p-2.5 bg-orange-500/10 hover:bg-orange-500 text-orange-400 hover:text-white rounded-2xl transition-colors duration-150 border border-orange-500/20 btn-press disabled:opacity-40 disabled:cursor-not-allowed"
             title="Cancelar leads seleccionados"
+            aria-label="Cancelar leads seleccionados"
           >
             <XCircle size={20} />
           </button>
@@ -143,7 +168,8 @@ export function SelectionHUD({
           <button
             onClick={onClearSelection}
             className="p-2.5 text-white/40 hover:text-white hover:bg-white/10 rounded-2xl transition-colors duration-150"
-            title="Cancelar seleccin"
+            title="Deseleccionar todos"
+            aria-label="Deseleccionar todos"
           >
             <X size={20} />
           </button>

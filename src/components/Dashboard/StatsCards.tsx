@@ -1,5 +1,6 @@
-import { TrendingUp, TrendingDown, Users, Target, AlertCircle, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, Target, AlertCircle, Zap, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getScoreColor } from '../../utils/format';
+import type { WeekOverWeek } from '../../hooks/dashboard/useDashboardMetrics';
 
 interface StatsCardsProps {
   total: number;
@@ -7,9 +8,28 @@ interface StatsCardsProps {
   avgScore: number;
   staleCount: number;
   newThisWeek: number;
+  weekOverWeek?: {
+    newLeads: WeekOverWeek;
+    closed: WeekOverWeek;
+    conversionRate: WeekOverWeek;
+  };
 }
 
-export function StatsCards({ total, conversionRate, avgScore, staleCount, newThisWeek }: StatsCardsProps) {
+function WoWBadge({ wow }: { wow?: WeekOverWeek }) {
+  if (!wow || (wow.current === 0 && wow.previous === 0)) return null;
+  const isPositive = wow.change >= 0;
+  const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+      isPositive ? 'text-emerald-600 bg-emerald-50' : 'text-red-500 bg-red-50'
+    }`}>
+      <Icon size={10} />
+      {Math.abs(wow.change)}%
+    </span>
+  );
+}
+
+export function StatsCards({ total, conversionRate, avgScore, staleCount, newThisWeek, weekOverWeek }: StatsCardsProps) {
   const getTrendIndicator = () => {
     if (newThisWeek > 5) return { icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50', label: `+${newThisWeek} esta semana` };
     if (newThisWeek > 0) return { icon: TrendingUp, color: 'text-primary-600', bg: 'bg-primary-50', label: `+${newThisWeek} esta semana` };
@@ -34,7 +54,7 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
         </div>
         <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">Total Leads</h3>
         <p className="text-3xl font-black text-gray-900 animate-count-up">{total}</p>
-        <p className="text-xs text-gray-400 mt-1">{trend.label}</p>
+        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">{trend.label} <WoWBadge wow={weekOverWeek?.newLeads} /></p>
       </div>
 
       {/* Conversion Rate */}
@@ -47,7 +67,7 @@ export function StatsCards({ total, conversionRate, avgScore, staleCount, newThi
         </div>
         <h3 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-1">Conversión</h3>
         <p className="text-3xl font-black text-gray-900 animate-count-up">{conversionRate}<span className="text-lg text-gray-400">%</span></p>
-        <p className="text-xs text-gray-400 mt-1">Cerrados vs Total</p>
+        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5">Cerrados vs Total <WoWBadge wow={weekOverWeek?.conversionRate} /></p>
       </div>
 
       {/* Average Score */}

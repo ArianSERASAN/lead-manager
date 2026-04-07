@@ -104,6 +104,6 @@ describe('STATUS_CONFIG y PIPELINE_STAGES', () => {
     expect(STATUS_CONFIG['nuevo'].label).toBe('Nuevo');
     expect(STATUS_CONFIG['contactado'].label).toBe('Contactado');
     expect(STATUS_CONFIG['en-progreso'].label).toBe('En progreso');
-    expect(STATUS_CONFIG['cerrado'].label).toBe('Cerrado');
+    expect(STATUS_CONFIG['cerrado'].label).toBe('Cerrado (ganado)');
   });
 });

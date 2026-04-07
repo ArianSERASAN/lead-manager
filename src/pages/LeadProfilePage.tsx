@@ -4,7 +4,7 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, Mail, Phone, Globe, MapPin,
   Building2, Briefcase, User, Calendar, Loader2, AlertCircle,
   Pencil, Check, X, Save, ExternalLink, Tag, Clock, XCircle,
-  Hash, FileText, AlignLeft, ToggleLeft, ToggleRight, List, type LucideIcon,
+  Hash, FileText, AlignLeft, ToggleLeft, ToggleRight, List, Plus, type LucideIcon,
 } from 'lucide-react';
 import { useLeadById } from '../hooks/leads/useLeadById';
 import { useFieldSchema } from '../hooks/leads/useFieldSchema';
@@ -21,6 +21,7 @@ import { TaskList } from '../components/Tasks/TaskList';
 import { ApolloEnrichmentPanel } from '../components/LeadViews/ApolloEnrichmentPanel';
 import { RoleGuard } from '../components/User/RoleGuard';
 import { CancellationModal } from '../components/Shared/CancellationModal';
+import { MergeLeadsModal } from '../components/LeadViews/MergeLeadsModal';
 import { Lead, LeadStatus, FieldDefinition, FieldType } from '../types/domain';
 import { formatTimestamp } from '../utils/format';
 import * as LeadService from '../services/LeadService';
@@ -41,6 +42,7 @@ const SOURCE_CONFIG: Record<Lead['source'], { label: string; cls: string }> = {
   'web-download': { label: 'Descarga PDF', cls: 'bg-emerald-50 text-emerald-600' },
   'web-contact': { label: 'Formulario web', cls: 'bg-purple-50 text-purple-600' },
   manual: { label: 'Manual', cls: 'bg-gray-100 text-gray-600' },
+  'csv-import': { label: 'Importado', cls: 'bg-orange-50 text-orange-600' },
 };
 
 const FIELD_TYPE_ICON: Record<FieldType, LucideIcon> = {
@@ -306,6 +308,10 @@ export function LeadProfilePage() {
   const [notesEditing, setNotesEditing] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [addingField, setAddingField] = useState(false);
+  const [newFieldKey, setNewFieldKey] = useState('');
+  const [newFieldValue, setNewFieldValue] = useState('');
 
   // Navigation: leads list passed via router state
   const navLeads: Lead[] = (location.state as { leads?: Lead[] })?.leads || [];
@@ -319,10 +325,26 @@ export function LeadProfilePage() {
 
   // ── Field update helpers ──────────────────────────────────────
 
+  const FIELD_LABELS: Record<string, string> = {
+    name: 'nombre', email: 'email', phone: 'teléfono', company: 'empresa',
+    cargo: 'cargo', sector: 'sector', apellidos: 'apellidos',
+    localidad: 'localidad', direccion: 'dirección', tipoInmueble: 'tipo de inmueble',
+    superficie: 'superficie', referenciaCatastral: 'ref. catastral', message: 'mensaje',
+  };
+
   const updateField = useCallback(async (field: string, value: unknown) => {
     if (!lead) return;
+    const oldValue = (lead as unknown as Record<string, unknown>)[field];
     await LeadService.updateLeadField(lead, field, value);
-  }, [lead]);
+    if (appUser) {
+      const colName = lead._collection || 'leads';
+      await ActivityService.recordActivity(lead.id, colName, appUser.uid, appUser.name, 'field_updated', {
+        field: FIELD_LABELS[field] || field,
+        oldValue: oldValue !== null && oldValue !== undefined ? String(oldValue) : '',
+        newValue: value !== null && value !== undefined ? String(value) : '',
+      });
+    }
+  }, [lead, appUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateStatus = useCallback(async (status: LeadStatus) => {
     if (!lead || !appUser) return;
@@ -435,6 +457,12 @@ export function LeadProfilePage() {
     fieldsBySection[sec].push(f);
   }
 
+  // Ad-hoc fields from imports: keys in customFields not covered by any schema definition
+  const schemaFieldNames = new Set(customSchema.map((f) => f.name));
+  const adHocEntries = Object.entries(lead.customFields || {}).filter(
+    ([key, val]) => !schemaFieldNames.has(key) && val !== null && val !== undefined && val !== ''
+  );
+
   const hasContactInfo = lead.email || lead.phone;
   const hasCompanyInfo = lead.company || lead.cargo || lead.sector;
   const hasPropertyInfo = lead.tipoInmueble || lead.superficie || lead.localidad || lead.direccion || lead.referenciaCatastral;
@@ -493,9 +521,28 @@ export function LeadProfilePage() {
           {/* Identity */}
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-start gap-2 mb-1.5">
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
-                {lead.name}{lead.apellidos ? ` ${lead.apellidos}` : ''}
-              </h1>
+              {canEdit ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <InlineField
+                    label=""
+                    value={lead.name}
+                    editable={canEdit}
+                    onSave={(v) => updateField('name', v)}
+                    placeholder="Nombre"
+                  />
+                  <InlineField
+                    label=""
+                    value={lead.apellidos || ''}
+                    editable={canEdit}
+                    placeholder="Apellidos"
+                    onSave={(v) => updateField('apellidos', v)}
+                  />
+                </div>
+              ) : (
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
+                  {lead.name}{lead.apellidos ? ` ${lead.apellidos}` : ''}
+                </h1>
+              )}
               {lead.isStale && (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">
                   <Clock size={10} /> Sin actividad
@@ -646,11 +693,14 @@ export function LeadProfilePage() {
               {lead.direccion && (
                 <InlineField label="Dirección" value={lead.direccion} editable={canEdit} onSave={(v) => updateField('direccion', v)} />
               )}
-              {lead.referenciaCatastral && (
-                <div className="group">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">Ref. Catastral</p>
-                  <span className="text-sm font-mono text-gray-800 break-all">{lead.referenciaCatastral}</span>
-                </div>
+              {(lead.referenciaCatastral || canEdit) && (
+                <InlineField
+                  label="Ref. Catastral"
+                  value={lead.referenciaCatastral || ''}
+                  editable={canEdit}
+                  placeholder="Sin referencia catastral"
+                  onSave={(v) => updateField('referenciaCatastral', v)}
+                />
               )}
             </SectionCard>
           )}
@@ -668,11 +718,14 @@ export function LeadProfilePage() {
                   </div>
                 </div>
               )}
-              {lead.message && (
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Mensaje</p>
-                  <p className="text-sm text-gray-700 leading-relaxed bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100">{lead.message}</p>
-                </div>
+              {(lead.message || canEdit) && (
+                <InlineField
+                  label="Mensaje"
+                  value={lead.message || ''}
+                  editable={canEdit}
+                  placeholder="Sin mensaje"
+                  onSave={(v) => updateField('message', v)}
+                />
               )}
             </SectionCard>
           )}
@@ -699,6 +752,77 @@ export function LeadProfilePage() {
                 </SectionCard>
               ))}
             </div>
+          )}
+
+          {/* Ad-hoc fields from Excel/CSV imports (no schema definition) */}
+          {(adHocEntries.length > 0 || canEdit) && (
+            <SectionCard title="Datos adicionales" icon={Hash} accentClass="bg-amber-50/60">
+              {adHocEntries.map(([key, val]) => (
+                <InlineField
+                  key={key}
+                  label={key}
+                  value={String(val)}
+                  editable={canEdit}
+                  onSave={(v) => updateCustomField(key, v)}
+                />
+              ))}
+
+              {/* Add new custom field inline */}
+              {canEdit && (
+                <div className="pt-1">
+                  {addingField ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          autoFocus
+                          type="text"
+                          value={newFieldKey}
+                          onChange={(e) => setNewFieldKey(e.target.value)}
+                          placeholder="Nombre del campo"
+                          className="flex-1 text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                        <input
+                          type="text"
+                          value={newFieldValue}
+                          onChange={(e) => setNewFieldValue(e.target.value)}
+                          placeholder="Valor"
+                          className="flex-1 text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            const key = newFieldKey.trim();
+                            const val = newFieldValue.trim();
+                            if (!key) return;
+                            await updateCustomField(key, val);
+                            setNewFieldKey('');
+                            setNewFieldValue('');
+                            setAddingField(false);
+                          }}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700"
+                        >
+                          <Check size={12} /> Añadir
+                        </button>
+                        <button
+                          onClick={() => { setAddingField(false); setNewFieldKey(''); setNewFieldValue(''); }}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg hover:bg-gray-200"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddingField(true)}
+                      className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 hover:text-blue-600 transition-colors"
+                    >
+                      <Plus size={12} /> Añadir campo
+                    </button>
+                  )}
+                </div>
+              )}
+            </SectionCard>
           )}
 
           {/* Apollo enrichment */}
@@ -840,16 +964,25 @@ export function LeadProfilePage() {
             </div>
           )}
 
-          {/* Cancel button (for non-cancelled leads) */}
+          {/* Merge + Cancel buttons (for non-cancelled leads) */}
           {lead.status !== 'cancelado' && (
             <RoleGuard requires="canEdit">
-              <button
-                onClick={() => setShowCancelModal(true)}
-                className="w-full flex items-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 text-sm font-semibold border border-red-200 rounded-2xl hover:bg-red-100 transition-colors active:scale-[0.98]"
-              >
-                <XCircle size={15} />
-                Cancelar / Descartar lead
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowMergeModal(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-600 text-sm font-semibold border border-purple-200 rounded-2xl hover:bg-purple-100 transition-colors active:scale-[0.98]"
+                >
+                  <Plus size={15} />
+                  Fusionar
+                </button>
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 text-red-600 text-sm font-semibold border border-red-200 rounded-2xl hover:bg-red-100 transition-colors active:scale-[0.98]"
+                >
+                  <XCircle size={15} />
+                  Cancelar
+                </button>
+              </div>
             </RoleGuard>
           )}
 
@@ -899,6 +1032,14 @@ export function LeadProfilePage() {
         bulkCount={0}
         onConfirm={handleCancel}
         onClose={() => setShowCancelModal(false)}
+      />
+
+      {/* Merge Modal */}
+      <MergeLeadsModal
+        isOpen={showMergeModal}
+        onClose={() => setShowMergeModal(false)}
+        leadA={lead}
+        onMerged={() => navigate('/')}
       />
     </>
   );

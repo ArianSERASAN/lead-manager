@@ -53,7 +53,7 @@ describe('calculateLeadScore', () => {
   it('gives max recency for leads created today', () => {
     const lead = makeLead({ createdAt: new Date(), updatedAt: new Date() });
     const { breakdown } = calculateLeadScore(lead);
-    expect(breakdown.recency).toBe(25);
+    expect(breakdown.recency).toBe(20);
   });
 
   it('gives zero recency for leads older than 60 days', () => {

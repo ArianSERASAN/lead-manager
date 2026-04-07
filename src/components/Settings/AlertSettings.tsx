@@ -13,6 +13,7 @@ const SOURCE_LABELS: Record<LeadSource, string> = {
   'web-download': 'Descarga PDF',
   'web-contact': 'Formulario Web',
   manual: 'Manual',
+  'csv-import': 'Importado',
 };
 
 export function AlertSettings() {

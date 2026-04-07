@@ -284,7 +284,7 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
 // Pure filter function (ported from useFilterLogic.ts)
 // ---------------------------------------------------------------------------
 
-function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearch: string): Lead[] {
+export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearch: string): Lead[] {
   // Pre-compute searchable text
   const searchIndex = new Map(
     leads.map((lead) => [

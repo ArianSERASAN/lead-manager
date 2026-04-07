@@ -3,6 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { initializeApp } from 'firebase-admin/app';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
 import nodemailer from 'nodemailer';
 import { calculateLeadScore, isLeadStale } from './scoring.js';
 
@@ -83,6 +84,43 @@ function emailTemplate(title, bodyHtml) {
 </html>`;
 }
 
+// ─── Push Notification Helper ─────────────────────────────────────
+
+/**
+ * Send push notifications to all FCM tokens of the given user IDs.
+ * Silently handles invalid/expired tokens by removing them from Firestore.
+ */
+async function sendPushToUsers(userIds, title, body, data = {}) {
+  if (!userIds || userIds.length === 0) return;
+  const messaging = getMessaging();
+
+  for (const uid of userIds) {
+    const tokensSnap = await db.collection(`users/${uid}/fcmTokens`).get();
+    if (tokensSnap.empty) continue;
+
+    const tokens = tokensSnap.docs.map((d) => d.data().token).filter(Boolean);
+    if (tokens.length === 0) continue;
+
+    const message = {
+      notification: { title, body },
+      data: { ...data },
+      tokens,
+    };
+
+    try {
+      const response = await messaging.sendEachForMulticast(message);
+      // Clean up invalid tokens
+      response.responses.forEach((resp, idx) => {
+        if (!resp.success && resp.error?.code === 'messaging/registration-token-not-registered') {
+          db.doc(`users/${uid}/fcmTokens/${tokensSnap.docs[idx].id}`).delete().catch(() => {});
+        }
+      });
+    } catch (err) {
+      console.error(`[sendPush] Error enviando push a ${uid}:`, err.message);
+    }
+  }
+}
+
 // ─── 1. NEW LEAD ALERT ────────────────────────────────────────────
 
 const newLeadCollections = ['leads', 'leads_descargas', 'solicitudes_contacto'];
@@ -153,6 +191,39 @@ export const onNewLead = onDocumentCreated(
         <p style="font-size:14px;color:#374151"><strong>${name}</strong> (${email}) tiene un score de <span style="color:#ea580c;font-weight:700">${score}</span>, por encima del umbral de ${hl.scoreThreshold}.</p>
         <p style="font-size:13px;color:#6b7280;margin-top:8px">Origen: ${sourceLabel(source)}${company ? ` · Empresa: ${company}` : ''}</p>`;
       await sendEmail(GMAIL_USER, GMAIL_APP_PASS, hl.recipients, `🔥 Lead caliente: ${name} (score ${score})`, emailTemplate('Lead Caliente', body));
+    }
+
+    // ─ Push notifications (FCM) for new leads
+    if (nl?.enabled && nl.recipients?.length > 0) {
+      // Get user UIDs that match alert recipient emails
+      const usersSnap = await db.collection('users').where('active', '==', true).get();
+      const recipientUids = usersSnap.docs
+        .filter((u) => nl.recipients.includes(u.data().email))
+        .map((u) => u.id);
+      if (recipientUids.length > 0) {
+        await sendPushToUsers(
+          recipientUids,
+          `Nuevo lead: ${name}`,
+          email ? `${email}${company ? ` · ${company}` : ''}` : (company || sourceLabel(source)),
+          { leadId: event.params.docId, collection: colName }
+        );
+      }
+    }
+
+    // ─ Push notifications for hot leads
+    if (hl?.enabled && hl.recipients?.length > 0 && score >= (hl.scoreThreshold || 70)) {
+      const usersSnap2 = await db.collection('users').where('active', '==', true).get();
+      const hotRecipientUids = usersSnap2.docs
+        .filter((u) => hl.recipients.includes(u.data().email))
+        .map((u) => u.id);
+      if (hotRecipientUids.length > 0) {
+        await sendPushToUsers(
+          hotRecipientUids,
+          `🔥 Lead caliente: ${name}`,
+          `Score ${score} — ${sourceLabel(source)}`,
+          { leadId: event.params.docId, collection: colName }
+        );
+      }
     }
 
     // ─── Auto-assign (round-robin) ────────────────────────────────

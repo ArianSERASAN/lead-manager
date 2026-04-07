@@ -31,7 +31,7 @@ export async function enrichLeadViaCloudFunction(lead: Lead): Promise<Enrichment
     return result.data;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error desconocido al enriquecer lead';
-    console.error('Error calling enrichLead Cloud Function:', error);
+    console.error('Error al llamar Cloud Function enrichLead:', error);
     return { success: false, error: message };
   }
 }

@@ -37,7 +37,7 @@ export function useLeadById(collectionName: string, id: string) {
           email: data.email || '—',
           phone: data.phone || data.telefono || '',
           company: data.company || data.empresa || '',
-          source: SOURCE_MAP[collectionName] || 'manual',
+          source: data.source || SOURCE_MAP[collectionName] || 'manual',
           status: data.status || 'nuevo',
           createdAt,
           updatedAt: data.updatedAt || createdAt,

@@ -67,12 +67,12 @@ export function FilterBar({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveName, setSaveName] = useState('');
   const { appUser } = useAuth();
-  const { savedFilters, saveFilter, deleteFilter, loadFilter } = useSavedFilters();
+  const { savedFilters, saveFilter, deleteFilter, loadFilter } = useSavedFilters(appUser?.uid);
 
   const handleSaveFilter = () => {
     if (saveName.trim() && appUser && getCurrentFilterState) {
       const filterState = getCurrentFilterState();
-      saveFilter(saveName.trim(), filterState, appUser.uid);
+      saveFilter(saveName.trim(), filterState);
       setSaveName('');
       setShowSaveModal(false);
     }
@@ -152,6 +152,7 @@ export function FilterBar({
               <option value="web-download">Web (Descargas)</option>
               <option value="web-contact">Web (Contacto)</option>
               <option value="manual">Manual</option>
+              <option value="csv-import">Importado (Excel/CSV)</option>
             </select>
           )}
 

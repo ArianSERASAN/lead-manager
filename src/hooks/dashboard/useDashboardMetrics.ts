@@ -11,6 +11,12 @@ export interface SourceROI {
   avgScore: number;
 }
 
+export interface WeekOverWeek {
+  current: number;
+  previous: number;
+  change: number; // percentage change
+}
+
 export interface DashboardMetrics {
   total: number;
   byStatus: Record<string, number>;
@@ -24,6 +30,15 @@ export interface DashboardMetrics {
   funnel: { stage: string; count: number; percentage: number }[];
   scoreDistribution: { range: string; count: number }[];
   sourceROI: SourceROI[];
+  // New metrics
+  avgTimeInStage: Record<string, number>; // stage → avg days
+  unattendedCount: number; // nuevo > 24h with no status change
+  weekOverWeek: {
+    total: WeekOverWeek;
+    newLeads: WeekOverWeek;
+    closed: WeekOverWeek;
+    conversionRate: WeekOverWeek;
+  };
 }
 
 export interface DateRange {
@@ -167,6 +182,74 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
       };
     }).filter((s) => s.total > 0);
 
+    // ── Average time in each pipeline stage ──────────────────────────
+    const stageDurations: Record<string, number[]> = {
+      nuevo: [],
+      contactado: [],
+      'en-progreso': [],
+    };
+
+    filteredLeads.forEach((lead) => {
+      const history = lead.stateHistory;
+      if (!history || history.length === 0) return;
+      for (let i = 0; i < history.length; i++) {
+        const entry = history[i];
+        const nextEntry = history[i + 1];
+        const from = entry.fromStatus;
+        if (!stageDurations[from]) return;
+        const start = new Date(entry.timestamp).getTime();
+        const end = nextEntry ? new Date(nextEntry.timestamp).getTime() : Date.now();
+        const days = (end - start) / (1000 * 60 * 60 * 24);
+        if (days >= 0 && days < 365) stageDurations[from].push(days);
+      }
+    });
+
+    const avgTimeInStage: Record<string, number> = {};
+    for (const [stage, durations] of Object.entries(stageDurations)) {
+      avgTimeInStage[stage] = durations.length > 0
+        ? Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10
+        : 0;
+    }
+
+    // ── Unattended leads (nuevo > 24h, no status change) ────────────
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const unattendedCount = filteredLeads.filter((lead) => {
+      if (lead.status !== 'nuevo') return false;
+      const age = Date.now() - toJSDate(lead.createdAt).getTime();
+      if (age < oneDayMs) return false;
+      return !lead.stateHistory || lead.stateHistory.length === 0;
+    }).length;
+
+    // ── Week-over-week comparison ───────────────────────────────────
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+    thisWeekStart.setHours(0, 0, 0, 0);
+    const prevWeekStart = new Date(thisWeekStart);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+
+    const thisWeekLeads = filteredLeads.filter((l) => toJSDate(l.createdAt) >= thisWeekStart);
+    const prevWeekLeads = filteredLeads.filter((l) => {
+      const d = toJSDate(l.createdAt);
+      return d >= prevWeekStart && d < thisWeekStart;
+    });
+
+    function computeWoW(current: number, previous: number): WeekOverWeek {
+      const change = previous > 0 ? Math.round(((current - previous) / previous) * 100) : current > 0 ? 100 : 0;
+      return { current, previous, change };
+    }
+
+    const thisWeekClosed = thisWeekLeads.filter((l) => l.status === 'cerrado').length;
+    const prevWeekClosed = prevWeekLeads.filter((l) => l.status === 'cerrado').length;
+    const thisWeekConv = thisWeekLeads.length > 0 ? Math.round((thisWeekClosed / thisWeekLeads.length) * 100) : 0;
+    const prevWeekConv = prevWeekLeads.length > 0 ? Math.round((prevWeekClosed / prevWeekLeads.length) * 100) : 0;
+
+    const weekOverWeek = {
+      total: computeWoW(total, total), // total doesn't have WoW, placeholder
+      newLeads: computeWoW(thisWeekLeads.length, prevWeekLeads.length),
+      closed: computeWoW(thisWeekClosed, prevWeekClosed),
+      conversionRate: computeWoW(thisWeekConv, prevWeekConv),
+    };
+
     return {
       total,
       byStatus,
@@ -180,6 +263,9 @@ export function useDashboardMetrics(leads: Lead[], dateRange?: DateRange): Dashb
       funnel,
       scoreDistribution,
       sourceROI,
+      avgTimeInStage,
+      unattendedCount,
+      weekOverWeek,
     };
   }, [leads, dateRange]);
 }

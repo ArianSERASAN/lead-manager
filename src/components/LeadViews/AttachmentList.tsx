@@ -21,7 +21,7 @@ export function AttachmentList({ lead, canEdit = false, userId, userName }: Atta
     try {
       await uploadAttachment(lead, file, userId, userName);
     } catch (err) {
-      console.error('Upload error:', err);
+      console.error('Error al subir archivo:', err);
     } finally {
       setUploading(false);
     }
@@ -31,7 +31,7 @@ export function AttachmentList({ lead, canEdit = false, userId, userName }: Atta
     try {
       await deleteAttachment(lead, attachment);
     } catch (err) {
-      console.error('Delete error:', err);
+      console.error('Error al eliminar archivo:', err);
     }
   };
 

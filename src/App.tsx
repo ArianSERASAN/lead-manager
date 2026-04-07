@@ -1,12 +1,14 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from './contexts/AuthContext';
 import { useToast } from './contexts/ToastContext';
 import { Login } from './components/Shared/Login';
 import { Toast } from './components/Shared/Toast';
+import { GlobalSearch } from './components/Shared/GlobalSearch';
 import { MainLayout } from './components/Layout/MainLayout';
 import { useLeadSubscription } from './stores/useLeadStore';
+import { onForegroundMessage } from './lib/fcm';
 
 // Lazy load pages for performance
 const LeadsPage = lazy(() => import('./pages/LeadsPage').then(m => ({ default: m.LeadsPage })));
@@ -27,9 +29,19 @@ function PageLoader() {
 
 function AppContent() {
   const { firebaseUser, appUser, loading, logout } = useAuth();
-  const { toasts, removeToast } = useToast();
+  const { toasts, removeToast, addToast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
   useLeadSubscription();
+
+  // FCM foreground messages → toast
+  useEffect(() => {
+    if (!firebaseUser) return;
+    let unsub: (() => void) | null = null;
+    onForegroundMessage(({ title, body }) => {
+      addToast({ message: title || body || 'Nueva notificación', type: 'info' });
+    }).then((fn) => { unsub = fn; });
+    return () => { unsub?.(); };
+  }, [firebaseUser, addToast]);
 
   if (loading) {
     return (
@@ -67,6 +79,8 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Suspense>
+
+      <GlobalSearch />
 
       {/* Toast Container */}
       <div className="fixed bottom-0 left-0 right-0 pointer-events-none z-50">

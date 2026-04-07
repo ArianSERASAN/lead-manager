@@ -12,6 +12,7 @@ import * as UserService from '../services/UserService';
 import { AlertSettings } from '../components/Settings/AlertSettings';
 import { EmailSequenceSettings } from '../components/Settings/EmailSequenceSettings';
 import { FieldSchemaManager } from '../components/Settings/FieldSchemaManager';
+import { NotificationSettings } from '../components/Settings/NotificationSettings';
 
 const ROLE_OPTIONS: { value: UserRole; label: string; color: string; bgColor: string; description: string }[] = [
   { value: 'admin', label: 'Administrador', color: 'text-red-700', bgColor: 'bg-red-50 border-red-200', description: 'Acceso completo: gestión de usuarios, leads, configuración' },
@@ -264,6 +265,15 @@ export function SettingsPage() {
         <RoleGuard requires="canManageUsers">
           <MaintenancePanel addToast={addToast} />
         </RoleGuard>
+
+        {/* Push Notifications */}
+        <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Bell size={20} />
+            Notificaciones Push
+          </h2>
+          <NotificationSettings />
+        </div>
 
         {/* Current User Profile */}
         <div className="bg-white rounded-2xl border border-gray-200/80 shadow-card p-6 animate-fade-in-up">

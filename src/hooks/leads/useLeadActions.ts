@@ -62,10 +62,20 @@ export function useLeadActions(
     try {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
+
+      const prevStatus = lead.status;
       await LeadService.updateLeadStatus(lead, status, userId, userName);
 
       const label = status === 'cerrado' ? 'Cerrado como ganado' : `Estado: ${status}`;
-      addToast({ message: label, type: 'success' });
+      addToast({
+        message: label,
+        type: 'undo',
+        onUndo: async () => {
+          try {
+            await LeadService.updateLeadStatus({ ...lead, status } as Lead, prevStatus, userId, userName);
+          } catch { /* silent revert failure */ }
+        },
+      });
 
       if (userId && userName) {
         await ActivityService.recordActivity(
@@ -83,8 +93,19 @@ export function useLeadActions(
     try {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
+
+      const prevNotes = lead.notes || '';
       await LeadService.updateLeadNotes(lead, notes);
-      addToast({ message: 'Notas guardadas', type: 'success' });
+
+      addToast({
+        message: 'Notas guardadas',
+        type: 'undo',
+        onUndo: async () => {
+          try {
+            await LeadService.updateLeadNotes(lead, prevNotes);
+          } catch { /* silent */ }
+        },
+      });
 
       if (userId && userName) {
         await ActivityService.recordActivity(
@@ -124,12 +145,23 @@ export function useLeadActions(
     try {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
+
+      const prevTags = [...(lead.tags || [])];
       await LeadService.updateLeadTags(lead, tags);
-      addToast({ message: 'Etiquetas actualizadas', type: 'success' });
+
+      addToast({
+        message: 'Etiquetas actualizadas',
+        type: 'undo',
+        onUndo: async () => {
+          try {
+            await LeadService.updateLeadTags(lead, prevTags);
+          } catch { /* silent */ }
+        },
+      });
 
       if (userId && userName) {
-        const addedTags = tags.filter(t => !(lead.tags || []).includes(t));
-        const removedTags = (lead.tags || []).filter(t => !tags.includes(t));
+        const addedTags = tags.filter(t => !prevTags.includes(t));
+        const removedTags = prevTags.filter(t => !tags.includes(t));
 
         if (addedTags.length > 0) {
           await ActivityService.recordActivity(lead.id, COLLECTION, userId, userName, 'tag_added', { newValue: addedTags });
@@ -147,8 +179,23 @@ export function useLeadActions(
     try {
       const lead = leads.find(l => l.id === id);
       if (!lead) return;
+
+      const prevAssignee = lead.assignedTo;
       await LeadService.assignLead(lead, assignedUserId);
-      addToast({ message: 'Lead asignado', type: 'success' });
+
+      addToast({
+        message: 'Lead asignado',
+        type: 'undo',
+        onUndo: async () => {
+          try {
+            if (prevAssignee) {
+              await LeadService.assignLead(lead, prevAssignee);
+            } else {
+              await LeadService.updateLeadField(lead, 'assignedTo', null);
+            }
+          } catch { /* silent */ }
+        },
+      });
 
       if (userId && userName) {
         await ActivityService.recordActivity(lead.id, COLLECTION, userId, userName, 'assigned', { newValue: assignedUserId });

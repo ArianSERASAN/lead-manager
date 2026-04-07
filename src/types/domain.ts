@@ -13,9 +13,9 @@ export function toJSDate(ts: TimestampLike): Date {
 }
 
 export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado' | 'cancelado';
-export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual';
+export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual' | 'csv-import';
 export type UserRole = 'admin' | 'comercial' | 'read_only';
-export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched' | 'email_sent' | 'cancelled' | 'closed';
+export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched' | 'email_sent' | 'cancelled' | 'closed' | 'field_updated';
 export type TaskPriority = 'low' | 'medium' | 'high';
 
 /** Registro de un cambio de estado dentro del documento del lead */

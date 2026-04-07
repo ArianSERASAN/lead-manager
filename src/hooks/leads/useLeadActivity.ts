@@ -33,7 +33,7 @@ export function useLeadActivity(leadId: string, _leadCollection?: string): UseLe
       setActivities(activityData);
       setLoading(false);
     }, (error) => {
-      console.error('Error loading activities:', error);
+      console.error('Error al cargar actividades:', error);
       setActivities([]);
       setLoading(false);
     });

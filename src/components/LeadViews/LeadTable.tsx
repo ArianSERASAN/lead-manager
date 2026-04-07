@@ -29,6 +29,8 @@ const SourceIcon = memo(({ source }: { source: Lead['source'] }) => {
     case 'web-download': return <Download size={14} className="text-emerald-500" />;
     case 'web-contact': return <MessageSquare size={14} className="text-purple-500" />;
     case 'manual': return <Eye size={14} className="text-gray-400" />;
+    case 'csv-import': return <Eye size={14} className="text-orange-400" />;
+    default: return <Eye size={14} className="text-gray-300" />;
   }
 });
 
@@ -38,6 +40,8 @@ const sourceLabel = (source: Lead['source']) => {
     case 'web-download': return 'PDF';
     case 'web-contact': return 'Web';
     case 'manual': return 'Manual';
+    case 'csv-import': return 'Importado';
+    default: return source || '—';
   }
 };
 

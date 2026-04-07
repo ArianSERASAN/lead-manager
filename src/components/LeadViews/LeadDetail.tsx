@@ -2,6 +2,7 @@ import { Lead, LeadStatus } from '../../types/domain';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Save, Loader2, Lock, XCircle, ExternalLink } from 'lucide-react';
+import { MarkdownEditor } from '../Shared/MarkdownEditor';
 import { formatTimestamp } from '../../utils/format';
 import { LeadActivityTimeline } from './LeadActivityTimeline';
 import { TagEditor } from '../Tags/TagEditor';
@@ -318,17 +319,16 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
               Notas
             </label>
             <RoleGuard requires="canEdit" fallback={
-              <p className="text-sm text-gray-700 min-h-20 p-3 bg-gray-50 rounded-lg">
-                {notes || 'Sin notas...'}
-              </p>
+              <MarkdownEditor value={notes} onChange={() => {}} readOnly placeholder="Sin notas..." />
             }>
               {isEditing ? (
                 <div className="space-y-3">
-                  <textarea
+                  <MarkdownEditor
                     value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Escribe notas sobre este lead..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none resize-none h-24"
+                    onChange={setNotes}
+                    onSave={handleSaveNotes}
+                    placeholder="Escribe notas sobre este lead... (soporta **negrita**, *cursiva*, `código`, [links](url), - listas)"
+                    rows={5}
                   />
                   <button
                     onClick={handleSaveNotes}
@@ -347,9 +347,9 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-gray-700 mb-3 min-h-20 p-3 bg-gray-50 rounded-lg">
-                    {notes || 'Sin notas...'}
-                  </p>
+                  <div className="mb-3 min-h-20 p-3 bg-gray-50 rounded-lg">
+                    <MarkdownEditor value={notes} onChange={() => {}} readOnly placeholder="Sin notas..." />
+                  </div>
                   <button
                     onClick={() => setIsEditing(true)}
                     className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-200"

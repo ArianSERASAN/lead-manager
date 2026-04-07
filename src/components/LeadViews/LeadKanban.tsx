@@ -98,7 +98,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
         const { [lead.id]: _, ...rest } = prev;
         return rest;
       });
-      console.error('Error updating lead status:', error);
+      console.error('Error al actualizar estado del lead:', error);
     } finally {
       setIsUpdating(false);
     }
@@ -324,11 +324,16 @@ function MobileKanbanCard({ lead, onClick, currentStatus, onStatusChange }: {
         className="flex items-center gap-3 p-3.5 active:bg-gray-50 transition-colors cursor-pointer"
       >
         {/* Score dot */}
-        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-          lead.score >= 70 ? 'bg-emerald-500' :
-          lead.score >= 40 ? 'bg-amber-500' :
-          'bg-gray-300'
-        }`} />
+        <div
+          className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+            lead.score >= 70 ? 'bg-emerald-500' :
+            lead.score >= 40 ? 'bg-amber-500' :
+            'bg-gray-300'
+          }`}
+          role="img"
+          aria-label={`Puntuación: ${lead.score} — ${lead.score >= 70 ? 'Alta' : lead.score >= 40 ? 'Media' : 'Baja'}`}
+          title={`Score: ${lead.score}`}
+        />
 
         {/* Content */}
         <div className="flex-1 min-w-0">

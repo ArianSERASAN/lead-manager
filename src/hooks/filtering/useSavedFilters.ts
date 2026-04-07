@@ -1,77 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SavedFilter, FilterState } from '../../types/domain';
+import {
+  subscribeSavedFilters,
+  createSavedFilter,
+  deleteSavedFilter,
+  migrateFromLocalStorage,
+} from '../../services/SavedFilterService';
 
-const STORAGE_KEY = 'serasan_saved_filters';
-
-function isValidFilterState(f: unknown): f is FilterState {
-  if (!f || typeof f !== 'object') return false;
-  return true;
-}
-
-function isValidSavedFilter(item: unknown): item is SavedFilter {
-  if (!item || typeof item !== 'object') return false;
-  const obj = item as Record<string, unknown>;
-  return (
-    typeof obj.id === 'string' &&
-    typeof obj.name === 'string' &&
-    typeof obj.createdBy === 'string' &&
-    isValidFilterState(obj.filters)
-  );
-}
-
-function validateSavedFilters(data: unknown): SavedFilter[] {
-  if (!Array.isArray(data)) return [];
-  return data.filter(isValidSavedFilter);
-}
-
-export function useSavedFilters() {
+export function useSavedFilters(userId?: string) {
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
 
-  // Load saved filters from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        const validated = validateSavedFilters(parsed);
-        setSavedFilters(validated);
+    if (!userId) return;
 
-        // If validation stripped some items, update storage
-        if (validated.length !== (Array.isArray(parsed) ? parsed.length : 0)) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(validated));
-        }
-      } catch (err) {
-        console.error('Error loading saved filters:', err);
-        localStorage.removeItem(STORAGE_KEY);
-      }
-    }
-  }, []);
+    // One-time migration from localStorage → Firestore
+    migrateFromLocalStorage(userId);
 
-  const saveFilter = (name: string, filters: FilterState, userId: string) => {
-    const newFilter: SavedFilter = {
-      id: `filter_${Date.now()}`,
-      name,
-      createdBy: userId,
-      createdAt: new Date(),
-      filters
-    };
+    // Real-time subscription to user's saved filters in Firestore
+    const unsub = subscribeSavedFilters(userId, setSavedFilters);
+    return unsub;
+  }, [userId]);
 
-    const updated = [...savedFilters, newFilter];
-    setSavedFilters(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    return newFilter;
-  };
+  const saveFilter = useCallback(
+    async (name: string, filters: FilterState) => {
+      if (!userId) return;
+      await createSavedFilter(userId, name, filters);
+    },
+    [userId]
+  );
 
-  const deleteFilter = (id: string) => {
-    const updated = savedFilters.filter(f => f.id !== id);
-    setSavedFilters(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-  };
+  const deleteFilter = useCallback(
+    async (id: string) => {
+      if (!userId) return;
+      await deleteSavedFilter(userId, id);
+    },
+    [userId]
+  );
 
-  const loadFilter = (id: string): FilterState | null => {
-    const filter = savedFilters.find(f => f.id === id);
-    return filter?.filters || null;
-  };
+  const loadFilter = useCallback(
+    (id: string): FilterState | null => {
+      const filter = savedFilters.find((f) => f.id === id);
+      return filter?.filters || null;
+    },
+    [savedFilters]
+  );
 
   return { savedFilters, saveFilter, deleteFilter, loadFilter };
 }

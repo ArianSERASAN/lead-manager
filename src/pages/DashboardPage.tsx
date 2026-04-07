@@ -11,6 +11,8 @@ import { SourceChart } from '../components/Dashboard/SourceChart';
 import { ScoreDistributionChart } from '../components/Dashboard/ScoreDistributionChart';
 import { StaleLeadsWidget } from '../components/Dashboard/StaleLeadsWidget';
 import { SourceROIChart } from '../components/Dashboard/SourceROIChart';
+import { StageTimeChart } from '../components/Dashboard/StageTimeChart';
+import { UnattendedWidget } from '../components/Dashboard/UnattendedWidget';
 
 export function DashboardPage() {
   const { appUser } = useAuth();
@@ -117,6 +119,7 @@ export function DashboardPage() {
           avgScore={metrics.avgScore}
           staleCount={metrics.staleCount}
           newThisWeek={metrics.newThisWeek}
+          weekOverWeek={metrics.weekOverWeek}
         />
 
         {/* Row 2: Trend Chart + Source Chart */}
@@ -135,10 +138,18 @@ export function DashboardPage() {
           <ScoreDistributionChart data={metrics.scoreDistribution} />
         </div>
 
-        {/* Row 4: Stale Leads Widget */}
+        {/* Row 4: Stage Time + Unattended */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <StageTimeChart avgTimeInStage={metrics.avgTimeInStage} />
+          </div>
+          <UnattendedWidget count={metrics.unattendedCount} />
+        </div>
+
+        {/* Row 5: Stale Leads Widget */}
         <StaleLeadsWidget leads={leads} onViewAll={handleViewAllStale} />
 
-        {/* Row 5: Source ROI Chart */}
+        {/* Row 6: Source ROI Chart */}
         <SourceROIChart data={metrics.sourceROI} />
       </div>
     </>

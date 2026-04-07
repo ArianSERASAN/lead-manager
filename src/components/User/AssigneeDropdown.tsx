@@ -27,7 +27,7 @@ export function AssigneeDropdown({ currentAssigneeId, onAssign, disabled = false
 
         setUsers(usersData.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (err) {
-        console.error('Error fetching users:', err);
+        console.error('Error al obtener usuarios:', err);
       } finally {
         setLoading(false);
       }

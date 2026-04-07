@@ -24,7 +24,7 @@ export function AssigneeFilter({ selectedAssignees, onAssigneeChange, currentUse
         })) as AppUser[];
         setUsers(userData.sort((a, b) => a.name.localeCompare(b.name)));
       } catch (err) {
-        console.error('Error loading users:', err);
+        console.error('Error al cargar usuarios:', err);
       } finally {
         setLoading(false);
       }

@@ -27,7 +27,7 @@ export function useLeadTasks(_leadCollection: string, leadId: string) {
       setTasks(tasksData);
       setLoading(false);
     }, (err) => {
-      console.error('Error fetching lead tasks:', err);
+      console.error('Error al obtener tareas del lead:', err);
       setLoading(false);
     });
 

@@ -7,6 +7,7 @@ const sourceLabels: Record<string, string> = {
   'web-download': 'PDF Descarga',
   'web-contact': 'Web Contacto',
   manual: 'Manual',
+  'csv-import': 'Importado',
 };
 
 const statusLabels: Record<string, string> = {

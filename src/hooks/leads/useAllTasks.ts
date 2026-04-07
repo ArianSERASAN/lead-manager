@@ -91,7 +91,7 @@ export function useAllTasks() {
         setGroupedTasks(grouped);
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching all tasks:', err);
+        console.error('Error al obtener todas las tareas:', err);
         setLoading(false);
       }
     };

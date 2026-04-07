@@ -5,14 +5,17 @@ import { FilterBar } from '../components/Filters/FilterBar';
 import { LeadTable } from '../components/LeadViews/LeadTable';
 import { LeadDetail } from '../components/LeadViews/LeadDetail';
 import { LeadCreateForm } from '../components/LeadViews/LeadCreateForm';
+import { CSVImport } from '../components/LeadViews/CSVImport';
 import { SelectionHUD } from '../components/Shared/SelectionHUD';
 import { CancellationModal } from '../components/Shared/CancellationModal';
+import { RoleGuard } from '../components/User/RoleGuard';
 import { useLeads } from '../hooks/leads/useLeads';
 import { useLeadActions } from '../hooks/leads/useLeadActions';
 import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
-import { X, Loader2 } from 'lucide-react';
+import { exportLeadsToExcel } from '../services/ExcelExportService';
+import { X, Loader2, Download, Upload } from 'lucide-react';
 import { LeadStatus } from '../types/domain';
 
 interface LeadsPageProps {
@@ -32,6 +35,8 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cancellationTarget, setCancellationTarget] = useState<CancellationTarget | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   const { leads, loading: leadsLoading, hasMore, loadMore, loadingMore } = useLeads();
 
@@ -75,9 +80,14 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
     getCurrentFilterState
   } = useFilterLogic(leads);
 
-  const handleBulkStatusUpdate = (status: LeadStatus) => {
-    if (!status) return;
-    bulkStatusUpdate(selectedIds, status);
+  const handleBulkStatusUpdate = async (status: LeadStatus) => {
+    if (!status || bulkActionLoading) return;
+    setBulkActionLoading(true);
+    try {
+      await bulkStatusUpdate(selectedIds, status);
+    } finally {
+      setBulkActionLoading(false);
+    }
   };
 
   /** Abre el modal de cancelación para un lead individual (desde LeadDetail) */
@@ -94,18 +104,22 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
 
   /** Confirma la cancelación con el motivo elegido */
   const handleConfirmCancellation = async (reason: string) => {
-    if (!cancellationTarget) return;
+    if (!cancellationTarget || bulkActionLoading) return;
     const { type, ids } = cancellationTarget;
     setCancellationTarget(null);
+    setBulkActionLoading(true);
 
-    if (type === 'single') {
-      await cancelLead(ids[0], reason);
-      // Si el lead cancelado estaba seleccionado, deseleccionarlo
-      if (selectedLead?.id === ids[0]) setSelectedLead(null);
-    } else {
-      await bulkCancelLeads(ids, reason);
-      setSelectedIds([]);
-      setSelectedLead(null);
+    try {
+      if (type === 'single') {
+        await cancelLead(ids[0], reason);
+        if (selectedLead?.id === ids[0]) setSelectedLead(null);
+      } else {
+        await bulkCancelLeads(ids, reason);
+        setSelectedIds([]);
+        setSelectedLead(null);
+      }
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -119,6 +133,29 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
         title="Leads"
         leadCount={filteredLeads.length}
         onNewLeadClick={onOpenCreateForm}
+        actions={
+          <>
+            <button
+              onClick={() => exportLeadsToExcel(filteredLeads)}
+              disabled={filteredLeads.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Exportar leads a Excel"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">Exportar</span>
+            </button>
+            <RoleGuard requires="canEdit">
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm"
+                title="Importar leads desde CSV o Excel"
+              >
+                <Upload size={16} />
+                <span className="hidden sm:inline">Importar</span>
+              </button>
+            </RoleGuard>
+          </>
+        }
       />
 
       <FilterBar
@@ -158,6 +195,11 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
           onBulkCancel={handleRequestCancelBulk}
           onBulkStatusUpdate={handleBulkStatusUpdate}
           onClearSelection={() => setSelectedIds([])}
+          disabled={bulkActionLoading}
+          onExportSelected={() => {
+            const selected = leads.filter(l => selectedIds.includes(l.id));
+            exportLeadsToExcel(selected, `leads_seleccionados_${new Date().toISOString().slice(0, 10)}.xlsx`);
+          }}
         />
       )}
 
@@ -244,6 +286,17 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
         bulkCount={cancellationTarget?.ids.length ?? 0}
         onConfirm={handleConfirmCancellation}
         onClose={() => setCancellationTarget(null)}
+      />
+
+      <CSVImport
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSuccess={(count) => {
+          setShowImportModal(false);
+          addToast({ message: `${count} lead${count !== 1 ? 's' : ''} importado${count !== 1 ? 's' : ''} correctamente`, type: 'success' });
+        }}
+        userId={appUser?.uid}
+        userName={appUser?.name}
       />
     </>
   );

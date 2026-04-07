@@ -11,7 +11,9 @@ const UPDATABLE_FIELDS = new Set([
   'score', 'scoreBreakdown', 'pipelinePosition', 'customFields',
   'enrichment', 'enrichedAt',
   'cancellationReason', 'closedAt', 'closedBy', 'closedByName', 'stateHistory',
-  'attachments'
+  'attachments',
+  'apellidos', 'sector', 'cargo', 'localidad', 'direccion',
+  'tipoInmueble', 'superficie', 'referenciaCatastral',
 ]);
 
 export async function createLead(leadData: Partial<Lead>): Promise<string> {

@@ -9,6 +9,7 @@ import {
   X,
   CheckSquare,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 import { Activity, ActivityAction } from '../../types/domain';
 
@@ -37,6 +38,8 @@ function getActionIcon(action: ActivityAction) {
       return <CheckSquare size={16} className="text-emerald-600" />;
     case 'score_updated':
       return <ArrowRight size={16} className="text-amber-600" />;
+    case 'field_updated':
+      return <Pencil size={16} className="text-blue-600" />;
     default:
       return <Plus size={16} className="text-gray-600" />;
   }
@@ -62,6 +65,8 @@ function getActionColor(action: ActivityAction): string {
       return 'bg-emerald-100';
     case 'score_updated':
       return 'bg-amber-100';
+    case 'field_updated':
+      return 'bg-blue-100';
     default:
       return 'bg-gray-100';
   }
@@ -97,6 +102,12 @@ function getActionDescription(activity: Activity): string {
       return `${actor} completó una tarea: ${details.description || 'Sin título'}`;
     case 'score_updated':
       return `${actor} actualizó la puntuación a ${details.newValue}`;
+    case 'field_updated': {
+      const fieldLabel = details.field || 'campo';
+      const oldVal = details.oldValue !== undefined && details.oldValue !== '' ? ` (antes: "${details.oldValue}")` : '';
+      const newVal = details.newValue !== undefined && details.newValue !== '' ? `"${details.newValue}"` : '—';
+      return `${actor} editó ${fieldLabel}: ${newVal}${oldVal}`;
+    }
     default:
       return `${actor} realizó una acción`;
   }

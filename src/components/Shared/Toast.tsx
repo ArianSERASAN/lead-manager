@@ -76,33 +76,3 @@ export function Toast({ id, message, type, onClose, onUndo, duration = 5000 }: T
     </div>
   );
 }
-
-// Container for managing multiple toasts
-interface ToastItem {
-  id: string;
-  message: string;
-  type: ToastType;
-  onUndo?: () => void;
-  duration?: number;
-}
-
-export function ToastContainer({ toasts, onClose, onUndo }: {
-  toasts: ToastItem[],
-  onClose: (id: string) => void,
-  onUndo: (id: string) => void
-}) {
-  return (
-    <div className="pointer-events-none">
-      {toasts.map(t => (
-        <div key={t.id} className="pointer-events-auto">
-          <Toast
-            key={t.id}
-            {...t}
-            onClose={onClose}
-            onUndo={() => onUndo(t.id)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}

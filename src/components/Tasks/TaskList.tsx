@@ -47,7 +47,7 @@ export function TaskList({ tasks, leadId, leadCollection, leadName, leadEmail }:
       addToast({ message: 'Tarea creada correctamente', type: 'success' });
       setIsFormOpen(false);
     } catch (err) {
-      console.error('Error creating task:', err);
+      console.error('Error al crear tarea:', err);
       addToast({ message: 'Error al crear la tarea', type: 'error' });
     } finally {
       setIsLoading(false);
@@ -71,7 +71,7 @@ export function TaskList({ tasks, leadId, leadCollection, leadName, leadEmail }:
 
       addToast({ message: 'Tarea marcada como completada', type: 'success' });
     } catch (err) {
-      console.error('Error completing task:', err);
+      console.error('Error al completar tarea:', err);
       addToast({ message: 'Error al completar la tarea', type: 'error' });
     }
   };
@@ -81,7 +81,7 @@ export function TaskList({ tasks, leadId, leadCollection, leadName, leadEmail }:
       await deleteTask(leadCollection, leadId, taskId);
       addToast({ message: 'Tarea eliminada', type: 'success' });
     } catch (err) {
-      console.error('Error deleting task:', err);
+      console.error('Error al eliminar tarea:', err);
       addToast({ message: 'Error al eliminar la tarea', type: 'error' });
     }
   };

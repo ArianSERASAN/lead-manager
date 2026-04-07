@@ -21,11 +21,12 @@ export const SOURCE_CONFIG: Record<string, { label: string; color: string }> = {
   'web-download': { label: 'Descarga PDF', color: 'text-green-600' },
   'web-contact': { label: 'Formulario Web', color: 'text-purple-600' },
   'manual': { label: 'Manual', color: 'text-gray-600' },
+  'csv-import': { label: 'Importado', color: 'text-orange-600' },
 };
 
 export const SCORE_CONFIG = {
   weights: { source: 20, completeness: 50, recency: 20, responseQuality: 10 },
-  sourceWeights: { 'landing': 20, 'web-download': 15, 'web-contact': 25, 'manual': 10 },
+  sourceWeights: { 'landing': 20, 'web-download': 15, 'web-contact': 25, 'manual': 10, 'csv-import': 12 },
   staleDays: 30,
 };
 

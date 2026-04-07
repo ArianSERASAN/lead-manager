@@ -20,6 +20,8 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
       case 'web-download': return <Download size={12} className="text-emerald-500" />;
       case 'web-contact': return <MessageSquare size={12} className="text-purple-500" />;
       case 'manual': return <Hand size={12} className="text-gray-400" />;
+      case 'csv-import': return <Hand size={12} className="text-orange-400" />;
+      default: return <Hand size={12} className="text-gray-300" />;
     }
   };
 

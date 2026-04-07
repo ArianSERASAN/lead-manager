@@ -79,7 +79,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
           { newValue: [trimmedTag] }
         );
       } catch (error) {
-        console.error('Error recording tag_added activity:', error);
+        console.error('Error al registrar actividad tag_added:', error);
       }
     }
 
@@ -88,7 +88,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
       const lead = { id: leadId, _collection: 'leads', name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
       await LeadService.updateLeadTags(lead, updatedTags);
     } catch (error) {
-      console.error('Error updating tags:', error);
+      console.error('Error al actualizar etiquetas:', error);
     }
   };
 
@@ -108,7 +108,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
           { oldValue: [tagToRemove] }
         );
       } catch (error) {
-        console.error('Error recording tag_removed activity:', error);
+        console.error('Error al registrar actividad tag_removed:', error);
       }
     }
 
@@ -117,7 +117,7 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
       const lead = { id: leadId, _collection: 'leads', name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
       await LeadService.updateLeadTags(lead, updatedTags);
     } catch (error) {
-      console.error('Error updating tags:', error);
+      console.error('Error al actualizar etiquetas:', error);
     }
   };
 
