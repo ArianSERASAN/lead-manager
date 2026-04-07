@@ -62,17 +62,9 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           'bg-gray-300'
         }`} />
 
-        {/* Name */}
-        <span className="text-sm font-medium text-gray-900 flex-1 min-w-0 break-words leading-tight">
+        {/* Name — single line, truncated with ellipsis */}
+        <span className="text-sm font-medium text-gray-900 truncate flex-1 min-w-0">
           {lead.name}
-        </span>
-
-        {/* Source icon */}
-        <span className="text-xs flex-shrink-0">{getSourceIcon(lead.source)}</span>
-
-        {/* Time */}
-        <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:inline">
-          {formatRelativeTime(lead.createdAt)}
         </span>
 
         {/* Expand button */}
@@ -80,11 +72,11 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           onClick={handleExpandToggle}
           aria-label={expanded ? 'Contraer detalles' : 'Expandir detalles'}
           aria-expanded={expanded}
-          className={`p-2 -mr-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center ${
+          className={`p-1.5 -mr-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center ${
             expanded ? 'rotate-180' : ''
           }`}
         >
-          <ChevronDown size={16} />
+          <ChevronDown size={14} />
         </button>
       </div>
 
@@ -123,11 +115,16 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
             )}
           </div>
 
-          {/* Assignee + time */}
+          {/* Source + Assignee + time */}
           <div className="flex items-center justify-between text-[10px] text-gray-400">
-            <div className="flex items-center gap-1.5">
-              <Clock size={10} />
-              <span>{formatRelativeTime(lead.createdAt)}</span>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                {getSourceIcon(lead.source)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock size={10} />
+                {formatRelativeTime(lead.createdAt)}
+              </span>
             </div>
             {lead.assignedTo && (
               <div className="flex items-center gap-1">
