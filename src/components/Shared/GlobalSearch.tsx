@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, CornerDownLeft, X } from 'lucide-react';
 import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
+import { getLeadKey } from '../../lib/leads';
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   nuevo: { label: 'Nuevo', cls: 'bg-emerald-50 text-emerald-700' },
@@ -114,7 +115,7 @@ export function GlobalSearch() {
             const status = STATUS_LABEL[lead.status] || STATUS_LABEL.nuevo;
             return (
               <div
-                key={lead.id}
+                key={getLeadKey(lead)}
                 data-search-item
                 onClick={() => handleSelect(i)}
                 onMouseEnter={() => setSelectedIndex(i)}

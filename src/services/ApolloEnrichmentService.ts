@@ -2,6 +2,7 @@ import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Lead, ApolloEnrichment } from '../types/domain';
 import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getLeadCollection } from '../lib/leads';
 
 // ─── Apollo Enrichment Service ────────────────────────────────────
 // Calls the `enrichLead` Cloud Function which handles the Apollo API
@@ -26,7 +27,7 @@ export async function enrichLeadViaCloudFunction(lead: Lead): Promise<Enrichment
       EnrichmentResult
     >(functions, 'enrichLead');
 
-    const result = await enrichLead({ leadId: lead.id, collection: 'leads' });
+    const result = await enrichLead({ leadId: lead.id, collection: getLeadCollection(lead) });
 
     return result.data;
   } catch (error: unknown) {
@@ -44,7 +45,7 @@ export async function saveEnrichmentToLead(
   lead: Lead,
   enrichment: ApolloEnrichment
 ): Promise<void> {
-  await updateDoc(doc(db, 'leads', lead.id), {
+  await updateDoc(doc(db, getLeadCollection(lead), lead.id), {
     enrichment,
     enrichedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

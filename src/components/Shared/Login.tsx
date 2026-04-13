@@ -62,6 +62,7 @@ export function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
+                  autoComplete="email"
                   className="w-full bg-gray-50/80 border-2 border-gray-200/80 rounded-2xl pl-12 pr-4 py-3.5 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 outline-none transition-all duration-200"
                   placeholder="admin@serasan.es"
                 />
@@ -77,6 +78,7 @@ export function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                   className="w-full bg-gray-50/80 border-2 border-gray-200/80 rounded-2xl pl-12 pr-4 py-3.5 focus:bg-white focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400 outline-none transition-all duration-200"
                   placeholder="••••••••"
                 />

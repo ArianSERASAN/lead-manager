@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { Task, toJSDate } from '../../types/domain';
-
-const COLLECTION = 'leads';
+import { LEAD_COLLECTIONS } from '../../lib/leads';
 
 export interface TaskWithLead extends Task {
   leadName?: string;
@@ -22,73 +21,68 @@ export function useAllTasks() {
   const [groupedTasks, setGroupedTasks] = useState<GroupedTasks>({
     overdue: [],
     today: [],
-    upcoming: []
+    upcoming: [],
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchAllTasks = async () => {
       try {
-        // Fetch all leads first, then all task subcollections in parallel
-        const leadsSnapshot = await getDocs(collection(db, COLLECTION));
+        const taskGroups = await Promise.all(
+          LEAD_COLLECTIONS.map(async (leadCollection) => {
+            const leadsSnapshot = await getDocs(collection(db, leadCollection));
 
-        const perLeadResults = await Promise.all(
-          leadsSnapshot.docs.map(async (leadDoc) => {
-            const leadId = leadDoc.id;
-            const leadData = leadDoc.data();
-            const tasksRef = collection(db, COLLECTION, leadId, 'tasks');
-            try {
-              const tasksSnapshot = await getDocs(query(tasksRef, orderBy('dueAt', 'asc')));
-              return tasksSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data(),
-                leadName: leadData.name || leadData.nombre || '—',
-                leadEmail: leadData.email || '—',
-                leadCollection: COLLECTION,
-              } as TaskWithLead));
-            } catch {
-              return [] as TaskWithLead[];
-            }
+            const perLeadResults = await Promise.all(
+              leadsSnapshot.docs.map(async (leadDoc) => {
+                const leadData = leadDoc.data();
+                const tasksRef = collection(db, leadCollection, leadDoc.id, 'tasks');
+
+                try {
+                  const tasksSnapshot = await getDocs(query(tasksRef, orderBy('dueAt', 'asc')));
+                  return tasksSnapshot.docs.map((taskDoc) => ({
+                    id: taskDoc.id,
+                    ...taskDoc.data(),
+                    leadName: leadData.name || leadData.nombre || '-',
+                    leadEmail: leadData.email || '-',
+                    leadCollection,
+                  } as TaskWithLead));
+                } catch {
+                  return [] as TaskWithLead[];
+                }
+              })
+            );
+
+            return perLeadResults.flat();
           })
         );
 
-        let allTasksList: TaskWithLead[] = perLeadResults.flat();
-
-        // Sort by dueAt
-        allTasksList.sort((a, b) => {
-          const aTime = toJSDate(a.dueAt).getTime();
-          const bTime = toJSDate(b.dueAt).getTime();
-          return aTime - bTime;
-        });
-
+        const allTasksList = taskGroups.flat().sort((a, b) => toJSDate(a.dueAt).getTime() - toJSDate(b.dueAt).getTime());
         setAllTasks(allTasksList);
 
-        // Group tasks
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-        const grouped: GroupedTasks = {
+        const nextGroupedTasks: GroupedTasks = {
           overdue: [],
           today: [],
-          upcoming: []
+          upcoming: [],
         };
 
-        allTasksList.forEach(task => {
+        allTasksList.forEach((task) => {
           if (task.completed) return;
 
           const dueDate = toJSDate(task.dueAt);
           const dueDateOnly = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
 
           if (dueDateOnly < today) {
-            grouped.overdue.push(task);
+            nextGroupedTasks.overdue.push(task);
           } else if (dueDateOnly.getTime() === today.getTime()) {
-            grouped.today.push(task);
+            nextGroupedTasks.today.push(task);
           } else {
-            grouped.upcoming.push(task);
+            nextGroupedTasks.upcoming.push(task);
           }
         });
 
-        setGroupedTasks(grouped);
+        setGroupedTasks(nextGroupedTasks);
         setLoading(false);
       } catch (err) {
         console.error('Error al obtener todas las tareas:', err);

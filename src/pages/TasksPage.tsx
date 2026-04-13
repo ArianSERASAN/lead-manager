@@ -8,6 +8,8 @@ import { deleteTask, completeTask } from '../services/TaskService';
 import { useToast } from '../contexts/ToastContext';
 import { useLeadStore } from '../stores/useLeadStore';
 
+const getTaskKey = (task: TaskWithLead) => `${task.leadCollection || 'leads'}:${task.leadId}:${task.id}`;
+
 export function TasksPage() {
   const { appUser } = useAuth();
   const { addToast } = useToast();
@@ -95,7 +97,7 @@ export function TasksPage() {
                 <div className="space-y-3">
                   {groupedTasks.overdue.map(task => (
                     <TaskCard
-                      key={task.id}
+                      key={getTaskKey(task)}
                       task={task}
                       onToggleComplete={() => handleCompleteTask(task)}
                       onDelete={() => handleDeleteTask(task)}
@@ -115,7 +117,7 @@ export function TasksPage() {
                 <div className="space-y-3">
                   {groupedTasks.today.map(task => (
                     <TaskCard
-                      key={task.id}
+                      key={getTaskKey(task)}
                       task={task}
                       onToggleComplete={() => handleCompleteTask(task)}
                       onDelete={() => handleDeleteTask(task)}
@@ -135,7 +137,7 @@ export function TasksPage() {
                 <div className="space-y-3">
                   {groupedTasks.upcoming.map(task => (
                     <TaskCard
-                      key={task.id}
+                      key={getTaskKey(task)}
                       task={task}
                       onToggleComplete={() => handleCompleteTask(task)}
                       onDelete={() => handleDeleteTask(task)}

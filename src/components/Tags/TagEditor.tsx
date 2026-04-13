@@ -1,9 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { TagBadge } from './TagBadge';
 import { Plus } from 'lucide-react';
-import { useAuth } from '../../contexts/AuthContext';
-import * as ActivityService from '../../services/ActivityService';
-import * as LeadService from '../../services/LeadService';
 
 interface TagEditorProps {
   tags: string[];
@@ -23,13 +20,12 @@ const SUGGESTED_TAGS = [
   'mantenimiento',
 ];
 
-export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorProps) {
+export function TagEditor({ tags, onChange, leadId: _leadId, leadCollection: _leadCollection }: TagEditorProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { appUser } = useAuth();
 
   useEffect(() => {
     if (!inputValue.trim()) {
@@ -66,59 +62,11 @@ export function TagEditor({ tags, onChange, leadId, leadCollection }: TagEditorP
     onChange(updatedTags);
     setInputValue('');
     setIsAdding(false);
-
-    // Record activity
-    if (appUser) {
-      try {
-        await ActivityService.recordActivity(
-          leadId,
-          leadCollection,
-          appUser.uid,
-          appUser.name,
-          'tag_added',
-          { newValue: [trimmedTag] }
-        );
-      } catch (error) {
-        console.error('Error al registrar actividad tag_added:', error);
-      }
-    }
-
-    // Update lead in database
-    try {
-      const lead = { id: leadId, _collection: 'leads', name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
-      await LeadService.updateLeadTags(lead, updatedTags);
-    } catch (error) {
-      console.error('Error al actualizar etiquetas:', error);
-    }
   };
 
   const handleRemoveTag = async (tagToRemove: string) => {
     const updatedTags = tags.filter((t) => t !== tagToRemove);
     onChange(updatedTags);
-
-    // Record activity
-    if (appUser) {
-      try {
-        await ActivityService.recordActivity(
-          leadId,
-          leadCollection,
-          appUser.uid,
-          appUser.name,
-          'tag_removed',
-          { oldValue: [tagToRemove] }
-        );
-      } catch (error) {
-        console.error('Error al registrar actividad tag_removed:', error);
-      }
-    }
-
-    // Update lead in database
-    try {
-      const lead = { id: leadId, _collection: 'leads', name: '', email: '', source: 'manual', status: 'nuevo', tags: [], score: 0, createdAt: '' } as import('../../types/domain').Lead;
-      await LeadService.updateLeadTags(lead, updatedTags);
-    } catch (error) {
-      console.error('Error al actualizar etiquetas:', error);
-    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

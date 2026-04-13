@@ -1,6 +1,7 @@
 import { AlertCircle } from 'lucide-react';
 import { Lead } from '../../types/domain';
 import { daysSince, formatTimestamp } from '../../utils/format';
+import { getLeadKey } from '../../lib/leads';
 
 interface StaleLeadsWidgetProps {
   leads: Lead[];
@@ -39,7 +40,7 @@ export function StaleLeadsWidget({ leads, onViewAll }: StaleLeadsWidgetProps) {
         {staleLeads.map(lead => {
           const days = daysSince(lead.updatedAt || lead.createdAt);
           return (
-            <div key={lead.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-xl border border-orange-100">
+            <div key={getLeadKey(lead)} className="flex items-center justify-between p-3 bg-orange-50 rounded-xl border border-orange-100">
               <div className="flex-1">
                 <p className="font-semibold text-gray-900">{lead.name}</p>
                 <p className="text-sm text-gray-600">{lead.email}</p>

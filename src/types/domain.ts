@@ -14,6 +14,7 @@ export function toJSDate(ts: TimestampLike): Date {
 
 export type LeadStatus = 'nuevo' | 'contactado' | 'en-progreso' | 'cerrado' | 'cancelado';
 export type LeadSource = 'landing' | 'web-download' | 'web-contact' | 'manual' | 'csv-import';
+export type LeadCollection = 'leads' | 'leads_descargas' | 'solicitudes_contacto';
 export type UserRole = 'admin' | 'comercial' | 'read_only';
 export type ActivityAction = 'created' | 'status_change' | 'note_added' | 'assigned' | 'tag_added' | 'tag_removed' | 'task_created' | 'task_completed' | 'score_updated' | 'enriched' | 'email_sent' | 'cancelled' | 'closed' | 'field_updated';
 export type TaskPriority = 'low' | 'medium' | 'high';
@@ -63,7 +64,7 @@ export interface Lead {
   direccion?: string;
   customFields?: Record<string, unknown>;
   data?: Record<string, unknown>; // Legacy raw data
-  _collection?: string; // Track original collection for backward compat
+  _collection?: LeadCollection; // Track original collection for backward compat
 
   // ─── Cierre / Cancelación ───────────────────────────────────────────
   cancellationReason?: string;                    // Motivo de cancelación

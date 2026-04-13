@@ -1,32 +1,19 @@
 import { create } from 'zustand';
-import {
-  collection,
-  onSnapshot,
-  query,
-  orderBy,
-  limit,
-  startAfter,
-  getDocs,
-  getDoc,
-  doc,
-  QueryDocumentSnapshot,
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Lead, FilterState, LeadStatus, LeadSource, toJSDate } from '../types/domain';
-import { calculateLeadScore, isLeadStale, ScoringWeights } from '../lib/scoring-engine';
-import { daysSince } from '../utils/format';
+import { collection, getDoc, onSnapshot, doc } from 'firebase/firestore';
 import { useMemo, useState, useEffect } from 'react';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const PAGE_SIZE = 50;
-const COLLECTION_NAME = 'leads';
-
-// ---------------------------------------------------------------------------
-// Filter types
-// ---------------------------------------------------------------------------
+import { db } from '../lib/firebase';
+import { Lead, FilterState, LeadStatus, LeadSource } from '../types/domain';
+import {
+  LEAD_COLLECTIONS,
+  getLeadKey,
+  normalizeLeadSnapshot,
+  sortLeadsByCreatedAtDesc,
+  withComputedLeadFields,
+} from '../lib/leads';
+import { ScoringWeights } from '../lib/scoring-engine';
+import { daysSince } from '../utils/format';
+import { countFilledFields } from '../lib/scoring-engine';
+import { toJSDate } from '../types/domain';
 
 export interface LeadFilters {
   searchQuery: string;
@@ -39,9 +26,10 @@ export interface LeadFilters {
   scoreMin: number;
   scoreMax: number;
   staleDays: number | null;
+  filledFieldsMin: number;
 }
 
-const DEFAULT_FILTERS: LeadFilters = {
+export const DEFAULT_FILTERS: LeadFilters = {
   searchQuery: '',
   statusFilter: '',
   sourceFilter: '',
@@ -52,28 +40,17 @@ const DEFAULT_FILTERS: LeadFilters = {
   scoreMin: 0,
   scoreMax: 100,
   staleDays: null,
+  filledFieldsMin: 0,
 };
 
-// ---------------------------------------------------------------------------
-// Store interface
-// ---------------------------------------------------------------------------
-
 interface LeadStore {
-  // Data
   leads: Lead[];
   loading: boolean;
   hasMore: boolean;
   loadingMore: boolean;
-
-  // Filters
   filters: LeadFilters;
-
-  // Internal (not for direct use by components)
-  _cursor: QueryDocumentSnapshot | null;
   _unsub: (() => void) | null;
   _scoringWeights: ScoringWeights | null;
-
-  // Actions
   subscribe: () => () => void;
   loadMore: () => Promise<void>;
   setFilter: <K extends keyof LeadFilters>(key: K, value: LeadFilters[K]) => void;
@@ -82,69 +59,91 @@ interface LeadStore {
   getCurrentFilterState: () => FilterState;
 }
 
-// ---------------------------------------------------------------------------
-// Map Firestore doc → Lead (ported from useLeads.ts)
-// ---------------------------------------------------------------------------
+export function applyFilters(
+  leads: Lead[],
+  filters: LeadFilters,
+  debouncedSearch: string,
+  pendingDeleteLeadKeys: string[] = []
+): Lead[] {
+  const pendingDeleteSet = new Set(pendingDeleteLeadKeys);
+  const searchIndex = new Map(
+    leads.map((lead) => [
+      getLeadKey(lead),
+      [
+        lead.name,
+        lead.email,
+        lead.phone || '',
+        lead.company || '',
+        lead.message || '',
+        lead.notes || '',
+        lead.resource || '',
+      ].join(' ').toLowerCase(),
+    ])
+  );
 
-function mapDocToLead(doc: QueryDocumentSnapshot, weights?: ScoringWeights | null): Lead {
-  const data = doc.data();
+  return leads.filter((lead) => {
+    if (pendingDeleteSet.has(lead.id) || pendingDeleteSet.has(getLeadKey(lead))) return false;
+    if (lead.status === 'cancelado') return false;
 
-  const lead: Lead = {
-    id: doc.id,
-    name: data.name || data.nombre || '—',
-    email: data.email || '—',
-    phone: data.phone || data.telefono || '',
-    company: data.company || data.empresa || '',
-    source: data.source || 'landing',
-    status: data.status || 'nuevo',
-    createdAt: data.createdAt || data.fecha || new Date(),
-    updatedAt: data.updatedAt || data.createdAt || new Date(),
-    notes: data.notes || data.notas || '',
-    tags: data.tags || [],
-    score: 0,
-    resource: data.recurso || data.resource || '',
-    message: data.mensaje || data.message || '',
-    apellidos: data.apellidos || '',
-    sector: data.sector || '',
-    cargo: data.cargo || '',
-    servicios: data.servicios || [],
-    tipoInmueble: data.tipoInmueble || data.tipo_inmueble || data.buildingType || '',
-    superficie:
-      data.superficie !== undefined
-        ? String(data.superficie)
-        : data.surface !== undefined
-          ? String(data.surface)
-          : '',
-    referenciaCatastral: data.referenciaCatastral || data.referencia_catastral || data.catastro || '',
-    localidad: data.localidad || data.locality || '',
-    direccion: data.direccion || data['dirección'] || data.address || '',
-    customFields: data.customFields || {},
-    data: data,
-    _collection: COLLECTION_NAME,
-    enrichment: data.enrichment,
-    enrichedAt: data.enrichedAt,
-    assignedTo: data.assignedTo,
-    assignedAt: data.assignedAt,
-    movedToStatusAt: data.movedToStatusAt,
-    cancellationReason: data.cancellationReason,
-    closedAt: data.closedAt,
-    closedBy: data.closedBy,
-    closedByName: data.closedByName,
-    stateHistory: data.stateHistory,
-    attachments: data.attachments || [],
-  };
+    if (filters.activeTab === 'descargas' && lead.source !== 'web-download') return false;
+    if (filters.activeTab === 'contactos' && lead.source !== 'web-contact') return false;
+    if (filters.activeTab === 'landing' && lead.source !== 'landing') return false;
 
-  const { score, breakdown } = calculateLeadScore(lead, weights || undefined);
-  lead.score = score;
-  lead.scoreBreakdown = breakdown;
-  lead.isStale = isLeadStale(lead);
+    if (debouncedSearch) {
+      const indexed = searchIndex.get(getLeadKey(lead)) || '';
+      if (!indexed.includes(debouncedSearch.toLowerCase())) return false;
+    }
 
-  return lead;
+    if (filters.statusFilter && lead.status !== filters.statusFilter) return false;
+    if (filters.activeTab === 'all' && filters.sourceFilter && lead.source !== filters.sourceFilter) return false;
+
+    if (filters.dateFilter) {
+      const leadDate = toJSDate(lead.createdAt);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (filters.dateFilter === 'today') {
+        if (leadDate < today) return false;
+      } else if (filters.dateFilter === 'yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (leadDate < yesterday || leadDate >= today) return false;
+      } else if (filters.dateFilter === 'week') {
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        if (leadDate < weekAgo) return false;
+      } else if (filters.dateFilter === 'month') {
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        if (leadDate < monthAgo) return false;
+      }
+    }
+
+    if (filters.tags.length > 0 && !filters.tags.some((tag) => lead.tags?.includes(tag))) return false;
+
+    if (filters.assignedTo.length > 0) {
+      if (filters.assignedTo.includes('unassigned')) {
+        const specificUsers = filters.assignedTo.filter((id) => id !== 'unassigned');
+        if (specificUsers.length > 0 && !specificUsers.includes(lead.assignedTo || '')) {
+          if (lead.assignedTo) return false;
+        }
+      } else if (!filters.assignedTo.includes(lead.assignedTo || '')) {
+        return false;
+      }
+    }
+
+    if (lead.score < filters.scoreMin || lead.score > filters.scoreMax) return false;
+
+    if (filters.staleDays !== null) {
+      const days = daysSince(lead.updatedAt || lead.createdAt);
+      if (days < filters.staleDays) return false;
+    }
+
+    if (filters.filledFieldsMin > 0 && countFilledFields(lead) < filters.filledFieldsMin) return false;
+
+    return true;
+  });
 }
-
-// ---------------------------------------------------------------------------
-// Zustand store
-// ---------------------------------------------------------------------------
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
@@ -152,93 +151,75 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   hasMore: false,
   loadingMore: false,
   filters: { ...DEFAULT_FILTERS },
-  _cursor: null,
   _unsub: null,
   _scoringWeights: null,
 
   subscribe: () => {
-    // If already subscribed, return existing unsub
     const existing = get()._unsub;
     if (existing) return existing;
 
-    // Fetch scoring config (non-blocking)
-    getDoc(doc(db, 'settings', 'scoring')).then((snap) => {
-      if (snap.exists()) {
-        const data = snap.data();
-        if (data.weights) set({ _scoringWeights: data.weights as ScoringWeights });
-      }
-    }).catch(() => {});
+    set({ loading: true, hasMore: false });
 
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      orderBy('createdAt', 'desc'),
-      limit(PAGE_SIZE)
-    );
+    const leadsByCollection = new Map<typeof LEAD_COLLECTIONS[number], Lead[]>();
+    const initializedCollections = new Set<typeof LEAD_COLLECTIONS[number]>();
 
-    let initialLoad = true;
-
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const weights = get()._scoringWeights;
-        const mapped = snapshot.docs.map((d) => mapDocToLead(d, weights));
-        const newCursor = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
-
-        set({
-          leads: mapped,
-          hasMore: snapshot.docs.length >= PAGE_SIZE,
-          _cursor: newCursor,
-          ...(initialLoad ? { loading: false } : {}),
-        });
-
-        initialLoad = false;
-      },
-      (err) => {
-        console.error('[LeadStore] Subscription error:', err);
-        set({ loading: false });
-      }
-    );
-
-    set({ _unsub: unsub });
-    return unsub;
-  },
-
-  loadMore: async () => {
-    const { loadingMore, hasMore, _cursor } = get();
-    if (loadingMore || !hasMore || !_cursor) return;
-
-    set({ loadingMore: true });
-
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        orderBy('createdAt', 'desc'),
-        startAfter(_cursor),
-        limit(PAGE_SIZE)
+    const publishMergedLeads = () => {
+      const mergedLeads = sortLeadsByCreatedAtDesc(
+        LEAD_COLLECTIONS.flatMap((collectionName) => leadsByCollection.get(collectionName) || [])
       );
 
-      const snapshot = await getDocs(q);
-      const weights = get()._scoringWeights;
-      const newLeads = snapshot.docs.map((d) => mapDocToLead(d, weights));
+      set({
+        leads: mergedLeads,
+        loading: initializedCollections.size < LEAD_COLLECTIONS.length,
+        hasMore: false,
+      });
+    };
 
-      if (newLeads.length > 0) {
-        set((state) => {
-          const existingIds = new Set(state.leads.map((l) => l.id));
-          const unique = newLeads.filter((l) => !existingIds.has(l.id));
-          return {
-            leads: [...state.leads, ...unique],
-            _cursor: snapshot.docs[snapshot.docs.length - 1],
-          };
-        });
-      }
+    getDoc(doc(db, 'settings', 'scoring'))
+      .then((snapshot) => {
+        if (!snapshot.exists()) return;
 
-      set({ hasMore: snapshot.docs.length >= PAGE_SIZE });
-    } catch (err) {
-      console.error('[LeadStore] Error loading more:', err);
-    } finally {
-      set({ loadingMore: false });
-    }
+        const data = snapshot.data();
+        if (!data.weights) return;
+
+        const weights = data.weights as ScoringWeights;
+        set((state) => ({
+          _scoringWeights: weights,
+          leads: sortLeadsByCreatedAtDesc(state.leads.map((lead) => withComputedLeadFields(lead, weights))),
+        }));
+      })
+      .catch(() => {});
+
+    const unsubs = LEAD_COLLECTIONS.map((collectionName) =>
+      onSnapshot(
+        collection(db, collectionName),
+        (snapshot) => {
+          const weights = get()._scoringWeights;
+          leadsByCollection.set(
+            collectionName,
+            snapshot.docs.map((leadSnapshot) => normalizeLeadSnapshot(leadSnapshot, collectionName, weights))
+          );
+          initializedCollections.add(collectionName);
+          publishMergedLeads();
+        },
+        (error) => {
+          console.error(`[LeadStore] Subscription error for ${collectionName}:`, error);
+          leadsByCollection.set(collectionName, []);
+          initializedCollections.add(collectionName);
+          publishMergedLeads();
+        }
+      )
+    );
+
+    const unsubscribe = () => {
+      for (const stop of unsubs) stop();
+    };
+
+    set({ _unsub: unsubscribe });
+    return unsubscribe;
   },
+
+  loadMore: async () => {},
 
   setFilter: (key, value) => {
     set((state) => ({
@@ -252,178 +233,83 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
 
   applyFilterState: (filterState: FilterState) => {
     set((state) => {
-      const f = { ...state.filters };
-      if (filterState.search !== undefined) f.searchQuery = filterState.search;
-      if (filterState.status) f.statusFilter = filterState.status[0] || '';
-      if (filterState.source) f.sourceFilter = filterState.source[0] || '';
-      if (filterState.tags) f.tags = filterState.tags;
-      if (filterState.assignedTo) f.assignedTo = filterState.assignedTo;
-      if (filterState.scoreMin !== undefined) f.scoreMin = filterState.scoreMin;
-      if (filterState.scoreMax !== undefined) f.scoreMax = filterState.scoreMax;
-      if (filterState.staleDays !== undefined) f.staleDays = filterState.staleDays;
-      return { filters: f };
+      const filters = { ...state.filters };
+      if (filterState.search !== undefined) filters.searchQuery = filterState.search;
+      if (filterState.status) filters.statusFilter = filterState.status[0] || '';
+      if (filterState.source) filters.sourceFilter = filterState.source[0] || '';
+      if (filterState.tags) filters.tags = filterState.tags;
+      if (filterState.assignedTo) filters.assignedTo = filterState.assignedTo;
+      if (filterState.scoreMin !== undefined) filters.scoreMin = filterState.scoreMin;
+      if (filterState.scoreMax !== undefined) filters.scoreMax = filterState.scoreMax;
+      if (filterState.staleDays !== undefined) filters.staleDays = filterState.staleDays;
+      return { filters };
     });
   },
 
   getCurrentFilterState: (): FilterState => {
-    const f = get().filters;
+    const filters = get().filters;
     return {
-      search: f.searchQuery,
-      status: f.statusFilter ? [f.statusFilter as LeadStatus] : undefined,
-      source: f.sourceFilter ? [f.sourceFilter as LeadSource] : undefined,
-      tags: f.tags.length > 0 ? f.tags : undefined,
-      assignedTo: f.assignedTo.length > 0 ? f.assignedTo : undefined,
-      scoreMin: f.scoreMin > 0 ? f.scoreMin : undefined,
-      scoreMax: f.scoreMax < 100 ? f.scoreMax : undefined,
-      staleDays: f.staleDays !== null ? f.staleDays : undefined,
+      search: filters.searchQuery,
+      status: filters.statusFilter ? [filters.statusFilter as LeadStatus] : undefined,
+      source: filters.sourceFilter ? [filters.sourceFilter as LeadSource] : undefined,
+      tags: filters.tags.length > 0 ? filters.tags : undefined,
+      assignedTo: filters.assignedTo.length > 0 ? filters.assignedTo : undefined,
+      scoreMin: filters.scoreMin > 0 ? filters.scoreMin : undefined,
+      scoreMax: filters.scoreMax < 100 ? filters.scoreMax : undefined,
+      staleDays: filters.staleDays !== null ? filters.staleDays : undefined,
     };
   },
 }));
 
-// ---------------------------------------------------------------------------
-// Pure filter function (ported from useFilterLogic.ts)
-// ---------------------------------------------------------------------------
-
-export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearch: string): Lead[] {
-  // Pre-compute searchable text
-  const searchIndex = new Map(
-    leads.map((lead) => [
-      lead.id,
-      [lead.name, lead.email, lead.phone || '', lead.company || '', lead.message || '', lead.notes || '', lead.resource || '']
-        .join(' ')
-        .toLowerCase(),
-    ])
-  );
-
-  return leads.filter((lead) => {
-    // Exclude cancelled leads from main view (they go to history)
-    if (lead.status === 'cancelado') return false;
-
-    // Tab filter
-    if (filters.activeTab === 'descargas' && lead.source !== 'web-download') return false;
-    if (filters.activeTab === 'contactos' && lead.source !== 'web-contact') return false;
-    if (filters.activeTab === 'landing' && lead.source !== 'landing') return false;
-
-    // Search using pre-computed index
-    if (debouncedSearch) {
-      const searchLower = debouncedSearch.toLowerCase();
-      const indexed = searchIndex.get(lead.id) || '';
-      if (!indexed.includes(searchLower)) return false;
-    }
-
-    // Status filter
-    if (filters.statusFilter && lead.status !== filters.statusFilter) return false;
-
-    // Source filter
-    if (filters.activeTab === 'all' && filters.sourceFilter && lead.source !== filters.sourceFilter) return false;
-
-    // Date filter
-    if (filters.dateFilter) {
-      const leadDate = toJSDate(lead.createdAt);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      if (filters.dateFilter === 'today') {
-        if (leadDate < today) return false;
-      } else if (filters.dateFilter === 'yesterday') {
-        const yesterday = new Date(today);
-        yesterday.setDate(yesterday.getDate() - 1);
-        if (leadDate < yesterday || leadDate >= today) return false;
-      } else if (filters.dateFilter === 'week') {
-        const aWeekAgo = new Date(today);
-        aWeekAgo.setDate(aWeekAgo.getDate() - 7);
-        if (leadDate < aWeekAgo) return false;
-      } else if (filters.dateFilter === 'month') {
-        const aMonthAgo = new Date(today);
-        aMonthAgo.setMonth(aMonthAgo.getMonth() - 1);
-        if (leadDate < aMonthAgo) return false;
-      }
-    }
-
-    // Tags filter (match any)
-    if (filters.tags.length > 0) {
-      if (!filters.tags.some((tag) => lead.tags?.includes(tag))) return false;
-    }
-
-    // Assigned to filter
-    if (filters.assignedTo.length > 0) {
-      if (filters.assignedTo.includes('unassigned')) {
-        const specificUsers = filters.assignedTo.filter((id) => id !== 'unassigned');
-        if (specificUsers.length > 0 && !specificUsers.includes(lead.assignedTo || '')) {
-          if (lead.assignedTo) return false;
-        }
-      } else if (!filters.assignedTo.includes(lead.assignedTo || '')) {
-        return false;
-      }
-    }
-
-    // Score range
-    if (lead.score < filters.scoreMin || lead.score > filters.scoreMax) return false;
-
-    // Stale days
-    if (filters.staleDays !== null) {
-      const days = daysSince(lead.updatedAt || lead.createdAt);
-      if (days < filters.staleDays) return false;
-    }
-
-    return true;
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Derived hooks (used by components)
-// ---------------------------------------------------------------------------
-
-/** Debounce helper hook */
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
+
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedValue(value), delay);
     return () => clearTimeout(timer);
   }, [value, delay]);
+
   return debouncedValue;
 }
 
-/** Returns filtered leads based on current store filters. */
 export function useFilteredLeads(): Lead[] {
-  const leads = useLeadStore((s) => s.leads);
-  const filters = useLeadStore((s) => s.filters);
+  const leads = useLeadStore((state) => state.leads);
+  const filters = useLeadStore((state) => state.filters);
   const debouncedSearch = useDebouncedValue(filters.searchQuery, 200);
 
   return useMemo(() => applyFilters(leads, filters, debouncedSearch), [leads, filters, debouncedSearch]);
 }
 
-/** Returns the count of active filters. */
 export function useActiveFilterCount(): number {
-  const f = useLeadStore((s) => s.filters);
+  const filters = useLeadStore((state) => state.filters);
+
   return useMemo(() => {
     let count = 0;
-    if (f.searchQuery) count++;
-    if (f.statusFilter) count++;
-    if (f.sourceFilter) count++;
-    if (f.dateFilter) count++;
-    if (f.tags.length > 0) count++;
-    if (f.assignedTo.length > 0) count++;
-    if (f.scoreMin > 0 || f.scoreMax < 100) count++;
-    if (f.staleDays !== null) count++;
+    if (filters.searchQuery) count++;
+    if (filters.statusFilter) count++;
+    if (filters.sourceFilter) count++;
+    if (filters.dateFilter) count++;
+    if (filters.tags.length > 0) count++;
+    if (filters.assignedTo.length > 0) count++;
+    if (filters.scoreMin > 0 || filters.scoreMax < 100) count++;
+    if (filters.staleDays !== null) count++;
+    if (filters.filledFieldsMin > 0) count++;
     return count;
-  }, [f]);
+  }, [filters]);
 }
 
-/**
- * Bootstraps the Zustand lead store's Firestore subscription.
- * Must be called once from a top-level authenticated component (e.g. AppContent).
- * Cleans up the subscription on unmount.
- */
-export function useLeadSubscription(): void {
+export function useLeadSubscription(enabled = true): void {
   useEffect(() => {
-    const unsub = useLeadStore.getState().subscribe();
+    if (!enabled) {
+      useLeadStore.getState()._unsub?.();
+      useLeadStore.setState({ _unsub: null, leads: [], loading: false, hasMore: false });
+      return;
+    }
+
+    const unsubscribe = useLeadStore.getState().subscribe();
     return () => {
-      unsub();
-      // Clear _unsub so that a subsequent subscribe() call (e.g. React StrictMode
-      // double-invokes effects in dev) creates a fresh Firestore subscription
-      // instead of returning the now-dead unsub and leaving loading=true forever.
+      unsubscribe();
       useLeadStore.setState({ _unsub: null });
     };
-  }, []);
+  }, [enabled]);
 }

@@ -28,3 +28,9 @@ dist_*/
 screenshots_mobile/
 *.docx
 nohup.out
+vite.config.ts.timestamp-*.mjs
+unpacked_manual/
+.claude/worktrees/
+.claude/
+.playwright-cli/
+output/playwright/

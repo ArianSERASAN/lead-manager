@@ -5,12 +5,13 @@ import { getFunctions, httpsCallable } from 'firebase/functions';
 interface EmailComposerProps {
   leadEmail: string;
   leadId: string;
+  leadCollection?: string;
   leadName: string;
   onSent: () => void;
   onCancel: () => void;
 }
 
-export function EmailComposer({ leadEmail, leadId, leadName, onSent, onCancel }: EmailComposerProps) {
+export function EmailComposer({ leadEmail, leadId, leadCollection = 'leads', leadName, onSent, onCancel }: EmailComposerProps) {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
@@ -26,7 +27,7 @@ export function EmailComposer({ leadEmail, leadId, leadName, onSent, onCancel }:
     try {
       const functions = getFunctions(undefined, 'europe-west1');
       const sendEmail = httpsCallable(functions, 'sendLeadEmail');
-      await sendEmail({ to: leadEmail, subject, body, leadId });
+      await sendEmail({ to: leadEmail, subject, body, leadId, collection: leadCollection });
       onSent();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al enviar email';

@@ -6,6 +6,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
 import { formatTimestamp } from '../../utils/format';
+import { getLeadKey } from '../../lib/leads';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -209,7 +210,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
                 <button
                   onClick={() => {
                     if (selectedIds.length === leads.length) onToggleAll([]);
-                    else onToggleAll(leads.map(l => l.id));
+                    else onToggleAll(leads.map((lead) => getLeadKey(lead)));
                   }}
                   aria-label={selectedIds.length === leads.length ? 'Deseleccionar todos' : 'Seleccionar todos'}
                   className="text-gray-300 hover:text-gray-500"
@@ -231,11 +232,11 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
           <tbody className="divide-y divide-gray-50 stagger-children">
             {leads.map((lead) => (
               <LeadRow
-                key={lead.id}
+                key={getLeadKey(lead)}
                 lead={lead}
-                isSelected={selectedIds.includes(lead.id)}
+                isSelected={selectedIds.includes(getLeadKey(lead))}
                 onSelect={() => onSelect(lead)}
-                onToggle={() => onToggleSelection(lead.id)}
+                onToggle={() => onToggleSelection(getLeadKey(lead))}
               />
             ))}
           </tbody>
@@ -248,7 +249,7 @@ export const LeadTable = memo(function LeadTable({ leads, selectedIds, onSelect,
           const status = statusConfig(lead.status);
           return (
             <div
-              key={lead.id}
+              key={getLeadKey(lead)}
               className="p-3.5 hover:bg-gray-50/50 active:bg-gray-100/50 cursor-pointer"
               onClick={() => onSelect(lead)}
             >

@@ -3,6 +3,7 @@ import { KanbanCard } from './KanbanCard';
 import { STATUS_CONFIG } from '../../utils/constants';
 import { useDroppable } from '@dnd-kit/core';
 import { ArrowDownToLine, Inbox } from 'lucide-react';
+import { getLeadKey } from '../../lib/leads';
 
 interface KanbanColumnProps {
   status: LeadStatus;
@@ -49,13 +50,13 @@ export function KanbanColumn({ status, leads, onCardClick, draggedLeadId, readon
         {leads.length > 0 ? (
           leads.map(lead => (
             readonly ? (
-              <KanbanCard key={lead.id} lead={lead} onClick={() => onCardClick(lead)} />
+              <KanbanCard key={getLeadKey(lead)} lead={lead} onClick={() => onCardClick(lead)} />
             ) : (
               <DraggableCard
-                key={lead.id}
+                key={getLeadKey(lead)}
                 lead={lead}
                 onClick={() => onCardClick(lead)}
-                isBeingDragged={draggedLeadId === lead.id}
+                isBeingDragged={draggedLeadId === getLeadKey(lead)}
               />
             )
           ))
@@ -93,14 +94,13 @@ import { useDraggable } from '@dnd-kit/core';
 
 function DraggableCard({ lead, onClick, isBeingDragged }: { lead: Lead; onClick: () => void; isBeingDragged: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: lead.id,
+    id: getLeadKey(lead),
   });
 
   return (
     <div
       ref={setNodeRef}
       {...attributes}
-      {...listeners}
       className={`transition-opacity duration-150 ${
         isBeingDragged ? 'opacity-30' : ''
       }`}
@@ -109,6 +109,7 @@ function DraggableCard({ lead, onClick, isBeingDragged }: { lead: Lead; onClick:
         lead={lead}
         onClick={onClick}
         isDragging={isDragging}
+        dragHandleProps={listeners}
       />
     </div>
   );

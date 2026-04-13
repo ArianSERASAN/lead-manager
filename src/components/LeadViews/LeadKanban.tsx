@@ -16,6 +16,7 @@ import {
 } from '@dnd-kit/core';
 import { Search, Loader2, ChevronLeft, ChevronRight, Target, Inbox } from 'lucide-react';
 import { usePermissions } from '../../hooks/auth/usePermissions';
+import { getLeadKey } from '../../lib/leads';
 
 interface LeadKanbanProps {
   leads: Lead[];
@@ -53,15 +54,15 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
   // Group leads by status (considering optimistic updates)
   const leadsByStatus = PIPELINE_STAGES.reduce((acc, status) => {
     acc[status as LeadStatus] = filteredLeads.filter(lead => {
-      const currentStatus = optimisticUpdates[lead.id] ?? lead.status;
+      const currentStatus = optimisticUpdates[getLeadKey(lead)] ?? lead.status;
       return currentStatus === status;
     });
     return acc;
   }, {} as Record<LeadStatus, Lead[]>);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
-    const leadId = event.active.id as string;
-    const lead = leads.find(l => l.id === leadId) || null;
+    const leadKey = event.active.id as string;
+    const lead = leads.find(l => getLeadKey(l) === leadKey) || null;
     setActiveLead(lead);
   }, [leads]);
 
@@ -71,31 +72,32 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
 
     if (!over) return;
 
-    const leadId = active.id as string;
+    const leadKey = active.id as string;
     // The drop target is the column id (status string)
     const newStatus = over.id as LeadStatus;
 
-    const lead = leads.find(l => l.id === leadId);
+    const lead = leads.find(l => getLeadKey(l) === leadKey);
     if (!lead || !PIPELINE_STAGES.includes(newStatus as string)) return;
+    const targetLeadKey = getLeadKey(lead);
 
     // Use optimistic status for comparison
-    const currentStatus = optimisticUpdates[lead.id] ?? lead.status;
+    const currentStatus = optimisticUpdates[targetLeadKey] ?? lead.status;
     if (currentStatus === newStatus) return;
 
-    // Optimistic UI update — card moves immediately
-    setOptimisticUpdates(prev => ({ ...prev, [lead.id]: newStatus }));
+    // Optimistic UI update - card moves immediately
+    setOptimisticUpdates(prev => ({ ...prev, [targetLeadKey]: newStatus }));
     setIsUpdating(true);
 
     try {
-      await onStatusChange(lead.id, newStatus);
+      await onStatusChange(targetLeadKey, newStatus);
       setOptimisticUpdates(prev => {
-        const { [lead.id]: _, ...rest } = prev;
+        const { [targetLeadKey]: _, ...rest } = prev;
         return rest;
       });
     } catch (error) {
       // Revert on error
       setOptimisticUpdates(prev => {
-        const { [lead.id]: _, ...rest } = prev;
+        const { [targetLeadKey]: _, ...rest } = prev;
         return rest;
       });
       console.error('Error al actualizar estado del lead:', error);
@@ -111,19 +113,20 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
   // Mobile: handle status change via button tap (no drag needed)
   const handleMobileStatusChange = useCallback(async (lead: Lead, newStatus: LeadStatus) => {
     if (!canEdit) return;
-    const currentStatus = optimisticUpdates[lead.id] ?? lead.status;
+    const leadKey = getLeadKey(lead);
+    const currentStatus = optimisticUpdates[leadKey] ?? lead.status;
     if (currentStatus === newStatus) return;
-    setOptimisticUpdates(prev => ({ ...prev, [lead.id]: newStatus }));
+    setOptimisticUpdates(prev => ({ ...prev, [leadKey]: newStatus }));
     setIsUpdating(true);
     try {
-      await onStatusChange(lead.id, newStatus);
+      await onStatusChange(leadKey, newStatus);
       setOptimisticUpdates(prev => {
-        const { [lead.id]: _, ...rest } = prev;
+        const { [leadKey]: _, ...rest } = prev;
         return rest;
       });
     } catch (error) {
       setOptimisticUpdates(prev => {
-        const { [lead.id]: _, ...rest } = prev;
+        const { [leadKey]: _, ...rest } = prev;
         return rest;
       });
     } finally {
@@ -226,7 +229,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
           {mobileLeads.length > 0 ? (
             mobileLeads.map(lead => (
               <MobileKanbanCard
-                key={lead.id}
+                key={getLeadKey(lead)}
                 lead={lead}
                 onClick={() => onLeadClick(lead)}
                 currentStatus={mobileActiveStatus}
@@ -260,7 +263,7 @@ export function LeadKanban({ leads, onLeadClick, onStatusChange, isLoading }: Le
                 status={status as LeadStatus}
                 leads={leadsByStatus[status as LeadStatus]}
                 onCardClick={onLeadClick}
-                draggedLeadId={activeLead?.id || null}
+                draggedLeadId={activeLead ? getLeadKey(activeLead) : null}
                 readonly={!canEdit}
               />
             ))}
@@ -332,7 +335,6 @@ function MobileKanbanCard({ lead, onClick, currentStatus, onStatusChange }: {
           }`}
           role="img"
           aria-label={`Puntuación: ${lead.score} — ${lead.score >= 70 ? 'Alta' : lead.score >= 40 ? 'Media' : 'Baja'}`}
-          title={`Score: ${lead.score}`}
         />
 
         {/* Content */}

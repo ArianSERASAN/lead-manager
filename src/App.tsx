@@ -31,7 +31,7 @@ function AppContent() {
   const { firebaseUser, appUser, loading, logout } = useAuth();
   const { toasts, removeToast, addToast } = useToast();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  useLeadSubscription();
+  useLeadSubscription(Boolean(firebaseUser && appUser));
 
   // FCM foreground messages → toast
   useEffect(() => {

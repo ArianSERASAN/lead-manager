@@ -6,6 +6,7 @@ import { mergeLeads, computeMergedFields } from '../../services/LeadMergeService
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
+import { getLeadKey } from '../../lib/leads';
 
 interface MergeLeadsModalProps {
   isOpen: boolean;
@@ -46,16 +47,17 @@ export function MergeLeadsModal({ isOpen, onClose, leadA, onMerged }: MergeLeads
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
+    const currentLeadKey = getLeadKey(leadA);
     return leads
       .filter(
         (l) =>
-          l.id !== leadA.id &&
+          getLeadKey(l) !== currentLeadKey &&
           (l.name.toLowerCase().includes(q) ||
             l.email.toLowerCase().includes(q) ||
             (l.company || '').toLowerCase().includes(q))
       )
       .slice(0, 8);
-  }, [leads, searchQuery, leadA.id]);
+  }, [leads, searchQuery, leadA]);
 
   const selectLeadB = (lead: Lead) => {
     setLeadB(lead);
@@ -131,7 +133,7 @@ export function MergeLeadsModal({ isOpen, onClose, leadA, onMerged }: MergeLeads
               <div className="space-y-1">
                 {searchResults.map((lead) => (
                   <button
-                    key={lead.id}
+                    key={getLeadKey(lead)}
                     onClick={() => selectLeadB(lead)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 transition-colors text-left"
                   >

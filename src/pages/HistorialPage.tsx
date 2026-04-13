@@ -4,6 +4,7 @@ import { useLeadStore } from '../stores/useLeadStore';
 import { formatTimestamp } from '../utils/format';
 import { STATUS_CONFIG } from '../utils/constants';
 import { Archive, CheckCircle2, XCircle, ChevronDown, ChevronUp, Search } from 'lucide-react';
+import { getLeadKey } from '../lib/leads';
 
 /** Etiqueta del stage del pipeline en el que estaba el lead antes del cierre/cancelación */
 function PipelineStageBadge({ status }: { status: LeadStatus }) {
@@ -257,14 +258,13 @@ export function HistorialPage() {
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {filtered.map((lead) => {
+                {filtered.map((lead) => {
                     const prevStage = getPreviousStage(lead);
-                    const isExpanded = selectedLead?.id === lead.id;
+                    const leadKey = getLeadKey(lead);
+                    const isExpanded = selectedLead ? getLeadKey(selectedLead) === leadKey : false;
                     return (
-                      <>
+                      <tbody key={leadKey} className="divide-y divide-gray-50">
                         <tr
-                          key={lead.id}
                           className="cursor-pointer hover:bg-gray-50/80 transition-colors"
                           onClick={() => setSelectedLead(isExpanded ? null : lead)}
                         >
@@ -318,7 +318,7 @@ export function HistorialPage() {
 
                         {/* Expanded state history */}
                         {isExpanded && lead.stateHistory && lead.stateHistory.length > 0 && (
-                          <tr key={`${lead.id}-history`} className="bg-primary-50/30">
+                          <tr className="bg-primary-50/30">
                             <td colSpan={6} className="px-6 py-4">
                               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">
                                 Historial de cambios de estado
@@ -346,10 +346,9 @@ export function HistorialPage() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </tbody>
                     );
                   })}
-                </tbody>
               </table>
             </div>
 
@@ -357,9 +356,10 @@ export function HistorialPage() {
             <div className="md:hidden divide-y divide-gray-50">
               {filtered.map((lead) => {
                 const prevStage = getPreviousStage(lead);
-                const isExpanded = selectedLead?.id === lead.id;
+                const leadKey = getLeadKey(lead);
+                const isExpanded = selectedLead ? getLeadKey(selectedLead) === leadKey : false;
                 return (
-                  <div key={lead.id}>
+                  <div key={leadKey}>
                     <div
                       className="p-3.5 cursor-pointer active:bg-gray-50"
                       onClick={() => setSelectedLead(isExpanded ? null : lead)}

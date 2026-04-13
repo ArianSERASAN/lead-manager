@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy, QueryConstraint } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Activity } from '../../types/domain';
-
-const COLLECTION = 'leads';
+import { Activity, LeadCollection } from '../../types/domain';
+import { getLeadCollection } from '../../lib/leads';
 
 interface UseLeadActivityResult {
   activities: Activity[];
   loading: boolean;
 }
 
-export function useLeadActivity(leadId: string, _leadCollection?: string): UseLeadActivityResult {
+export function useLeadActivity(leadId: string, leadCollection?: LeadCollection | string): UseLeadActivityResult {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,15 +20,21 @@ export function useLeadActivity(leadId: string, _leadCollection?: string): UseLe
       return;
     }
 
-    const activityRef = collection(db, COLLECTION, leadId, 'activity');
-    const q = query(activityRef, orderBy('timestamp', 'desc') as QueryConstraint);
+    const activityRef = collection(
+      db,
+      getLeadCollection({ _collection: leadCollection as LeadCollection }),
+      leadId,
+      'activity'
+    );
+    const activityQuery = query(activityRef, orderBy('timestamp', 'desc') as QueryConstraint);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(activityQuery, (snapshot) => {
       const activityData: Activity[] = snapshot.docs.map((doc) => ({
         id: doc.id,
         leadId,
         ...doc.data(),
       })) as Activity[];
+
       setActivities(activityData);
       setLoading(false);
     }, (error) => {
@@ -39,7 +44,7 @@ export function useLeadActivity(leadId: string, _leadCollection?: string): UseLe
     });
 
     return () => unsubscribe();
-  }, [leadId]);
+  }, [leadCollection, leadId]);
 
   return { activities, loading };
 }

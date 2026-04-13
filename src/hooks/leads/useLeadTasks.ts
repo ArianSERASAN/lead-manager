@@ -1,27 +1,27 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Task } from '../../types/domain';
+import { LeadCollection, Task } from '../../types/domain';
+import { getLeadCollection } from '../../lib/leads';
 
-const COLLECTION = 'leads';
-
-export function useLeadTasks(_leadCollection: string, leadId: string) {
+export function useLeadTasks(leadCollection: LeadCollection | string, leadId: string) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!leadId) {
+      setTasks([]);
       setLoading(false);
       return;
     }
 
-    const tasksRef = collection(db, COLLECTION, leadId, 'tasks');
-    const q = query(tasksRef, orderBy('dueAt', 'asc'));
+    const tasksRef = collection(db, getLeadCollection({ _collection: leadCollection as LeadCollection }), leadId, 'tasks');
+    const tasksQuery = query(tasksRef, orderBy('dueAt', 'asc'));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const tasksData = snapshot.docs.map(doc => ({
+    const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+      const tasksData = snapshot.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       } as Task));
 
       setTasks(tasksData);
@@ -32,7 +32,7 @@ export function useLeadTasks(_leadCollection: string, leadId: string) {
     });
 
     return () => unsubscribe();
-  }, [leadId]);
+  }, [leadCollection, leadId]);
 
   return { tasks, loading };
 }

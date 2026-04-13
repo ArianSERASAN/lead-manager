@@ -1,8 +1,9 @@
 import { collection, doc, addDoc, updateDoc, deleteDoc, writeBatch, serverTimestamp, arrayUnion, query, where, limit, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { Lead, LeadStatus, StateChange } from '../types/domain';
+import { DEFAULT_LEAD_COLLECTION, getLeadCollection, LEAD_COLLECTIONS } from '../lib/leads';
 
-const COLLECTION = 'leads';
+const COLLECTION = DEFAULT_LEAD_COLLECTION;
 
 // Whitelist of fields that can be updated via updateLeadField
 const UPDATABLE_FIELDS = new Set([
@@ -38,7 +39,7 @@ export async function updateLeadField(lead: Lead, field: string, value: unknown)
     throw new Error(`El campo "${field}" no se puede actualizar.`);
   }
   try {
-    await updateDoc(doc(db, COLLECTION, lead.id), {
+    await updateDoc(doc(db, getLeadCollection(lead), lead.id), {
       [field]: value,
       updatedAt: serverTimestamp()
     });
@@ -78,7 +79,7 @@ export async function updateLeadStatus(
       updates.stateHistory = arrayUnion(stateChange);
     }
 
-    await updateDoc(doc(db, COLLECTION, lead.id), updates);
+    await updateDoc(doc(db, getLeadCollection(lead), lead.id), updates);
   } catch (error) {
     console.error('Error al actualizar estado:', error);
     throw new Error('No se pudo cambiar el estado. Inténtalo de nuevo.');
@@ -100,7 +101,7 @@ export async function cancelLead(
       toStatus: 'cancelado',
       reason,
     };
-    await updateDoc(doc(db, COLLECTION, lead.id), {
+    await updateDoc(doc(db, getLeadCollection(lead), lead.id), {
       status: 'cancelado',
       cancellationReason: reason,
       closedAt: serverTimestamp(),
@@ -117,7 +118,7 @@ export async function cancelLead(
 
 export async function updateLeadNotes(lead: Lead, notes: string): Promise<void> {
   try {
-    await updateDoc(doc(db, COLLECTION, lead.id), {
+    await updateDoc(doc(db, getLeadCollection(lead), lead.id), {
       notes,
       updatedAt: serverTimestamp()
     });
@@ -129,7 +130,7 @@ export async function updateLeadNotes(lead: Lead, notes: string): Promise<void> 
 
 export async function updateLeadTags(lead: Lead, tags: string[]): Promise<void> {
   try {
-    await updateDoc(doc(db, COLLECTION, lead.id), {
+    await updateDoc(doc(db, getLeadCollection(lead), lead.id), {
       tags,
       updatedAt: serverTimestamp()
     });
@@ -141,7 +142,7 @@ export async function updateLeadTags(lead: Lead, tags: string[]): Promise<void> 
 
 export async function assignLead(lead: Lead, userId: string): Promise<void> {
   try {
-    await updateDoc(doc(db, COLLECTION, lead.id), {
+    await updateDoc(doc(db, getLeadCollection(lead), lead.id), {
       assignedTo: userId,
       assignedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -154,7 +155,7 @@ export async function assignLead(lead: Lead, userId: string): Promise<void> {
 
 export async function deleteLeadDoc(lead: Lead): Promise<void> {
   try {
-    await deleteDoc(doc(db, COLLECTION, lead.id));
+    await deleteDoc(doc(db, getLeadCollection(lead), lead.id));
   } catch (error) {
     console.error('Error al eliminar lead:', error);
     throw new Error('No se pudo eliminar el lead. Inténtalo de nuevo.');
@@ -165,7 +166,7 @@ export async function bulkUpdateStatus(leads: Lead[], status: LeadStatus): Promi
   try {
     const batch = writeBatch(db);
     leads.forEach(lead => {
-      batch.update(doc(db, COLLECTION, lead.id), {
+      batch.update(doc(db, getLeadCollection(lead), lead.id), {
         status,
         updatedAt: serverTimestamp(),
         movedToStatusAt: serverTimestamp(),
@@ -182,7 +183,7 @@ export async function bulkDeleteLeads(leads: Lead[]): Promise<void> {
   try {
     const batch = writeBatch(db);
     leads.forEach(lead => {
-      batch.delete(doc(db, COLLECTION, lead.id));
+      batch.delete(doc(db, getLeadCollection(lead), lead.id));
     });
     await batch.commit();
   } catch (error) {
@@ -199,17 +200,21 @@ export async function checkDuplicateEmail(email: string): Promise<{ id: string; 
   const normalized = email.toLowerCase().trim();
   if (!normalized) return null;
 
-  const q = query(
-    collection(db, COLLECTION),
-    where('email', '==', normalized),
-    limit(1)
-  );
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return null;
+  for (const collectionName of LEAD_COLLECTIONS) {
+    const snapshot = await getDocs(query(
+      collection(db, collectionName),
+      where('email', '==', normalized),
+      limit(1)
+    ));
 
-  const d = snapshot.docs[0];
-  const data = d.data();
-  return { id: d.id, name: data.name || data.nombre || '\u2014', status: data.status || 'nuevo' };
+    if (!snapshot.empty) {
+      const d = snapshot.docs[0];
+      const data = d.data();
+      return { id: d.id, name: data.name || data.nombre || '\u2014', status: data.status || 'nuevo' };
+    }
+  }
+
+  return null;
 }
 
 export async function bulkAssign(leads: Lead[], userId: string): Promise<void> {
@@ -218,7 +223,7 @@ export async function bulkAssign(leads: Lead[], userId: string): Promise<void> {
     const chunk = leads.slice(i, i + BATCH_LIMIT);
     const batch = writeBatch(db);
     for (const lead of chunk) {
-      batch.update(doc(db, COLLECTION, lead.id), {
+      batch.update(doc(db, getLeadCollection(lead), lead.id), {
         assignedTo: userId,
         assignedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -234,7 +239,7 @@ export async function bulkAddTag(leads: Lead[], tag: string): Promise<void> {
     const chunk = leads.slice(i, i + BATCH_LIMIT);
     const batch = writeBatch(db);
     for (const lead of chunk) {
-      batch.update(doc(db, COLLECTION, lead.id), {
+      batch.update(doc(db, getLeadCollection(lead), lead.id), {
         tags: arrayUnion(tag),
         updatedAt: serverTimestamp(),
       });

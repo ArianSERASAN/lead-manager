@@ -2,6 +2,7 @@ import { doc, writeBatch, serverTimestamp, deleteDoc } from 'firebase/firestore'
 import { db } from '../lib/firebase';
 import { Lead } from '../types/domain';
 import * as ActivityService from './ActivityService';
+import { getLeadCollection } from '../lib/leads';
 
 /**
  * Merge two leads: update the "keep" lead with merged fields, delete the "discard" lead.
@@ -15,7 +16,8 @@ export async function mergeLeads(
   userName: string
 ): Promise<void> {
   const batch = writeBatch(db);
-  const collection = keepLead._collection || 'leads';
+  const keepCollection = getLeadCollection(keepLead);
+  const discardCollection = getLeadCollection(discardLead);
 
   // Update the kept lead with merged data
   const updateData: Record<string, unknown> = {
@@ -31,17 +33,17 @@ export async function mergeLeads(
   delete updateData.scoreBreakdown;
   delete updateData.isStale;
 
-  batch.update(doc(db, collection, keepLead.id), updateData);
+  batch.update(doc(db, keepCollection, keepLead.id), updateData);
 
   // Delete the discarded lead
-  batch.delete(doc(db, collection, discardLead.id));
+  batch.delete(doc(db, discardCollection, discardLead.id));
 
   await batch.commit();
 
   // Record activity
   await ActivityService.recordActivity(
     keepLead.id,
-    collection,
+    keepCollection,
     userId,
     userName,
     'field_updated',

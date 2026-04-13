@@ -6,17 +6,30 @@ import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 import { getMessaging } from 'firebase-admin/messaging';
 import nodemailer from 'nodemailer';
 import { calculateLeadScore, isLeadStale } from './scoring.js';
+import {
+  APOLLO_API_KEY as CONFIG_APOLLO_API_KEY,
+  GMAIL_APP_PASS as CONFIG_GMAIL_APP_PASS,
+  GMAIL_USER as CONFIG_GMAIL_USER,
+  LEAD_COLLECTIONS,
+  LEAD_SOURCE_BY_COLLECTION,
+} from './config.js';
+import {
+  callApolloOrgEnrich as callApolloOrgEnrichRequest,
+  callApolloPeopleEnrich as callApolloPeopleEnrichRequest,
+  buildEnrichmentData as buildApolloEnrichmentData,
+} from './apollo.js';
+import { backfillLeadScoring, syncLeadScoring } from './lead-scoring.js';
 
 initializeApp();
 const db = getFirestore();
 
 // Gmail credentials — loaded from .env file (created by CI from GitHub secrets)
-const GMAIL_USER = process.env.GMAIL_USER;
-const GMAIL_APP_PASS = process.env.GMAIL_APP_PASS;
+const GMAIL_USER = CONFIG_GMAIL_USER;
+const GMAIL_APP_PASS = CONFIG_GMAIL_APP_PASS;
 
 // Apollo.io API key — loaded from .env file (created by CI from GitHub secrets)
 // To activate: add APOLLO_API_KEY to your GitHub secrets and .env
-const APOLLO_API_KEY = process.env.APOLLO_API_KEY || '';
+const APOLLO_API_KEY = CONFIG_APOLLO_API_KEY;
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -123,8 +136,8 @@ async function sendPushToUsers(userIds, title, body, data = {}) {
 
 // ─── 1. NEW LEAD ALERT ────────────────────────────────────────────
 
-const newLeadCollections = ['leads', 'leads_descargas', 'solicitudes_contacto'];
-const sourceByCollection = { leads: 'landing', leads_descargas: 'web-download', solicitudes_contacto: 'web-contact' };
+const newLeadCollections = LEAD_COLLECTIONS;
+const sourceByCollection = LEAD_SOURCE_BY_COLLECTION;
 
 export const onNewLead = onDocumentCreated(
   {
@@ -775,17 +788,17 @@ export const enrichLead = onCall(
 
     try {
       // Call Apollo People Enrichment
-      const personRes = await callApolloPeopleEnrich(email, firstName, lastName, emailDomain);
+      const personRes = await callApolloPeopleEnrichRequest(APOLLO_API_KEY, email, firstName, lastName, emailDomain);
 
       // Optionally call Organization Enrichment for more company data
       const orgDomain = personRes?.person?.organization?.primary_domain || emailDomain;
       let orgRes = null;
       if (orgDomain) {
-        orgRes = await callApolloOrgEnrich(orgDomain);
+        orgRes = await callApolloOrgEnrichRequest(APOLLO_API_KEY, orgDomain);
       }
 
       // Build enrichment object
-      const enrichment = buildEnrichmentData(personRes, orgRes);
+      const enrichment = buildApolloEnrichmentData(personRes, orgRes);
 
       // Update Firestore
       const updateData = {
@@ -853,15 +866,15 @@ export const autoEnrichNewLead = onDocumentCreated(
     const emailDomain = email.includes('@') ? email.split('@')[1] : '';
 
     try {
-      const personRes = await callApolloPeopleEnrich(email, firstName, lastName, emailDomain);
+      const personRes = await callApolloPeopleEnrichRequest(APOLLO_API_KEY, email, firstName, lastName, emailDomain);
 
       const orgDomain = personRes?.person?.organization?.primary_domain || emailDomain;
       let orgRes = null;
       if (orgDomain) {
-        orgRes = await callApolloOrgEnrich(orgDomain);
+        orgRes = await callApolloOrgEnrichRequest(APOLLO_API_KEY, orgDomain);
       }
 
-      const enrichment = buildEnrichmentData(personRes, orgRes);
+      const enrichment = buildApolloEnrichmentData(personRes, orgRes);
 
       const updateData = {
         enrichment,
@@ -1515,22 +1528,15 @@ export const initEmailSequenceConfig = onCall(
  * Guard: only writes back if score or isStale actually changed (prevents infinite loop).
  */
 export const onLeadWrite = onDocumentWritten(
-  { document: 'leads/{docId}', region: 'europe-west1' },
+  { document: '{collection}/{docId}', region: 'europe-west1' },
   async (event) => {
+    const collectionName = event.params.collection;
+    if (!LEAD_COLLECTIONS.includes(collectionName)) return;
+
     const after = event.data?.after?.data();
     if (!after) return; // Document was deleted
 
-    const { score, breakdown } = calculateLeadScore(after);
-    const stale = isLeadStale(after);
-
-    // Only write if values actually changed
-    if (after.score === score && after.isStale === stale) return;
-
-    await event.data.after.ref.update({
-      score,
-      scoreBreakdown: breakdown,
-      isStale: stale,
-    });
+    await syncLeadScoring(event.data.after.ref, after);
   }
 );
 
@@ -1548,37 +1554,7 @@ export const backfillScores = onCall(
       throw new HttpsError('permission-denied', 'Admin only');
     }
 
-    const snapshot = await db.collection('leads').get();
-    let updated = 0;
-    let skipped = 0;
-    const BATCH_LIMIT = 499;
-    let batch = db.batch();
-    let batchCount = 0;
-
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const { score, breakdown } = calculateLeadScore(data);
-      const stale = isLeadStale(data);
-
-      if (data.score === score && data.isStale === stale) {
-        skipped++;
-        continue;
-      }
-
-      batch.update(doc.ref, { score, scoreBreakdown: breakdown, isStale: stale });
-      batchCount++;
-      updated++;
-
-      if (batchCount >= BATCH_LIMIT) {
-        await batch.commit();
-        batch = db.batch();
-        batchCount = 0;
-      }
-    }
-
-    if (batchCount > 0) await batch.commit();
-
-    return { updated, skipped, total: snapshot.size };
+    return backfillLeadScoring(db, LEAD_COLLECTIONS);
   }
 );
 
@@ -1589,8 +1565,11 @@ export const sendLeadEmail = onCall(
   async (request) => {
     if (!request.auth) throw new HttpsError('unauthenticated', 'Auth required');
 
-    const { to, subject, body, leadId } = request.data;
+    const { to, subject, body, leadId, collection = 'leads' } = request.data;
     if (!to || !subject || !body) throw new HttpsError('invalid-argument', 'Missing fields');
+    if (leadId && !LEAD_COLLECTIONS.includes(collection)) {
+      throw new HttpsError('invalid-argument', `Coleccion de lead no valida: ${collection}`);
+    }
 
     if (!GMAIL_USER || !GMAIL_APP_PASS) {
       throw new HttpsError('failed-precondition', 'Gmail credentials not configured');
@@ -1609,7 +1588,7 @@ export const sendLeadEmail = onCall(
       const userDoc = await db.doc(`users/${request.auth.uid}`).get();
       const userName = userDoc.exists ? (userDoc.data().name || userDoc.data().email) : request.auth.uid;
 
-      await db.collection('leads').doc(leadId).collection('activity').add({
+      await db.collection(collection).doc(leadId).collection('activity').add({
         action: 'email_sent',
         actor: request.auth.uid,
         actorName: userName,
