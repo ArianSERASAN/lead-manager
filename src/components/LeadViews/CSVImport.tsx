@@ -1,6 +1,6 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, type MouseEvent } from 'react';
 import {
-  X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2,
+  X, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Download,
   Loader2, ChevronDown, ChevronRight, Tag,
 } from 'lucide-react';
 import {
@@ -12,6 +12,7 @@ import {
   buildMissingFieldDefinitions,
   STANDARD_FIELD_LABELS,
   checkDuplicatesInBatch,
+  downloadOfficialImportTemplate,
   generateSlug,
   getOfficialImportColumn,
   type DuplicateMatch,
@@ -59,8 +60,20 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
-  const validCount = rows.filter((row) => validateRow(mapRow(row, autoMapping)).length === 0).length;
+  const previewRows = rows.map((row) => {
+    const lead = mapRow(row, autoMapping);
+    const errors = validateRow(lead);
+    return { lead, errors };
+  });
+  const validPreviewLeads = previewRows
+    .filter(({ errors }) => errors.length === 0)
+    .map(({ lead }) => lead);
+  const validCount = validPreviewLeads.length;
   const invalidCount = rows.length - validCount;
+  const duplicatePreviewCount = validPreviewLeads.filter(
+    (lead) => lead.email && duplicates.has(lead.email.toLowerCase().trim())
+  ).length;
+  const finalImportCount = skipDuplicates ? validCount - duplicatePreviewCount : validCount;
 
   const officialEntries = headers
     .map((header) => ({ header, column: getOfficialImportColumn(header) }))
@@ -179,9 +192,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     }
 
     // 2. Map, validate, and optionally skip duplicates
-    let mappedLeads = rows
-      .map((row) => mapRow(row, autoMapping))
-      .filter((lead) => validateRow(lead).length === 0);
+    let mappedLeads = [...validPreviewLeads];
 
     if (skipDuplicates && duplicates.size > 0) {
       mappedLeads = mappedLeads.filter(
@@ -217,6 +228,11 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
   };
 
   if (!isOpen) return null;
+
+  const handleDownloadTemplate = (event?: MouseEvent) => {
+    event?.stopPropagation();
+    downloadOfficialImportTemplate();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -269,6 +285,14 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 <p className="text-[11px] text-primary-600 mt-2">
                   Las columnas fuera de esta plantilla seguiran entrando como campos adicionales.
                 </p>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="mt-3 inline-flex items-center gap-2 rounded-lg border border-primary-200 bg-white px-3 py-2 text-xs font-semibold text-primary-700 hover:bg-primary-50 transition-colors"
+                >
+                  <Download size={14} />
+                  Descargar plantilla .xlsx
+                </button>
               </div>
               <input
                 ref={fileRef}
@@ -301,6 +325,9 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 )}
                 <span className="text-xs text-gray-400 ml-auto">
                   {headers.length} columnas
+                </span>
+                <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2.5 py-1 rounded-lg">
+                  {finalImportCount} para importar
                 </span>
               </div>
 
@@ -358,6 +385,26 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 <div className="flex items-center gap-2 text-xs text-gray-400">
                   <Loader2 size={12} className="animate-spin" />
                   Comprobando duplicados...
+                </div>
+              )}
+
+              {!checkingDuplicates && (invalidCount > 0 || duplicatePreviewCount > 0) && (
+                <div className="rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-3">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Resumen operativo
+                  </p>
+                  <div className="grid gap-1 text-sm text-gray-600">
+                    <p>Filas válidas detectadas: <span className="font-semibold text-gray-900">{validCount}</span></p>
+                    {invalidCount > 0 && (
+                      <p>Filas descartadas por venir vacías: <span className="font-semibold text-gray-900">{invalidCount}</span></p>
+                    )}
+                    {duplicatePreviewCount > 0 && (
+                      <p>
+                        Duplicados en el archivo actual: <span className="font-semibold text-gray-900">{duplicatePreviewCount}</span>
+                        {skipDuplicates ? ' (se omitirán)' : ' (se importarán)'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -543,7 +590,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 size={36} className="text-primary-600 animate-spin mb-4" />
               <p className="text-sm font-semibold text-gray-700">
-                Importando {validCount} leads...
+                Importando {finalImportCount} leads...
               </p>
               <p className="text-xs text-gray-400 mt-1">Guardando campos y datos en Firestore</p>
             </div>
@@ -580,6 +627,27 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                   en la ficha del lead, organizados por sección.
                 </p>
               )}
+              {(officialMissingFieldEntries.length > 0 || duplicatePreviewCount > 0 || invalidCount > 0) && (
+                <div className="mt-4 w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Resumen de esta importación
+                  </p>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    {officialMissingFieldEntries.length > 0 && (
+                      <p>Campos oficiales creados: <span className="font-semibold text-gray-900">{officialMissingFieldEntries.length}</span></p>
+                    )}
+                    {newFieldHeaders.length > 0 && (
+                      <p>Campos adicionales creados: <span className="font-semibold text-gray-900">{newFieldHeaders.length}</span></p>
+                    )}
+                    {invalidCount > 0 && (
+                      <p>Filas vacías descartadas: <span className="font-semibold text-gray-900">{invalidCount}</span></p>
+                    )}
+                    {duplicatePreviewCount > 0 && skipDuplicates && (
+                      <p>Duplicados omitidos: <span className="font-semibold text-gray-900">{duplicatePreviewCount}</span></p>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -599,7 +667,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 disabled={validCount === 0 || !userId}
                 className="px-5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-xl hover:bg-primary-700 disabled:opacity-50 transition-colors"
               >
-                Confirmar e importar {validCount} leads →
+                Confirmar e importar {finalImportCount} leads →
               </button>
             </>
           )}
