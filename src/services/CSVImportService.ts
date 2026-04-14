@@ -10,7 +10,8 @@ import {
   getDocs as firestoreGetDocs,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import type { FieldDefinition } from '../types/domain';
+import type { FieldDefinition, FieldType } from '../types/domain';
+import { LEAD_COLLECTIONS } from '../lib/leads';
 
 export interface CSVParseResult {
   headers: string[];
@@ -37,6 +38,16 @@ export interface MappedLead {
   referenciaCatastral?: string;
   message?: string;
   customFields?: Record<string, string>;
+}
+
+export interface OfficialImportColumn {
+  header: string;
+  aliases?: string[];
+  section: string;
+  order: number;
+  type: FieldType;
+  leadField?: keyof MappedLead;
+  customField?: string;
 }
 
 // ─── Normalization helpers ────────────────────────────────────────────────────
@@ -165,16 +176,6 @@ export const OFFICIAL_IMPORT_COLUMNS: OfficialImportColumn[] = [
   { header: 'PDF Generado', section: 'Prospección', order: 32, type: 'url', customField: 'pdf_generado', aliases: ['pdf generado'] },
 ];
 
-export const OFFICIAL_CUSTOM_FIELD_NAMES: string[] = OFFICIAL_IMPORT_COLUMNS
-  .map((column) => column.customField)
-  .filter((value): value is string => Boolean(value));
-
-const OFFICIAL_CUSTOM_FIELD_SET = new Set(OFFICIAL_CUSTOM_FIELD_NAMES);
-
-export function isOfficialCustomFieldName(name: string): boolean {
-  return OFFICIAL_CUSTOM_FIELD_SET.has(name);
-}
-
 const OFFICIAL_IMPORT_MAP = new Map<string, OfficialImportColumn>();
 for (const column of OFFICIAL_IMPORT_COLUMNS) {
   OFFICIAL_IMPORT_MAP.set(normalize(column.header), column);
@@ -185,104 +186,6 @@ for (const column of OFFICIAL_IMPORT_COLUMNS) {
 
 export function getOfficialImportColumn(header: string): OfficialImportColumn | null {
   return OFFICIAL_IMPORT_MAP.get(normalize(header)) || null;
-}
-
-export function getOfficialImportSections(): Array<{
-  section: string;
-  columns: OfficialImportColumn[];
-}> {
-  const sections: Array<{ section: string; columns: OfficialImportColumn[] }> = [];
-  for (const column of OFFICIAL_IMPORT_COLUMNS) {
-    const existingSection = sections.find((entry) => entry.section === column.section);
-    if (existingSection) {
-      existingSection.columns.push(column);
-    } else {
-      sections.push({ section: column.section, columns: [column] });
-    }
-  }
-  return sections;
-}
-
-const OFFICIAL_TEMPLATE_EXAMPLE_VALUES: Record<string, string> = {
-  Empresa: 'Empresa Ejemplo',
-  CIF: 'B12345678',
-  Sector: 'Logistica',
-  Facturación: '12500000',
-  Empleados: '85',
-  Sede: 'Madrid',
-  Web: 'https://empresa-ejemplo.com',
-  CEO: 'Ana Lopez',
-  Cargo: 'CEO',
-  'LinkedIn CEO': 'https://linkedin.com/in/ana-lopez',
-  'Facilities/COO': 'Carlos Martin',
-  Email: 'ana@empresa-ejemplo.com',
-  Teléfono: '600123123',
-  'Nº Activos': '12',
-  'm² Totales': '18500',
-  Régimen: 'Propiedad',
-  'Año Construcción': '2006',
-  'Cert. Energética': 'B',
-  Instalaciones: 'Climatizacion, BMS, alumbrado LED',
-  'Score Total': '87',
-  'Score Obsolescencia': '24',
-  'Score Potencial': '18',
-  'Score Control': '14',
-  'Score Contacto': '12',
-  'Score Tamaño': '11',
-  'Score ESG': '8',
-  Tier: 'A',
-  Temperatura: 'Caliente',
-  'Hook Inicial': 'Ahorro energetico en activos logisticos',
-  'Problema Identificado': 'Equipos HVAC con baja eficiencia',
-  'Propuesta Concreta': 'Auditoria tecnica y plan de renovacion',
-  'PDF Generado': 'https://empresa-ejemplo.com/propuesta.pdf',
-};
-
-export function buildOfficialImportTemplateRows(): string[][] {
-  const sections = getOfficialImportSections();
-  const sectionRow: string[] = [];
-  const headerRow: string[] = [];
-  const exampleRow: string[] = [];
-
-  for (const { section, columns } of sections) {
-    columns.forEach((column, index) => {
-      sectionRow.push(index === 0 ? section : '');
-      headerRow.push(column.header);
-      exampleRow.push(OFFICIAL_TEMPLATE_EXAMPLE_VALUES[column.header] || '');
-    });
-  }
-
-  return [sectionRow, headerRow, exampleRow];
-}
-
-export function downloadOfficialImportTemplate(
-  fileName = 'plantilla_importacion_leads.xlsx'
-): void {
-  const workbook = XLSX.utils.book_new();
-  const rows = buildOfficialImportTemplateRows();
-  const sheet = XLSX.utils.aoa_to_sheet(rows);
-  const sections = getOfficialImportSections();
-  const merges: XLSX.Range[] = [];
-  const columns: Array<{ wch: number }> = [];
-
-  let columnIndex = 0;
-  for (const { columns: sectionColumns } of sections) {
-    if (sectionColumns.length > 1) {
-      merges.push({
-        s: { r: 0, c: columnIndex },
-        e: { r: 0, c: columnIndex + sectionColumns.length - 1 },
-      });
-    }
-    for (const column of sectionColumns) {
-      columns.push({ wch: Math.max(column.header.length + 4, 16) });
-      columnIndex += 1;
-    }
-  }
-
-  sheet['!merges'] = merges;
-  sheet['!cols'] = columns;
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Importacion');
-  XLSX.writeFile(workbook, fileName);
 }
 
 // Labels for display in the review step
@@ -308,6 +211,11 @@ export const STANDARD_FIELD_LABELS: Record<string, string> = {
 export function autoMapHeaders(headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const header of headers) {
+    const officialColumn = getOfficialImportColumn(header);
+    if (officialColumn?.leadField) {
+      mapping[header] = officialColumn.leadField;
+      continue;
+    }
     const n = normalize(header);
     mapping[header] = HEADER_MAP[n] ?? '';
   }
@@ -331,9 +239,10 @@ export function buildMissingFieldDefinitions(
 
   for (const header of headers) {
     const leadField = headerMapping[header];
-    if (leadField) continue; // already mapped to standard field
+    const officialColumn = getOfficialImportColumn(header);
+    if (leadField && !officialColumn?.customField) continue; // already mapped to standard field
 
-    const slug = generateSlug(header);
+    const slug = officialColumn?.customField || generateSlug(header);
     if (!slug) continue;
     if (existingNames.has(slug)) continue; // schema already has this field
 
@@ -341,14 +250,13 @@ export function buildMissingFieldDefinitions(
 
     // Clean up Excel section name (remove leading "A. ", "B. " prefixes)
     const rawSection = columnSections[header] || '';
-    const section = rawSection.replace(/^[A-Z]\.\s+/, '').trim() || 'Datos importados';
+    const section = officialColumn?.section || rawSection.replace(/^[A-Z]\.\s+/, '').trim() || 'Datos importados';
 
     newFields.push({
       id: generateFieldId(),
       name: slug,
       label: header,
       type: officialColumn?.type || 'text',
-      official: Boolean(officialColumn?.customField && slug === officialColumn.customField),
       visible: true,
       required: false,
       section,
@@ -501,10 +409,19 @@ export function mapRow(
     const trimmed = String(val).trim();
     if (!trimmed) continue;
 
+    const officialColumn = getOfficialImportColumn(csvHeader);
+
+    if (officialColumn?.leadField && !lead[officialColumn.leadField]) {
+      lead[officialColumn.leadField] = trimmed;
+    }
+
     if (leadField) {
       lead[leadField] = trimmed;
-    } else {
-      // Unmapped column → custom field (slug as key)
+    }
+
+    if (officialColumn?.customField) {
+      custom[officialColumn.customField] = trimmed;
+    } else if (!leadField) {
       const slug = generateSlug(csvHeader);
       if (slug) custom[slug] = trimmed;
     }
@@ -572,22 +489,24 @@ export async function checkDuplicatesInBatch(
   if (uniqueEmails.length === 0) return result;
 
   const CHUNK_SIZE = 30; // Firestore 'in' query limit
-  for (let i = 0; i < uniqueEmails.length; i += CHUNK_SIZE) {
-    const chunk = uniqueEmails.slice(i, i + CHUNK_SIZE);
-    const q = firestoreQuery(
-      firestoreCollection(db, 'leads'),
-      firestoreWhere('email', 'in', chunk)
-    );
-    const snapshot = await firestoreGetDocs(q);
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const email = (data.email || '').toLowerCase().trim();
-      if (email) {
-        result.set(email, {
-          id: doc.id,
-          name: data.name || data.nombre || '—',
-          status: data.status || 'nuevo',
-        });
+  for (const collectionName of LEAD_COLLECTIONS) {
+    for (let i = 0; i < uniqueEmails.length; i += CHUNK_SIZE) {
+      const chunk = uniqueEmails.slice(i, i + CHUNK_SIZE);
+      const q = firestoreQuery(
+        firestoreCollection(db, collectionName),
+        firestoreWhere('email', 'in', chunk)
+      );
+      const snapshot = await firestoreGetDocs(q);
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const email = (data.email || '').toLowerCase().trim();
+        if (email && !result.has(email)) {
+          result.set(email, {
+            id: doc.id,
+            name: data.name || data.nombre || '—',
+            status: data.status || 'nuevo',
+          });
+        }
       }
     }
   }

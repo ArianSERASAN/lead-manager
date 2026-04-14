@@ -12,11 +12,10 @@ import {
   buildMissingFieldDefinitions,
   STANDARD_FIELD_LABELS,
   checkDuplicatesInBatch,
-  downloadOfficialImportTemplate,
   generateSlug,
   getOfficialImportColumn,
-  isOfficialCustomFieldName,
   type DuplicateMatch,
+  type OfficialImportColumn,
 } from '../../services/CSVImportService';
 import { saveFieldSchema } from '../../services/FieldSchemaService';
 import { useFieldSchema } from '../../hooks/leads/useFieldSchema';
@@ -31,6 +30,16 @@ interface CSVImportProps {
 }
 
 type Step = 'upload' | 'review' | 'importing' | 'results';
+
+function getOfficialDestinationLabel(column: OfficialImportColumn): string {
+  if (column.leadField && column.customField) {
+    return `${STANDARD_FIELD_LABELS[column.leadField] || column.leadField} + campo oficial`;
+  }
+  if (column.leadField) {
+    return STANDARD_FIELD_LABELS[column.leadField] || column.leadField;
+  }
+  return 'Campo oficial';
+}
 
 export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVImportProps) {
   const { fields: existingSchema } = useFieldSchema();
@@ -54,14 +63,40 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
   const validCount = rows.filter((row) => validateRow(mapRow(row, autoMapping)).length === 0).length;
   const invalidCount = rows.length - validCount;
 
-  // Auto-mapped columns (map to a standard lead field)
-  const autoMappedEntries = headers.filter((h) => autoMapping[h]);
+  const officialEntries = headers
+    .map((header) => ({ header, column: getOfficialImportColumn(header) }))
+    .filter((entry): entry is { header: string; column: OfficialImportColumn } => Boolean(entry.column))
+    .sort((a, b) => a.column.order - b.column.order);
+
+  const officialEntriesBySection: Record<string, { header: string; column: OfficialImportColumn }[]> = {};
+  for (const entry of officialEntries) {
+    if (!officialEntriesBySection[entry.column.section]) officialEntriesBySection[entry.column.section] = [];
+    officialEntriesBySection[entry.column.section].push(entry);
+  }
+
+  // Auto-mapped generic columns (map to a standard lead field but are not part of the official template)
+  const autoMappedEntries = headers.filter((h) => autoMapping[h] && !getOfficialImportColumn(h));
 
   // Columns that will become new custom fields (not mapped, not already in schema)
   const existingSlugs = new Set(existingSchema.map((f) => f.name));
+  const officialFieldNames = new Set(
+    officialEntries
+      .map(({ column }) => column.customField)
+      .filter((value): value is string => Boolean(value))
+  );
+
+  const officialMissingFieldEntries = officialEntries.filter(
+    ({ column }) => column.customField && !existingSlugs.has(column.customField)
+  );
+
+  const officialExistingFieldEntries = officialEntries.filter(
+    ({ column }) => column.customField && existingSlugs.has(column.customField)
+  );
+
   const newFieldHeaders = headers.filter((h) => {
+    if (getOfficialImportColumn(h)) return false;
     if (autoMapping[h]) return false; // mapped to standard field
-    const slug = h.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const slug = generateSlug(h);
     return slug && !existingSlugs.has(slug);
   });
 
@@ -69,16 +104,19 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
   const newFieldsBySection: Record<string, string[]> = {};
   for (const h of newFieldHeaders) {
     const rawSection = columnSections[h] || '';
-    const section = rawSection.replace(/^[A-Z]\.\s+/, '').trim() || 'Sin sección';
+    const normalizedSection = rawSection.replace(/^[A-Z]\.\s+/, '').trim();
+    const sectionLabel = normalizedSection || 'Sin sección';
+    const section = sectionLabel;
     if (!newFieldsBySection[section]) newFieldsBySection[section] = [];
     newFieldsBySection[section].push(h);
   }
 
   // Already-in-schema custom fields (not shown as "new")
   const existingCustomHeaders = headers.filter((h) => {
+    if (getOfficialImportColumn(h)) return false;
     if (autoMapping[h]) return false;
-    const slug = h.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    return slug && existingSlugs.has(slug);
+    const slug = generateSlug(h);
+    return slug && !officialFieldNames.has(slug) && existingSlugs.has(slug);
   });
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -225,9 +263,24 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
             >
               <Upload size={36} className="text-gray-300 mx-auto mb-4" />
               <p className="text-sm font-semibold text-gray-700 mb-1">
-                Arrastra un archivo CSV o Excel aquí
+                Arrastra un archivo CSV o Excel aqui
               </p>
               <p className="text-xs text-gray-400">Formatos: .csv, .xlsx</p>
+              <div className="mt-5 rounded-xl border border-primary-100 bg-primary-50/50 px-4 py-3 text-left max-w-xl mx-auto">
+                <p className="text-[11px] font-bold text-primary-700 uppercase tracking-wider mb-2">
+                  Plantilla oficial recomendada
+                </p>
+                <div className="grid gap-1 text-xs text-primary-900">
+                  <p><span className="font-semibold">Empresa:</span> Empresa, CIF, Sector, Facturacion, Empleados, Sede, Web</p>
+                  <p><span className="font-semibold">Contacto:</span> CEO, Cargo, LinkedIn CEO, Facilities/COO, Email, Telefono</p>
+                  <p><span className="font-semibold">Activos e inmueble:</span> N Activos, m2 Totales, Regimen, Ano Construccion, Cert. Energetica, Instalaciones</p>
+                  <p><span className="font-semibold">Scoring:</span> Score Total, Score Obsolescencia, Score Potencial, Score Control, Score Contacto, Score Tamano, Score ESG, Tier, Temperatura</p>
+                  <p><span className="font-semibold">Prospeccion:</span> Hook Inicial, Problema Identificado, Propuesta Concreta, PDF Generado</p>
+                </div>
+                <p className="text-[11px] text-primary-600 mt-2">
+                  Las columnas fuera de esta plantilla seguiran entrando como campos adicionales.
+                </p>
+              </div>
               <input
                 ref={fileRef}
                 type="file"
@@ -254,7 +307,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 </span>
                 {invalidCount > 0 && (
                   <span className="text-xs font-bold text-red-500 bg-red-50 px-2.5 py-1 rounded-lg">
-                    {invalidCount} sin nombre/email
+                    {invalidCount} vacías
                   </span>
                 )}
                 <span className="text-xs text-gray-400 ml-auto">
@@ -319,6 +372,44 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 </div>
               )}
 
+              {officialEntries.length > 0 && (
+                <div className="rounded-xl border border-primary-100 bg-primary-50/40 overflow-hidden">
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-primary-100">
+                    <CheckCircle2 size={15} className="text-primary-600" />
+                    <span className="text-sm font-semibold text-primary-800">
+                      Plantilla oficial detectada
+                    </span>
+                    <span className="text-xs font-bold text-primary-600 bg-primary-100 px-2 py-0.5 rounded-full">
+                      {officialEntries.length}
+                    </span>
+                    {officialMissingFieldEntries.length > 0 && (
+                      <span className="text-[11px] font-semibold text-primary-700 ml-auto">
+                        {officialMissingFieldEntries.length} campos oficiales se crearán
+                      </span>
+                    )}
+                  </div>
+                  <div className="px-4 py-3 space-y-3">
+                    {Object.entries(officialEntriesBySection).map(([section, entries]) => (
+                      <div key={section}>
+                        <p className="text-[10px] font-bold text-primary-600 uppercase tracking-wider mb-1.5">
+                          {section}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {entries.map(({ header, column }) => (
+                            <span
+                              key={header}
+                              className="text-xs bg-white border border-primary-200 text-primary-700 rounded-md px-2 py-0.5"
+                            >
+                              {header}{' -> '}{getOfficialDestinationLabel(column)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── Auto-mapped fields ── */}
               {autoMappedEntries.length > 0 && (
                 <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 overflow-hidden">
@@ -350,7 +441,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                           className="flex items-center gap-1.5 bg-white border border-emerald-200 rounded-lg px-2.5 py-1 text-xs"
                         >
                           <span className="text-gray-500 truncate max-w-[90px]">{h}</span>
-                          <span className="text-emerald-400">→</span>
+                          <span className="text-emerald-400">{'->'}</span>
                           <span className="font-semibold text-emerald-700">
                             {STANDARD_FIELD_LABELS[autoMapping[h]] || autoMapping[h]}
                           </span>
@@ -387,12 +478,39 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
               )}
 
               {/* ── New fields to create ── */}
+              {officialExistingFieldEntries.length > 0 && (
+                <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag size={14} className="text-indigo-500" />
+                    <span className="text-sm font-semibold text-indigo-800">
+                      Campos oficiales ya existentes en la ficha
+                    </span>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-full">
+                      {officialExistingFieldEntries.length}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {officialExistingFieldEntries.map(({ header }) => (
+                      <span
+                        key={header}
+                        className="text-xs bg-white border border-indigo-200 text-indigo-600 rounded-md px-2 py-0.5"
+                      >
+                        {header}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {newFieldHeaders.length > 0 && (
                 <div className="rounded-xl border border-amber-100 bg-amber-50/40 overflow-hidden">
                   <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-100">
                     <AlertCircle size={15} className="text-amber-500" />
                     <span className="text-sm font-semibold text-amber-800">
-                      Columnas no previstas detectadas (se verán en ficha, sin crear campos en Configuración)
+                      Columnas no previstas que se crearán como campos adicionales
+                    </span>
+                    <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                      {newFieldHeaders.length}
                     </span>
                     <div className="ml-auto flex items-center gap-1.5">
                       <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">

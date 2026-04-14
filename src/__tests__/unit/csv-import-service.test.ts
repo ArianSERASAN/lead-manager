@@ -6,9 +6,7 @@ import {
   generateSlug,
   generateFieldId,
   buildMissingFieldDefinitions,
-  buildOfficialImportTemplateRows,
   getOfficialImportColumn,
-  isOfficialCustomFieldName,
 } from '../../services/CSVImportService';
 
 describe('generateSlug', () => {
@@ -77,6 +75,15 @@ describe('autoMapHeaders', () => {
     expect(result['Superficie']).toBe('superficie');
     expect(result['Referencia Catastral']).toBe('referenciaCatastral');
   });
+
+  it('maps official template headers to the expected standard fields', () => {
+    const result = autoMapHeaders(['Empresa', 'CEO', 'Email', 'Sede', 'Cargo']);
+    expect(result['Empresa']).toBe('company');
+    expect(result['CEO']).toBe('name');
+    expect(result['Email']).toBe('email');
+    expect(result['Sede']).toBe('localidad');
+    expect(result['Cargo']).toBe('cargo');
+  });
 });
 
 describe('mapRow', () => {
@@ -121,6 +128,28 @@ describe('mapRow', () => {
     const result = mapRow(row, mapping);
     expect(result.email).toBe('');
     expect(result.phone).toBeUndefined();
+  });
+
+  it('stores official template custom fields while keeping standard lead fields', () => {
+    const mapping = autoMapHeaders(['Empresa', 'CEO', 'Cargo', 'Email', 'CIF', 'Score Total']);
+    const row = {
+      'Empresa': 'SERASAN',
+      'CEO': 'Ana Lopez',
+      'Cargo': 'CEO',
+      'Email': 'ana@serasan.es',
+      'CIF': 'B12345678',
+      'Score Total': '87',
+    };
+
+    const result = mapRow(row, mapping);
+
+    expect(result.company).toBe('SERASAN');
+    expect(result.name).toBe('Ana Lopez');
+    expect(result.cargo).toBe('CEO');
+    expect(result.email).toBe('ana@serasan.es');
+    expect(result.customFields?.cif).toBe('B12345678');
+    expect(result.customFields?.ceo).toBe('Ana Lopez');
+    expect(result.customFields?.score_total).toBe('87');
   });
 });
 
@@ -196,8 +225,6 @@ describe('buildMissingFieldDefinitions', () => {
     expect(result.map((field) => field.name)).toEqual(['ceo', 'cif', 'score_total']);
     expect(result.find((field) => field.name === 'ceo')?.section).toBe('Contacto');
     expect(result.find((field) => field.name === 'score_total')?.type).toBe('number');
-    expect(result.find((field) => field.name === 'ceo')?.official).toBe(true);
-    expect(result.find((field) => field.name === 'cif')?.official).toBe(true);
   });
 });
 
@@ -206,27 +233,5 @@ describe('getOfficialImportColumn', () => {
     expect(getOfficialImportColumn('CIF')?.customField).toBe('cif');
     expect(getOfficialImportColumn('Telefono')?.leadField).toBe('phone');
     expect(getOfficialImportColumn('LinkedIn CEO')?.customField).toBe('linkedin_ceo');
-  });
-});
-
-describe('isOfficialCustomFieldName', () => {
-  it('returns true only for official custom field slugs', () => {
-    expect(isOfficialCustomFieldName('score_total')).toBe(true);
-    expect(isOfficialCustomFieldName('linkedin_ceo')).toBe(true);
-    expect(isOfficialCustomFieldName('campo_nuevo_inventado')).toBe(false);
-  });
-});
-
-describe('buildOfficialImportTemplateRows', () => {
-  it('returns section, header, and sample rows for the official template', () => {
-    const [sectionRow, headerRow, sampleRow] = buildOfficialImportTemplateRows();
-
-    expect(sectionRow[0]).toBe('Empresa');
-    expect(headerRow[0]).toBe('Empresa');
-    expect(headerRow).toContain('Score Total');
-    expect(sampleRow[0]).toBe('Empresa Ejemplo');
-    expect(sampleRow[headerRow.indexOf('Email')]).toBe('ana@empresa-ejemplo.com');
-    expect(headerRow).toHaveLength(sectionRow.length);
-    expect(sampleRow).toHaveLength(headerRow.length);
   });
 });
