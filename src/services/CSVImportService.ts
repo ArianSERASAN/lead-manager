@@ -188,6 +188,104 @@ export function getOfficialImportColumn(header: string): OfficialImportColumn | 
   return OFFICIAL_IMPORT_MAP.get(normalize(header)) || null;
 }
 
+export function getOfficialImportSections(): Array<{
+  section: string;
+  columns: OfficialImportColumn[];
+}> {
+  const sections: Array<{ section: string; columns: OfficialImportColumn[] }> = [];
+  for (const column of OFFICIAL_IMPORT_COLUMNS) {
+    const existingSection = sections.find((entry) => entry.section === column.section);
+    if (existingSection) {
+      existingSection.columns.push(column);
+    } else {
+      sections.push({ section: column.section, columns: [column] });
+    }
+  }
+  return sections;
+}
+
+const OFFICIAL_TEMPLATE_EXAMPLE_VALUES: Record<string, string> = {
+  Empresa: 'Empresa Ejemplo',
+  CIF: 'B12345678',
+  Sector: 'Logistica',
+  Facturación: '12500000',
+  Empleados: '85',
+  Sede: 'Madrid',
+  Web: 'https://empresa-ejemplo.com',
+  CEO: 'Ana Lopez',
+  Cargo: 'CEO',
+  'LinkedIn CEO': 'https://linkedin.com/in/ana-lopez',
+  'Facilities/COO': 'Carlos Martin',
+  Email: 'ana@empresa-ejemplo.com',
+  Teléfono: '600123123',
+  'Nº Activos': '12',
+  'm² Totales': '18500',
+  Régimen: 'Propiedad',
+  'Año Construcción': '2006',
+  'Cert. Energética': 'B',
+  Instalaciones: 'Climatizacion, BMS, alumbrado LED',
+  'Score Total': '87',
+  'Score Obsolescencia': '24',
+  'Score Potencial': '18',
+  'Score Control': '14',
+  'Score Contacto': '12',
+  'Score Tamaño': '11',
+  'Score ESG': '8',
+  Tier: 'A',
+  Temperatura: 'Caliente',
+  'Hook Inicial': 'Ahorro energetico en activos logisticos',
+  'Problema Identificado': 'Equipos HVAC con baja eficiencia',
+  'Propuesta Concreta': 'Auditoria tecnica y plan de renovacion',
+  'PDF Generado': 'https://empresa-ejemplo.com/propuesta.pdf',
+};
+
+export function buildOfficialImportTemplateRows(): string[][] {
+  const sections = getOfficialImportSections();
+  const sectionRow: string[] = [];
+  const headerRow: string[] = [];
+  const exampleRow: string[] = [];
+
+  for (const { section, columns } of sections) {
+    columns.forEach((column, index) => {
+      sectionRow.push(index === 0 ? section : '');
+      headerRow.push(column.header);
+      exampleRow.push(OFFICIAL_TEMPLATE_EXAMPLE_VALUES[column.header] || '');
+    });
+  }
+
+  return [sectionRow, headerRow, exampleRow];
+}
+
+export function downloadOfficialImportTemplate(
+  fileName = 'plantilla_importacion_leads.xlsx'
+): void {
+  const workbook = XLSX.utils.book_new();
+  const rows = buildOfficialImportTemplateRows();
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  const sections = getOfficialImportSections();
+  const merges: XLSX.Range[] = [];
+  const columns: Array<{ wch: number }> = [];
+
+  let columnIndex = 0;
+  for (const { columns: sectionColumns } of sections) {
+    if (sectionColumns.length > 1) {
+      merges.push({
+        s: { r: 0, c: columnIndex },
+        e: { r: 0, c: columnIndex + sectionColumns.length - 1 },
+      });
+    }
+    for (const column of sectionColumns) {
+      columns.push({ wch: Math.max(column.header.length + 4, 16) });
+      columnIndex += 1;
+    }
+  }
+
+  sheet['!merges'] = merges;
+  sheet['!cols'] = columns;
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Importacion');
+  XLSX.writeFile(workbook, fileName);
+}
+
 // Labels for display in the review step
 export const STANDARD_FIELD_LABELS: Record<string, string> = {
   name: 'Nombre del lead',

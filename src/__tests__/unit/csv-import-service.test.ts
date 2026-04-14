@@ -6,6 +6,7 @@ import {
   generateSlug,
   generateFieldId,
   buildMissingFieldDefinitions,
+  buildOfficialImportTemplateRows,
   getOfficialImportColumn,
 } from '../../services/CSVImportService';
 
@@ -233,5 +234,19 @@ describe('getOfficialImportColumn', () => {
     expect(getOfficialImportColumn('CIF')?.customField).toBe('cif');
     expect(getOfficialImportColumn('Telefono')?.leadField).toBe('phone');
     expect(getOfficialImportColumn('LinkedIn CEO')?.customField).toBe('linkedin_ceo');
+  });
+});
+
+describe('buildOfficialImportTemplateRows', () => {
+  it('returns section, header, and sample rows for the official template', () => {
+    const [sectionRow, headerRow, sampleRow] = buildOfficialImportTemplateRows();
+
+    expect(sectionRow[0]).toBe('Empresa');
+    expect(headerRow[0]).toBe('Empresa');
+    expect(headerRow).toContain('Score Total');
+    expect(sampleRow[0]).toBe('Empresa Ejemplo');
+    expect(sampleRow[headerRow.indexOf('Email')]).toBe('ana@empresa-ejemplo.com');
+    expect(headerRow).toHaveLength(sectionRow.length);
+    expect(sampleRow).toHaveLength(headerRow.length);
   });
 });
