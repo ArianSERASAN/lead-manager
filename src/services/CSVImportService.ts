@@ -10,7 +10,8 @@ import {
   getDocs as firestoreGetDocs,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import type { FieldDefinition } from '../types/domain';
+import type { FieldDefinition, FieldType } from '../types/domain';
+import { LEAD_COLLECTIONS } from '../lib/leads';
 
 export interface CSVParseResult {
   headers: string[];
@@ -37,6 +38,16 @@ export interface MappedLead {
   referenciaCatastral?: string;
   message?: string;
   customFields?: Record<string, string>;
+}
+
+export interface OfficialImportColumn {
+  header: string;
+  aliases?: string[];
+  section: string;
+  order: number;
+  type: FieldType;
+  leadField?: keyof MappedLead;
+  customField?: string;
 }
 
 // ─── Normalization helpers ────────────────────────────────────────────────────
@@ -130,6 +141,53 @@ const HEADER_MAP: Record<string, string> = {
   comentarios: 'notes', descripcion: 'notes',
 };
 
+export const OFFICIAL_IMPORT_COLUMNS: OfficialImportColumn[] = [
+  { header: 'Empresa', section: 'Empresa', order: 1, type: 'text', leadField: 'company' },
+  { header: 'CIF', section: 'Empresa', order: 2, type: 'text', customField: 'cif' },
+  { header: 'Sector', section: 'Empresa', order: 3, type: 'text', leadField: 'sector' },
+  { header: 'Facturación', section: 'Empresa', order: 4, type: 'number', customField: 'facturacion' },
+  { header: 'Empleados', section: 'Empresa', order: 5, type: 'number', customField: 'empleados' },
+  { header: 'Sede', section: 'Empresa', order: 6, type: 'text', leadField: 'localidad' },
+  { header: 'Web', section: 'Empresa', order: 7, type: 'url', customField: 'web' },
+  { header: 'CEO', section: 'Contacto', order: 8, type: 'text', leadField: 'name', customField: 'ceo' },
+  { header: 'Cargo', section: 'Contacto', order: 9, type: 'text', leadField: 'cargo' },
+  { header: 'LinkedIn CEO', section: 'Contacto', order: 10, type: 'url', customField: 'linkedin_ceo', aliases: ['linkedin ceo', 'linkedin del ceo'] },
+  { header: 'Facilities/COO', section: 'Contacto', order: 11, type: 'text', customField: 'facilities_coo', aliases: ['facilities/coo', 'facilities coo'] },
+  { header: 'Email', section: 'Contacto', order: 12, type: 'email', leadField: 'email' },
+  { header: 'Teléfono', section: 'Contacto', order: 13, type: 'phone', leadField: 'phone', aliases: ['telefono'] },
+  { header: 'Nº Activos', section: 'Activos e Inmueble', order: 14, type: 'number', customField: 'numero_activos', aliases: ['n activos', 'num activos', 'numero activos'] },
+  { header: 'm² Totales', section: 'Activos e Inmueble', order: 15, type: 'number', customField: 'm2_totales', aliases: ['m2 totales', 'm² totales'] },
+  { header: 'Régimen', section: 'Activos e Inmueble', order: 16, type: 'text', customField: 'regimen', aliases: ['regimen'] },
+  { header: 'Año Construcción', section: 'Activos e Inmueble', order: 17, type: 'number', customField: 'ano_construccion', aliases: ['ano construccion'] },
+  { header: 'Cert. Energética', section: 'Activos e Inmueble', order: 18, type: 'text', customField: 'cert_energetica', aliases: ['cert energetica', 'cert. energetica'] },
+  { header: 'Instalaciones', section: 'Activos e Inmueble', order: 19, type: 'textarea', customField: 'instalaciones' },
+  { header: 'Score Total', section: 'Scoring Comercial', order: 20, type: 'number', customField: 'score_total' },
+  { header: 'Score Obsolescencia', section: 'Scoring Comercial', order: 21, type: 'number', customField: 'score_obsolescencia' },
+  { header: 'Score Potencial', section: 'Scoring Comercial', order: 22, type: 'number', customField: 'score_potencial' },
+  { header: 'Score Control', section: 'Scoring Comercial', order: 23, type: 'number', customField: 'score_control' },
+  { header: 'Score Contacto', section: 'Scoring Comercial', order: 24, type: 'number', customField: 'score_contacto' },
+  { header: 'Score Tamaño', section: 'Scoring Comercial', order: 25, type: 'number', customField: 'score_tamano', aliases: ['score tamano'] },
+  { header: 'Score ESG', section: 'Scoring Comercial', order: 26, type: 'number', customField: 'score_esg' },
+  { header: 'Tier', section: 'Scoring Comercial', order: 27, type: 'text', customField: 'tier' },
+  { header: 'Temperatura', section: 'Scoring Comercial', order: 28, type: 'text', customField: 'temperatura' },
+  { header: 'Hook Inicial', section: 'Prospección', order: 29, type: 'textarea', customField: 'hook_inicial', aliases: ['hook inicial', 'hook'] },
+  { header: 'Problema Identificado', section: 'Prospección', order: 30, type: 'textarea', customField: 'problema_identificado', aliases: ['problema identificado'] },
+  { header: 'Propuesta Concreta', section: 'Prospección', order: 31, type: 'textarea', customField: 'propuesta_concreta', aliases: ['propuesta concreta'] },
+  { header: 'PDF Generado', section: 'Prospección', order: 32, type: 'url', customField: 'pdf_generado', aliases: ['pdf generado'] },
+];
+
+const OFFICIAL_IMPORT_MAP = new Map<string, OfficialImportColumn>();
+for (const column of OFFICIAL_IMPORT_COLUMNS) {
+  OFFICIAL_IMPORT_MAP.set(normalize(column.header), column);
+  for (const alias of column.aliases || []) {
+    OFFICIAL_IMPORT_MAP.set(normalize(alias), column);
+  }
+}
+
+export function getOfficialImportColumn(header: string): OfficialImportColumn | null {
+  return OFFICIAL_IMPORT_MAP.get(normalize(header)) || null;
+}
+
 // Labels for display in the review step
 export const STANDARD_FIELD_LABELS: Record<string, string> = {
   name: 'Nombre del lead',
@@ -153,6 +211,11 @@ export const STANDARD_FIELD_LABELS: Record<string, string> = {
 export function autoMapHeaders(headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const header of headers) {
+    const officialColumn = getOfficialImportColumn(header);
+    if (officialColumn?.leadField) {
+      mapping[header] = officialColumn.leadField;
+      continue;
+    }
     const n = normalize(header);
     mapping[header] = HEADER_MAP[n] ?? '';
   }
@@ -176,9 +239,10 @@ export function buildMissingFieldDefinitions(
 
   for (const header of headers) {
     const leadField = headerMapping[header];
-    if (leadField) continue; // already mapped to standard field
+    const officialColumn = getOfficialImportColumn(header);
+    if (leadField && !officialColumn?.customField) continue; // already mapped to standard field
 
-    const slug = generateSlug(header);
+    const slug = officialColumn?.customField || generateSlug(header);
     if (!slug) continue;
     if (existingNames.has(slug)) continue; // schema already has this field
 
@@ -186,13 +250,13 @@ export function buildMissingFieldDefinitions(
 
     // Clean up Excel section name (remove leading "A. ", "B. " prefixes)
     const rawSection = columnSections[header] || '';
-    const section = rawSection.replace(/^[A-Z]\.\s+/, '').trim() || 'Datos importados';
+    const section = officialColumn?.section || rawSection.replace(/^[A-Z]\.\s+/, '').trim() || 'Datos importados';
 
     newFields.push({
       id: generateFieldId(),
       name: slug,
       label: header,
-      type: 'text',
+      type: officialColumn?.type || 'text',
       visible: true,
       required: false,
       section,
@@ -345,10 +409,19 @@ export function mapRow(
     const trimmed = String(val).trim();
     if (!trimmed) continue;
 
+    const officialColumn = getOfficialImportColumn(csvHeader);
+
+    if (officialColumn?.leadField && !lead[officialColumn.leadField]) {
+      lead[officialColumn.leadField] = trimmed;
+    }
+
     if (leadField) {
       lead[leadField] = trimmed;
-    } else {
-      // Unmapped column → custom field (slug as key)
+    }
+
+    if (officialColumn?.customField) {
+      custom[officialColumn.customField] = trimmed;
+    } else if (!leadField) {
       const slug = generateSlug(csvHeader);
       if (slug) custom[slug] = trimmed;
     }
@@ -416,22 +489,24 @@ export async function checkDuplicatesInBatch(
   if (uniqueEmails.length === 0) return result;
 
   const CHUNK_SIZE = 30; // Firestore 'in' query limit
-  for (let i = 0; i < uniqueEmails.length; i += CHUNK_SIZE) {
-    const chunk = uniqueEmails.slice(i, i + CHUNK_SIZE);
-    const q = firestoreQuery(
-      firestoreCollection(db, 'leads'),
-      firestoreWhere('email', 'in', chunk)
-    );
-    const snapshot = await firestoreGetDocs(q);
-    for (const doc of snapshot.docs) {
-      const data = doc.data();
-      const email = (data.email || '').toLowerCase().trim();
-      if (email) {
-        result.set(email, {
-          id: doc.id,
-          name: data.name || data.nombre || '—',
-          status: data.status || 'nuevo',
-        });
+  for (const collectionName of LEAD_COLLECTIONS) {
+    for (let i = 0; i < uniqueEmails.length; i += CHUNK_SIZE) {
+      const chunk = uniqueEmails.slice(i, i + CHUNK_SIZE);
+      const q = firestoreQuery(
+        firestoreCollection(db, collectionName),
+        firestoreWhere('email', 'in', chunk)
+      );
+      const snapshot = await firestoreGetDocs(q);
+      for (const doc of snapshot.docs) {
+        const data = doc.data();
+        const email = (data.email || '').toLowerCase().trim();
+        if (email && !result.has(email)) {
+          result.set(email, {
+            id: doc.id,
+            name: data.name || data.nombre || '—',
+            status: data.status || 'nuevo',
+          });
+        }
       }
     }
   }
