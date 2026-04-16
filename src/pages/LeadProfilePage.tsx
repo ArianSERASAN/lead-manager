@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  ArrowLeft, ChevronLeft, ChevronRight, Mail, Phone, Globe, MapPin,
+  ArrowLeft, ChevronLeft, ChevronRight, ChevronDown, Mail, Phone, Globe, MapPin,
   Building2, Briefcase, User, Calendar, Loader2, AlertCircle,
   Pencil, Check, X, Save, ExternalLink, Tag, Clock, XCircle,
   Hash, FileText, AlignLeft, ToggleLeft, ToggleRight, List, Plus, type LucideIcon,
@@ -27,6 +27,8 @@ import { formatTimestamp } from '../utils/format';
 import * as LeadService from '../services/LeadService';
 import * as ActivityService from '../services/ActivityService';
 import { DEFAULT_LEAD_COLLECTION, getLeadCollection, getLeadKey, LEAD_COLLECTIONS } from '../lib/leads';
+import { buildLeadRawDataEntries } from '../services/LeadExportUtils';
+import { generateSlug } from '../services/CSVImportService';
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -288,6 +290,40 @@ function SectionCard({ title, icon: Icon, children, accentClass = 'bg-gray-50' }
   );
 }
 
+function formatRawPathLabel(path: string): string {
+  return path
+    .replace(/^data\./, '')
+    .replace(/^calculator\./, '')
+    .replace(/^calculadora\./, '')
+    .replace(/\[(\d+)\]/g, ' $1 ')
+    .replace(/[._]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function isUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value.trim());
+}
+
+function normalizeText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatFieldKeyLabel(key: string): string {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 // ─── Main Page ────────────────────────────────────────────────────
 
 type SidePanelTab = 'actividad' | 'tareas';
@@ -314,6 +350,7 @@ export function LeadProfilePage() {
   const [notesDraft, setNotesDraft] = useState('');
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showMergeModal, setShowMergeModal] = useState(false);
+  const [showCompleteFields, setShowCompleteFields] = useState(false);
   const [addingField, setAddingField] = useState(false);
   const [newFieldKey, setNewFieldKey] = useState('');
   const [newFieldValue, setNewFieldValue] = useState('');
@@ -457,14 +494,22 @@ export function LeadProfilePage() {
     );
   }
 
-  const statusCfg = STATUS_CONFIG[lead.status];
-  const sourceCfg = SOURCE_CONFIG[lead.source];
+  const statusCfg = STATUS_CONFIG[lead.status] || STATUS_CONFIG.nuevo;
+  const sourceCfg = SOURCE_CONFIG[lead.source] || SOURCE_CONFIG.landing;
   const canEdit = appUser?.role === 'admin' || appUser?.role === 'comercial';
   const visibleCustomFields = customSchema.filter((f) => f.visible).sort((a, b) => a.order - b.order);
+  const filledVisibleCustomFields = visibleCustomFields.filter((field) => {
+    const value = (lead.customFields || {})[field.name];
+    return value !== null && value !== undefined && String(value).trim() !== '';
+  });
+  const pendingCustomFields = visibleCustomFields.filter((field) => {
+    const value = (lead.customFields || {})[field.name];
+    return value === null || value === undefined || String(value).trim() === '';
+  });
 
   // Group custom fields by section
   const fieldsBySection: Record<string, FieldDefinition[]> = {};
-  for (const f of visibleCustomFields) {
+  for (const f of filledVisibleCustomFields) {
     const sec = f.section || '';
     if (!fieldsBySection[sec]) fieldsBySection[sec] = [];
     fieldsBySection[sec].push(f);
@@ -476,10 +521,81 @@ export function LeadProfilePage() {
     ([key, val]) => !schemaFieldNames.has(key) && val !== null && val !== undefined && val !== ''
   );
 
-  const hasContactInfo = lead.email || lead.phone;
+  const rawDataEntries = buildLeadRawDataEntries(lead);
+  const calculatorRawEntries = rawDataEntries.filter((entry) => /(^|[.\s])(calculator|calculadora)([.\s]|$)/i.test(entry.key));
+  const visibleRawEntries = calculatorRawEntries.length > 0 ? calculatorRawEntries : rawDataEntries;
+
+  const hasValidEmail = Boolean(lead.email && lead.email !== '-' && lead.email !== '—');
+  const hasContactInfo = hasValidEmail || lead.phone;
   const hasCompanyInfo = lead.company || lead.cargo || lead.sector;
   const hasPropertyInfo = lead.tipoInmueble || lead.superficie || lead.localidad || lead.direccion || lead.referenciaCatastral;
   const hasInterest = (lead.servicios && lead.servicios.length > 0) || lead.message;
+
+  const fillableCoreFields: Array<{ key: string; label: string; value: unknown }> = [
+    { key: 'email', label: 'Email', value: hasValidEmail ? lead.email : '' },
+    { key: 'apellidos', label: 'Apellidos', value: lead.apellidos },
+    { key: 'phone', label: 'Teléfono', value: lead.phone },
+    { key: 'company', label: 'Empresa', value: lead.company },
+    { key: 'cargo', label: 'Cargo', value: lead.cargo },
+    { key: 'sector', label: 'Sector', value: lead.sector },
+    { key: 'localidad', label: 'Localidad', value: lead.localidad },
+    { key: 'direccion', label: 'Dirección', value: lead.direccion },
+    { key: 'tipoInmueble', label: 'Tipo de inmueble', value: lead.tipoInmueble },
+    { key: 'superficie', label: 'Superficie', value: lead.superficie },
+    { key: 'referenciaCatastral', label: 'Ref. Catastral', value: lead.referenciaCatastral },
+    { key: 'message', label: 'Mensaje', value: lead.message },
+  ];
+
+  const pendingCoreFields = fillableCoreFields.filter((field) => (
+    field.value === null
+    || field.value === undefined
+    || String(field.value).trim() === ''
+    || String(field.value).trim() === '-'
+    || String(field.value).trim() === '—'
+  ));
+
+  const hasPendingProfileFields = pendingCoreFields.length > 0 || pendingCustomFields.length > 0;
+  const pendingProfileCount = pendingCoreFields.length + pendingCustomFields.length;
+
+  const customFieldCandidates: Array<{ key: string; label: string }> = [];
+  const addedCandidateKeys = new Set<string>();
+
+  for (const field of customSchema) {
+    if (addedCandidateKeys.has(field.name)) continue;
+    customFieldCandidates.push({ key: field.name, label: field.label || formatFieldKeyLabel(field.name) });
+    addedCandidateKeys.add(field.name);
+  }
+
+  for (const key of Object.keys(lead.customFields || {})) {
+    if (addedCandidateKeys.has(key)) continue;
+    customFieldCandidates.push({ key, label: formatFieldKeyLabel(key) });
+    addedCandidateKeys.add(key);
+  }
+
+  const normalizedNewFieldKey = normalizeText(newFieldKey);
+  const fieldKeySuggestions = addingField && normalizedNewFieldKey
+    ? customFieldCandidates
+      .filter((candidate) => (
+        normalizeText(candidate.label).includes(normalizedNewFieldKey)
+        || normalizeText(candidate.key).includes(normalizedNewFieldKey)
+      ))
+      .slice(0, 8)
+    : [];
+
+  const resolveCustomFieldKey = (input: string): string => {
+    const trimmed = input.trim();
+    if (!trimmed) return '';
+
+    const normalizedInput = normalizeText(trimmed);
+    const exactCandidate = customFieldCandidates.find((candidate) => (
+      normalizeText(candidate.key) === normalizedInput
+      || normalizeText(candidate.label) === normalizedInput
+    ));
+
+    if (exactCandidate) return exactCandidate.key;
+
+    return generateSlug(trimmed) || trimmed;
+  };
 
   return (
     <>
@@ -574,7 +690,7 @@ export function LeadProfilePage() {
 
             {/* Quick contact line */}
             <div className="flex flex-wrap items-center gap-3 mb-3">
-              {lead.email && lead.email !== '—' && (
+              {hasValidEmail && (
                 <a href={`mailto:${lead.email}`} className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline">
                   <Mail size={13} />{lead.email}
                 </a>
@@ -638,7 +754,7 @@ export function LeadProfilePage() {
           {/* Contact info */}
           {hasContactInfo && (
             <SectionCard title="Contacto" icon={User} accentClass="bg-blue-50/60">
-              {lead.email && lead.email !== '—' && (
+              {hasValidEmail && (
                 <InlineField
                   label="Email"
                   value={lead.email}
@@ -647,7 +763,7 @@ export function LeadProfilePage() {
                   onSave={(v) => updateField('email', v)}
                 />
               )}
-              {(lead.phone || canEdit) && (
+              {lead.phone && (
                 <InlineField
                   label="Teléfono"
                   value={lead.phone || ''}
@@ -661,16 +777,18 @@ export function LeadProfilePage() {
           )}
 
           {/* Company info */}
-          {(hasCompanyInfo || canEdit) && (
+          {hasCompanyInfo && (
             <SectionCard title="Empresa" icon={Building2} accentClass="bg-emerald-50/60">
-              <InlineField
-                label="Empresa"
-                value={lead.company || ''}
-                editable={canEdit}
-                placeholder="Sin empresa"
-                onSave={(v) => updateField('company', v)}
-              />
-              {(lead.cargo || canEdit) && (
+              {lead.company && (
+                <InlineField
+                  label="Empresa"
+                  value={lead.company || ''}
+                  editable={canEdit}
+                  placeholder="Sin empresa"
+                  onSave={(v) => updateField('company', v)}
+                />
+              )}
+              {lead.cargo && (
                 <InlineField
                   label="Cargo"
                   value={lead.cargo || ''}
@@ -679,7 +797,7 @@ export function LeadProfilePage() {
                   onSave={(v) => updateField('cargo', v)}
                 />
               )}
-              {(lead.sector || canEdit) && (
+              {lead.sector && (
                 <InlineField
                   label="Sector"
                   value={lead.sector || ''}
@@ -706,7 +824,7 @@ export function LeadProfilePage() {
               {lead.direccion && (
                 <InlineField label="Dirección" value={lead.direccion} editable={canEdit} onSave={(v) => updateField('direccion', v)} />
               )}
-              {(lead.referenciaCatastral || canEdit) && (
+              {lead.referenciaCatastral && (
                 <InlineField
                   label="Ref. Catastral"
                   value={lead.referenciaCatastral || ''}
@@ -731,7 +849,7 @@ export function LeadProfilePage() {
                   </div>
                 </div>
               )}
-              {(lead.message || canEdit) && (
+              {lead.message && (
                 <InlineField
                   label="Mensaje"
                   value={lead.message || ''}
@@ -744,7 +862,7 @@ export function LeadProfilePage() {
           )}
 
           {/* Custom fields (grouped by section) */}
-          {visibleCustomFields.length > 0 && (
+          {filledVisibleCustomFields.length > 0 && (
             <div className="space-y-5">
               {Object.entries(fieldsBySection).map(([section, sectionFields]) => (
                 <SectionCard
@@ -768,7 +886,7 @@ export function LeadProfilePage() {
           )}
 
           {/* Ad-hoc fields from Excel/CSV imports (no schema definition) */}
-          {(adHocEntries.length > 0 || canEdit) && (
+          {(adHocEntries.length > 0 || addingField) && (
             <SectionCard title="Datos adicionales" icon={Hash} accentClass="bg-amber-50/60">
               {adHocEntries.map(([key, val]) => (
                 <InlineField
@@ -785,15 +903,34 @@ export function LeadProfilePage() {
                 <div className="pt-1">
                   {addingField ? (
                     <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newFieldKey}
-                          onChange={(e) => setNewFieldKey(e.target.value)}
-                          placeholder="Nombre del campo"
-                          className="flex-1 text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                        />
+                      <div className="flex flex-col md:flex-row gap-2">
+                        <div className="flex-1">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={newFieldKey}
+                            onChange={(e) => setNewFieldKey(e.target.value)}
+                            placeholder="Nombre del campo"
+                            className="w-full text-sm border border-blue-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          />
+                          {fieldKeySuggestions.length > 0 && (
+                            <div className="mt-1 border border-gray-200 rounded-lg bg-white shadow-sm max-h-40 overflow-y-auto">
+                              {fieldKeySuggestions.map((candidate) => (
+                                <button
+                                  key={candidate.key}
+                                  type="button"
+                                  onClick={() => setNewFieldKey(candidate.key)}
+                                  className="w-full text-left px-2.5 py-1.5 hover:bg-blue-50 text-xs border-b border-gray-100 last:border-b-0"
+                                >
+                                  <span className="font-semibold text-gray-700">{candidate.label}</span>
+                                  {candidate.key !== candidate.label && (
+                                    <span className="ml-1 text-gray-400">{candidate.key}</span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                         <input
                           type="text"
                           value={newFieldValue}
@@ -805,7 +942,7 @@ export function LeadProfilePage() {
                       <div className="flex gap-2">
                         <button
                           onClick={async () => {
-                            const key = newFieldKey.trim();
+                            const key = resolveCustomFieldKey(newFieldKey);
                             const val = newFieldValue.trim();
                             if (!key) return;
                             await updateCustomField(key, val);
@@ -835,6 +972,96 @@ export function LeadProfilePage() {
                   )}
                 </div>
               )}
+            </SectionCard>
+          )}
+
+          {canEdit && hasPendingProfileFields && (
+            <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+              <button
+                type="button"
+                onClick={() => setShowCompleteFields((prev) => !prev)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-sky-50/60 hover:bg-sky-100/60 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Plus size={14} className="text-gray-500" />
+                  <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wider">Completar ficha</h3>
+                  <span className="inline-flex items-center justify-center min-w-5 h-5 px-1 text-[10px] font-bold rounded-full bg-white border border-sky-200 text-sky-700">
+                    {pendingProfileCount}
+                  </span>
+                </div>
+                <ChevronDown
+                  size={14}
+                  className={`text-gray-500 transition-transform ${showCompleteFields ? 'rotate-180' : ''}`}
+                />
+              </button>
+              {showCompleteFields && (
+                <div className="p-4 space-y-3 border-t border-gray-100">
+              {pendingCoreFields.map((field) => (
+                <InlineField
+                  key={field.key}
+                  label={field.label}
+                  value=""
+                  editable={canEdit}
+                  placeholder="Sin completar"
+                  onSave={(value) => updateField(field.key, value)}
+                />
+              ))}
+              {pendingCustomFields.map((field) => (
+                <CustomFieldView
+                  key={`pending-${field.id}`}
+                  field={field}
+                  value={(lead.customFields || {})[field.name]}
+                  editable={canEdit}
+                  onSave={(value) => updateCustomField(field.name, value)}
+                />
+              ))}
+              {!addingField && (
+                <button
+                  onClick={() => setAddingField(true)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors"
+                >
+                  <Plus size={12} /> Añadir campo personalizado
+                </button>
+              )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {canEdit && !addingField && adHocEntries.length === 0 && !hasPendingProfileFields && (
+            <div className="flex justify-start">
+              <button
+                onClick={() => setAddingField(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-blue-600 transition-colors"
+              >
+                <Plus size={12} /> Añadir campo personalizado
+              </button>
+            </div>
+          )}
+
+          {visibleRawEntries.length > 0 && (
+            <SectionCard
+              title={calculatorRawEntries.length > 0 ? 'Datos calculadora' : 'Datos raw formulario'}
+              icon={FileText}
+              accentClass="bg-cyan-50/60"
+            >
+              {visibleRawEntries.map((entry) => (
+                <div key={`${entry.key}:${entry.value}`} className="flex justify-between items-start gap-2">
+                  <span className="text-xs text-gray-500 shrink-0">{formatRawPathLabel(entry.key)}</span>
+                  {isUrl(entry.value) ? (
+                    <a
+                      href={entry.value}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium text-blue-600 hover:underline text-right break-all"
+                    >
+                      {entry.value}
+                    </a>
+                  ) : (
+                    <span className="text-xs font-medium text-gray-800 text-right break-all">{entry.value}</span>
+                  )}
+                </div>
+              ))}
             </SectionCard>
           )}
 

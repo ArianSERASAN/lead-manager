@@ -274,6 +274,11 @@ function FieldRow({ field, index, total, onEdit, onDelete, onToggleVisible, onMo
               {field.section}
             </span>
           )}
+          {field.official && (
+            <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+              Oficial
+            </span>
+          )}
           {field.required && (
             <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
               Obligatorio

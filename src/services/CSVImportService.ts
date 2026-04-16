@@ -176,6 +176,16 @@ export const OFFICIAL_IMPORT_COLUMNS: OfficialImportColumn[] = [
   { header: 'PDF Generado', section: 'Prospección', order: 32, type: 'url', customField: 'pdf_generado', aliases: ['pdf generado'] },
 ];
 
+export const OFFICIAL_CUSTOM_FIELD_NAMES: string[] = OFFICIAL_IMPORT_COLUMNS
+  .map((column) => column.customField)
+  .filter((value): value is string => Boolean(value));
+
+const OFFICIAL_CUSTOM_FIELD_SET = new Set(OFFICIAL_CUSTOM_FIELD_NAMES);
+
+export function isOfficialCustomFieldName(name: string): boolean {
+  return OFFICIAL_CUSTOM_FIELD_SET.has(name);
+}
+
 const OFFICIAL_IMPORT_MAP = new Map<string, OfficialImportColumn>();
 for (const column of OFFICIAL_IMPORT_COLUMNS) {
   OFFICIAL_IMPORT_MAP.set(normalize(column.header), column);
@@ -355,6 +365,7 @@ export function buildMissingFieldDefinitions(
       name: slug,
       label: header,
       type: officialColumn?.type || 'text',
+      official: Boolean(officialColumn?.customField && slug === officialColumn.customField),
       visible: true,
       required: false,
       section,

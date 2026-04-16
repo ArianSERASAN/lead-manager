@@ -9,9 +9,10 @@ interface KanbanCardProps {
   lead: Lead;
   onClick: () => void;
   isDragging?: boolean;
+  dragHandleProps?: Record<string, unknown>;
 }
 
-export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
+export function KanbanCard({ lead, onClick, isDragging, dragHandleProps }: KanbanCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const getSourceIcon = (source: Lead['source']) => {
@@ -45,15 +46,16 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
       className={`bg-white rounded-lg border select-none ${
         isDragging
           ? 'shadow-2xl border-primary-300 ring-2 ring-primary-200'
-          : `shadow-sm cursor-grab active:cursor-grabbing active:scale-[0.98] md:hover-lift transition-transform duration-150 ${
+          : `shadow-sm active:scale-[0.98] md:hover-lift transition-transform duration-150 ${
               lead.isStale ? 'border-orange-200' : 'border-gray-100 md:hover:border-primary-200'
             }`
       }`}
     >
-      {/* Compact row — always visible */}
+      {/* Compact row — always visible / drag handle */}
       <div
+        {...(dragHandleProps || {})}
         onClick={handleCardClick}
-        className="flex items-center gap-2 px-3 py-2"
+        className={`flex items-center gap-2 px-3 py-2 ${dragHandleProps ? 'cursor-grab active:cursor-grabbing' : ''}`}
       >
         {/* Score dot */}
         <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
@@ -62,17 +64,9 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           'bg-gray-300'
         }`} />
 
-        {/* Name */}
+        {/* Name — single line, truncated with ellipsis */}
         <span className="text-sm font-medium text-gray-900 truncate flex-1 min-w-0">
           {lead.name}
-        </span>
-
-        {/* Source icon */}
-        <span className="text-xs flex-shrink-0">{getSourceIcon(lead.source)}</span>
-
-        {/* Time */}
-        <span className="text-[10px] text-gray-400 flex-shrink-0 hidden sm:inline">
-          {formatRelativeTime(lead.createdAt)}
         </span>
 
         {/* Expand button */}
@@ -80,11 +74,11 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
           onClick={handleExpandToggle}
           aria-label={expanded ? 'Contraer detalles' : 'Expandir detalles'}
           aria-expanded={expanded}
-          className={`p-2 -mr-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 flex-shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center ${
+          className={`p-1.5 -mr-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 active:bg-gray-200 transition-all duration-200 flex-shrink-0 min-w-[36px] min-h-[36px] flex items-center justify-center ${
             expanded ? 'rotate-180' : ''
           }`}
         >
-          <ChevronDown size={16} />
+          <ChevronDown size={14} />
         </button>
       </div>
 
@@ -107,7 +101,7 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
 
           {/* Score + Tags row */}
           <div className="flex items-center gap-2 flex-wrap">
-            <ScoreBadge score={lead.score} size="sm" showTooltip={true} />
+            <ScoreBadge score={lead.score} size="sm" />
             {displayTags.map((tag, idx) => (
               <span
                 key={tag}
@@ -123,11 +117,16 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
             )}
           </div>
 
-          {/* Assignee + time */}
+          {/* Source + Assignee + time */}
           <div className="flex items-center justify-between text-[10px] text-gray-400">
-            <div className="flex items-center gap-1.5">
-              <Clock size={10} />
-              <span>{formatRelativeTime(lead.createdAt)}</span>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1">
+                {getSourceIcon(lead.source)}
+              </span>
+              <span className="flex items-center gap-1">
+                <Clock size={10} />
+                {formatRelativeTime(lead.createdAt)}
+              </span>
             </div>
             {lead.assignedTo && (
               <div className="flex items-center gap-1">
@@ -141,8 +140,11 @@ export function KanbanCard({ lead, onClick, isDragging }: KanbanCardProps) {
 
           {/* Open detail button */}
           <button
-            onClick={handleCardClick}
-            className="w-full text-center text-xs font-semibold text-primary-600 hover:text-primary-800 hover:bg-primary-50 active:bg-primary-100 py-3 rounded-lg transition-colors min-h-[44px]"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClick();
+            }}
+            className="w-full text-center text-xs font-semibold text-primary-600 hover:text-primary-800 hover:bg-primary-50 active:bg-primary-100 py-3 rounded-lg transition-colors min-h-[44px] cursor-pointer"
           >
             Ver detalle completo
           </button>

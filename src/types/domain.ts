@@ -269,6 +269,7 @@ export interface FieldDefinition {
   name: string;        // key used in lead.customFields (slug)
   label: string;       // display label
   type: FieldType;
+  official?: boolean;  // true when the field belongs to the official import template
   options?: FieldOption[];  // for select / multi-select
   order: number;
   visible: boolean;

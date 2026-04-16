@@ -21,6 +21,81 @@ export const LEAD_SOURCE_BY_COLLECTION: Record<LeadCollection, Lead['source']> =
   solicitudes_contacto: 'web-contact',
 };
 
+const VALID_LEAD_STATUSES: Lead['status'][] = [
+  'nuevo',
+  'contactado',
+  'en-progreso',
+  'cerrado',
+  'cancelado',
+];
+
+const VALID_LEAD_SOURCES: Lead['source'][] = [
+  'landing',
+  'web-download',
+  'web-contact',
+  'manual',
+  'csv-import',
+];
+
+function normalizeLeadStatus(raw: unknown): Lead['status'] {
+  if (typeof raw !== 'string') return 'nuevo';
+  const value = raw.trim().toLowerCase();
+  if ((VALID_LEAD_STATUSES as string[]).includes(value)) return value as Lead['status'];
+
+  switch (value) {
+    case 'new':
+      return 'nuevo';
+    case 'contacted':
+      return 'contactado';
+    case 'in progress':
+    case 'in-progress':
+    case 'en progreso':
+      return 'en-progreso';
+    case 'closed':
+    case 'won':
+      return 'cerrado';
+    case 'cancelled':
+    case 'canceled':
+    case 'descartado':
+      return 'cancelado';
+    default:
+      return 'nuevo';
+  }
+}
+
+function normalizeLeadSource(raw: unknown, collectionName: LeadCollection): Lead['source'] {
+  if (typeof raw === 'string') {
+    const value = raw.trim().toLowerCase();
+    if ((VALID_LEAD_SOURCES as string[]).includes(value)) return value as Lead['source'];
+
+    switch (value) {
+      case 'landing-page':
+      case 'landing_page':
+        return 'landing';
+      case 'web download':
+      case 'web_download':
+      case 'pdf-download':
+      case 'pdf_download':
+      case 'descarga':
+      case 'descarga pdf':
+        return 'web-download';
+      case 'web contact':
+      case 'web_contact':
+      case 'contact':
+      case 'formulario web':
+        return 'web-contact';
+      case 'csv':
+      case 'import':
+      case 'importado':
+        return 'csv-import';
+      default:
+        break;
+    }
+  }
+
+  return LEAD_SOURCE_BY_COLLECTION[collectionName] || 'manual';
+}
+
 export function getLeadCollection(lead?: Partial<Lead> | null): LeadCollection {
   if (lead?._collection) return lead._collection;
 
@@ -55,6 +130,8 @@ export function normalizeLeadSnapshot(
   weights?: ScoringWeights | null
 ): Lead {
   const data = snapshot.data();
+  const normalizedSource = normalizeLeadSource(data.source, collectionName);
+  const normalizedStatus = normalizeLeadStatus(data.status);
 
   const lead: Lead = {
     id: snapshot.id,
@@ -62,8 +139,8 @@ export function normalizeLeadSnapshot(
     email: data.email || '-',
     phone: data.phone || data.telefono || '',
     company: data.company || data.empresa || '',
-    source: data.source || LEAD_SOURCE_BY_COLLECTION[collectionName] || 'manual',
-    status: data.status || 'nuevo',
+    source: normalizedSource,
+    status: normalizedStatus,
     createdAt: data.createdAt || data.fecha || new Date(),
     updatedAt: data.updatedAt || data.createdAt || data.fecha || new Date(),
     notes: data.notes || data.notas || '',

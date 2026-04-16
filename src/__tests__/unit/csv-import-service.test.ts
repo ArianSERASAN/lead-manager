@@ -8,6 +8,7 @@ import {
   buildMissingFieldDefinitions,
   buildOfficialImportTemplateRows,
   getOfficialImportColumn,
+  isOfficialCustomFieldName,
 } from '../../services/CSVImportService';
 
 describe('generateSlug', () => {
@@ -226,6 +227,8 @@ describe('buildMissingFieldDefinitions', () => {
     expect(result.map((field) => field.name)).toEqual(['ceo', 'cif', 'score_total']);
     expect(result.find((field) => field.name === 'ceo')?.section).toBe('Contacto');
     expect(result.find((field) => field.name === 'score_total')?.type).toBe('number');
+    expect(result.find((field) => field.name === 'ceo')?.official).toBe(true);
+    expect(result.find((field) => field.name === 'cif')?.official).toBe(true);
   });
 });
 
@@ -234,6 +237,14 @@ describe('getOfficialImportColumn', () => {
     expect(getOfficialImportColumn('CIF')?.customField).toBe('cif');
     expect(getOfficialImportColumn('Telefono')?.leadField).toBe('phone');
     expect(getOfficialImportColumn('LinkedIn CEO')?.customField).toBe('linkedin_ceo');
+  });
+});
+
+describe('isOfficialCustomFieldName', () => {
+  it('returns true only for official custom field slugs', () => {
+    expect(isOfficialCustomFieldName('score_total')).toBe(true);
+    expect(isOfficialCustomFieldName('linkedin_ceo')).toBe(true);
+    expect(isOfficialCustomFieldName('campo_nuevo_inventado')).toBe(false);
   });
 });
 
