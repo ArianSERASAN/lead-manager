@@ -15,7 +15,8 @@ import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { exportLeadsToExcel } from '../services/ExcelExportService';
-import { X, Loader2, Download, Upload } from 'lucide-react';
+import { exportLeadsToPDF } from '../services/PDFExportService';
+import { X, Loader2, Download, Upload, FileText } from 'lucide-react';
 import { getLeadKey } from '../lib/leads';
 
 interface LeadsPageProps {
@@ -138,7 +139,16 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
               title="Exportar leads a Excel"
             >
               <Download size={16} />
-              <span className="hidden sm:inline">Exportar</span>
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+            <button
+              onClick={() => { void exportLeadsToPDF(filteredLeads); }}
+              disabled={filteredLeads.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Exportar leads a PDF"
+            >
+              <FileText size={16} />
+              <span className="hidden sm:inline">PDF</span>
             </button>
             <RoleGuard requires="canEdit">
               <button
