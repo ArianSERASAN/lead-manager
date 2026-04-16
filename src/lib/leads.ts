@@ -22,7 +22,12 @@ export const LEAD_SOURCE_BY_COLLECTION: Record<LeadCollection, Lead['source']> =
 };
 
 export function getLeadCollection(lead?: Partial<Lead> | null): LeadCollection {
-  return lead?._collection || DEFAULT_LEAD_COLLECTION;
+  if (lead?._collection) return lead._collection;
+
+  if (lead?.source === 'web-download') return 'leads_descargas';
+  if (lead?.source === 'web-contact') return 'solicitudes_contacto';
+
+  return DEFAULT_LEAD_COLLECTION;
 }
 
 export function getLeadKey(lead: Pick<Lead, 'id' | '_collection'>): string {

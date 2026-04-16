@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, Mail, Phone, Globe, MapPin,
@@ -22,10 +22,11 @@ import { ApolloEnrichmentPanel } from '../components/LeadViews/ApolloEnrichmentP
 import { RoleGuard } from '../components/User/RoleGuard';
 import { CancellationModal } from '../components/Shared/CancellationModal';
 import { MergeLeadsModal } from '../components/LeadViews/MergeLeadsModal';
-import { Lead, LeadStatus, FieldDefinition, FieldType } from '../types/domain';
+import { Lead, LeadStatus, FieldDefinition, FieldType, LeadCollection } from '../types/domain';
 import { formatTimestamp } from '../utils/format';
 import * as LeadService from '../services/LeadService';
 import * as ActivityService from '../services/ActivityService';
+import { DEFAULT_LEAD_COLLECTION, getLeadCollection, getLeadKey, LEAD_COLLECTIONS } from '../lib/leads';
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -290,6 +291,8 @@ function SectionCard({ title, icon: Icon, children, accentClass = 'bg-gray-50' }
 // ─── Main Page ────────────────────────────────────────────────────
 
 type SidePanelTab = 'actividad' | 'tareas';
+const isLeadCollection = (value?: string): value is LeadCollection =>
+  Boolean(value) && LEAD_COLLECTIONS.includes(value as LeadCollection);
 
 export function LeadProfilePage() {
   const { collection: col, id } = useParams<{ collection: string; id: string }>();
@@ -300,7 +303,9 @@ export function LeadProfilePage() {
 
   const { lead, loading, error } = useLeadById(col || '', id || '');
   const { fields: customSchema } = useFieldSchema();
-  const { tasks } = useLeadTasks(col || 'leads', id || '');
+  const routeCollection: LeadCollection = isLeadCollection(col) ? col : DEFAULT_LEAD_COLLECTION;
+  const leadCollection: LeadCollection = lead ? getLeadCollection(lead) : routeCollection;
+  const { tasks } = useLeadTasks(leadCollection, lead?.id || id || '');
 
   const [sidePanelTab, setSidePanelTab] = useState<SidePanelTab>('actividad');
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
@@ -315,13 +320,21 @@ export function LeadProfilePage() {
 
   // Navigation: leads list passed via router state
   const navLeads: Lead[] = (location.state as { leads?: Lead[] })?.leads || [];
-  const currentIdx = navLeads.findIndex((l) => l.id === id);
+  const currentLeadKey = lead ? getLeadKey(lead) : `${col || 'leads'}:${id || ''}`;
+  const currentIdx = navLeads.findIndex((l) => getLeadKey(l) === currentLeadKey);
   const prevLead = currentIdx > 0 ? navLeads[currentIdx - 1] : null;
   const nextLead = currentIdx !== -1 && currentIdx < navLeads.length - 1 ? navLeads[currentIdx + 1] : null;
 
   const navigateTo = (l: Lead) => {
-    navigate(`/leads/${l._collection || 'leads'}/${l.id}`, { state: location.state });
+    navigate(`/leads/${getLeadCollection(l)}/${l.id}`, { state: location.state });
   };
+
+  useEffect(() => {
+    if (!lead || !col) return;
+    const canonicalCollection = getLeadCollection(lead);
+    if (canonicalCollection === col) return;
+    navigate(`/leads/${canonicalCollection}/${lead.id}`, { replace: true, state: location.state });
+  }, [lead, col, navigate, location.state]);
 
   // ── Field update helpers ──────────────────────────────────────
 
@@ -337,7 +350,7 @@ export function LeadProfilePage() {
     const oldValue = (lead as unknown as Record<string, unknown>)[field];
     await LeadService.updateLeadField(lead, field, value);
     if (appUser) {
-      const colName = lead._collection || 'leads';
+      const colName = leadCollection;
       await ActivityService.recordActivity(lead.id, colName, appUser.uid, appUser.name, 'field_updated', {
         field: FIELD_LABELS[field] || field,
         oldValue: oldValue !== null && oldValue !== undefined ? String(oldValue) : '',
@@ -350,7 +363,7 @@ export function LeadProfilePage() {
     if (!lead || !appUser) return;
     try {
       await LeadService.updateLeadStatus(lead, status, appUser.uid, appUser.name);
-      const colName = lead._collection || 'leads';
+      const colName = leadCollection;
       await ActivityService.recordActivity(lead.id, colName, appUser.uid, appUser.name,
         status === 'cerrado' ? 'closed' : 'status_change',
         { field: 'status', oldValue: lead.status, newValue: status });
@@ -366,7 +379,7 @@ export function LeadProfilePage() {
     try {
       await LeadService.updateLeadNotes(lead, notesDraft);
       if (appUser) {
-        const colName = lead._collection || 'leads';
+        const colName = leadCollection;
         await ActivityService.recordActivity(lead.id, colName, appUser.uid, appUser.name, 'note_added', { note: notesDraft });
       }
       addToast({ message: 'Notas guardadas', type: 'success' });
@@ -389,7 +402,7 @@ export function LeadProfilePage() {
     try {
       await LeadService.assignLead(lead, userId);
       if (appUser) {
-        const colName = lead._collection || 'leads';
+        const colName = leadCollection;
         await ActivityService.recordActivity(lead.id, colName, appUser.uid, appUser.name, 'assigned', { newValue: userId });
       }
       addToast({ message: 'Lead asignado', type: 'success' });
@@ -407,7 +420,7 @@ export function LeadProfilePage() {
     if (!lead || !appUser) return;
     try {
       await LeadService.cancelLead(lead, reason, appUser.uid, appUser.name);
-      const colName = lead._collection || 'leads';
+      const colName = leadCollection;
       await ActivityService.recordActivity(lead.id, colName, appUser.uid, appUser.name, 'cancelled',
         { field: 'status', oldValue: lead.status, newValue: 'cancelado', note: reason });
       addToast({ message: 'Lead cancelado', type: 'success' });
@@ -937,7 +950,7 @@ export function LeadProfilePage() {
                     tags={lead.tags || []}
                     onChange={updateTags}
                     leadId={lead.id}
-                    leadCollection={lead._collection || 'leads'}
+                    leadCollection={leadCollection}
                   />
                 </RoleGuard>
               </div>
@@ -1007,13 +1020,13 @@ export function LeadProfilePage() {
               {sidePanelTab === 'actividad' ? (
                 <LeadActivityTimeline
                   leadId={lead.id}
-                  leadCollection={lead._collection || 'leads'}
+                  leadCollection={leadCollection}
                 />
               ) : (
                 <TaskList
                   tasks={tasks}
                   leadId={lead.id}
-                  leadCollection={lead._collection || 'leads'}
+                  leadCollection={leadCollection}
                   leadName={lead.name}
                   leadEmail={lead.email}
                 />

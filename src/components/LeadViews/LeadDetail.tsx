@@ -13,6 +13,7 @@ import { useLeadTasks } from '../../hooks/leads/useLeadTasks';
 import { AssigneeDropdown } from '../User/AssigneeDropdown';
 import { RoleGuard } from '../User/RoleGuard';
 import { ApolloEnrichmentPanel } from './ApolloEnrichmentPanel';
+import { getLeadCollection } from '../../lib/leads';
 
 interface LeadDetailProps {
   lead: Lead;
@@ -30,13 +31,14 @@ type TabType = 'info' | 'actividad' | 'tareas';
 
 export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, onAssign, onCancel, onEnriched, siblingLeads }: LeadDetailProps) {
   const navigate = useNavigate();
+  const leadCollection = getLeadCollection(lead);
   const [notes, setNotes] = useState(lead.notes || '');
   const [isEditing, setIsEditing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [tags, setTags] = useState(lead.tags || []);
   const [activeTab, setActiveTab] = useState<TabType>('info');
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
-  const { tasks, loading: tasksLoading } = useLeadTasks(lead._collection || 'leads', lead.id);
+  const { tasks, loading: tasksLoading } = useLeadTasks(leadCollection, lead.id);
 
   useEffect(() => {
     setNotes(lead.notes || '');
@@ -90,7 +92,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
             </button>
             <button
               onClick={() =>
-                navigate(`/leads/${lead._collection || 'leads'}/${lead.id}`, {
+                navigate(`/leads/${leadCollection}/${lead.id}`, {
                   state: { leads: siblingLeads || [] },
                 })
               }
@@ -145,7 +147,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
                 tags={tags}
                 onChange={handleTagsChange}
                 leadId={lead.id}
-                leadCollection={lead._collection || 'leads'}
+                leadCollection={leadCollection}
               />
             </RoleGuard>
           </div>
@@ -367,7 +369,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
       {activeTab === 'actividad' && (
         <LeadActivityTimeline
           leadId={lead.id}
-          leadCollection={lead._collection || 'leads'}
+          leadCollection={leadCollection}
         />
       )}
 
@@ -382,7 +384,7 @@ export function LeadDetail({ lead, onStatusChange, onNotesChange, onTagsChange, 
             <TaskList
               tasks={tasks}
               leadId={lead.id}
-              leadCollection={lead._collection || 'leads'}
+              leadCollection={leadCollection}
               leadName={lead.name}
               leadEmail={lead.email}
             />
