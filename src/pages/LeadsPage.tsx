@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Lead } from '../types/domain';
+import { Lead, LeadStatus } from '../types/domain';
 import { Header } from '../components/Layout/Header';
 import { FilterBar } from '../components/Filters/FilterBar';
 import { LeadTable } from '../components/LeadViews/LeadTable';
@@ -15,8 +15,9 @@ import { useFilterLogic } from '../hooks/filtering/useFilterLogic';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { exportLeadsToExcel } from '../services/ExcelExportService';
-import { X, Loader2, Download, Upload } from 'lucide-react';
-import { LeadStatus } from '../types/domain';
+import { exportLeadsToPDF } from '../services/PDFExportService';
+import { X, Loader2, Download, Upload, FileText } from 'lucide-react';
+import { getLeadKey } from '../lib/leads';
 
 interface LeadsPageProps {
   showCreateForm?: boolean;
@@ -26,14 +27,14 @@ interface LeadsPageProps {
 
 interface CancellationTarget {
   type: 'single' | 'bulk';
-  ids: string[];
+  leadKeys: string[];
 }
 
 export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCreateForm }: LeadsPageProps) {
   const { appUser } = useAuth();
   const { addToast } = useToast();
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedLeadKeys, setSelectedLeadKeys] = useState<string[]>([]);
   const [cancellationTarget, setCancellationTarget] = useState<CancellationTarget | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
@@ -48,11 +49,9 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
     cancelLead,
     bulkCancelLeads,
     bulkStatusUpdate,
-  } = useLeadActions(leads, addToast, () => setSelectedIds([]), appUser?.uid, appUser?.name);
+  } = useLeadActions(leads, addToast, () => setSelectedLeadKeys([]), appUser?.uid, appUser?.name);
 
   const {
-    activeTab,
-    setActiveTab,
     searchQuery,
     setSearchQuery,
     statusFilter,
@@ -77,45 +76,43 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
     activeFilterCount,
     applyFilterState,
     clearAllFilters,
-    getCurrentFilterState
+    getCurrentFilterState,
   } = useFilterLogic(leads);
 
   const handleBulkStatusUpdate = async (status: LeadStatus) => {
     if (!status || bulkActionLoading) return;
     setBulkActionLoading(true);
     try {
-      await bulkStatusUpdate(selectedIds, status);
+      await bulkStatusUpdate(selectedLeadKeys, status);
     } finally {
       setBulkActionLoading(false);
     }
   };
 
-  /** Abre el modal de cancelación para un lead individual (desde LeadDetail) */
   const handleRequestCancelSingle = () => {
     if (!selectedLead) return;
-    setCancellationTarget({ type: 'single', ids: [selectedLead.id] });
+    setCancellationTarget({ type: 'single', leadKeys: [getLeadKey(selectedLead)] });
   };
 
-  /** Abre el modal de cancelación para la selección masiva */
   const handleRequestCancelBulk = () => {
-    if (selectedIds.length === 0) return;
-    setCancellationTarget({ type: 'bulk', ids: [...selectedIds] });
+    if (selectedLeadKeys.length === 0) return;
+    setCancellationTarget({ type: 'bulk', leadKeys: [...selectedLeadKeys] });
   };
 
-  /** Confirma la cancelación con el motivo elegido */
   const handleConfirmCancellation = async (reason: string) => {
     if (!cancellationTarget || bulkActionLoading) return;
-    const { type, ids } = cancellationTarget;
+
+    const { type, leadKeys } = cancellationTarget;
     setCancellationTarget(null);
     setBulkActionLoading(true);
 
     try {
       if (type === 'single') {
-        await cancelLead(ids[0], reason);
-        if (selectedLead?.id === ids[0]) setSelectedLead(null);
+        await cancelLead(leadKeys[0], reason);
+        if (selectedLead && getLeadKey(selectedLead) === leadKeys[0]) setSelectedLead(null);
       } else {
-        await bulkCancelLeads(ids, reason);
-        setSelectedIds([]);
+        await bulkCancelLeads(leadKeys, reason);
+        setSelectedLeadKeys([]);
         setSelectedLead(null);
       }
     } finally {
@@ -124,7 +121,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
   };
 
   const cancellationLeadName = cancellationTarget?.type === 'single'
-    ? leads.find(l => l.id === cancellationTarget.ids[0])?.name
+    ? leads.find((lead) => getLeadKey(lead) === cancellationTarget.leadKeys[0])?.name
     : undefined;
 
   return (
@@ -142,7 +139,16 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
               title="Exportar leads a Excel"
             >
               <Download size={16} />
-              <span className="hidden sm:inline">Exportar</span>
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+            <button
+              onClick={() => { void exportLeadsToPDF(filteredLeads); }}
+              disabled={filteredLeads.length === 0}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Exportar leads a PDF"
+            >
+              <FileText size={16} />
+              <span className="hidden sm:inline">PDF</span>
             </button>
             <RoleGuard requires="canEdit">
               <button
@@ -183,22 +189,23 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
         onFilledFieldsMinChange={setFilledFieldsMin}
         activeFilterCount={activeFilterCount}
         filteredCount={filteredLeads.length}
-        totalCount={leads.filter(l => l.status !== 'cancelado').length}
+        totalCount={leads.filter((lead) => lead.status !== 'cancelado').length}
         onApplyFilterState={applyFilterState}
         getCurrentFilterState={getCurrentFilterState}
         onClearAllFilters={clearAllFilters}
       />
 
-      {selectedIds.length > 0 && (
+      {selectedLeadKeys.length > 0 && (
         <SelectionHUD
-          selectedCount={selectedIds.length}
+          selectedCount={selectedLeadKeys.length}
           onBulkCancel={handleRequestCancelBulk}
           onBulkStatusUpdate={handleBulkStatusUpdate}
-          onClearSelection={() => setSelectedIds([])}
+          onClearSelection={() => setSelectedLeadKeys([])}
           disabled={bulkActionLoading}
           onExportSelected={() => {
-            const selected = leads.filter(l => selectedIds.includes(l.id));
-            exportLeadsToExcel(selected, `leads_seleccionados_${new Date().toISOString().slice(0, 10)}.xlsx`);
+            const selectedLeadSet = new Set(selectedLeadKeys);
+            const selectedLeads = leads.filter((lead) => selectedLeadSet.has(getLeadKey(lead)));
+            exportLeadsToExcel(selectedLeads, `leads_seleccionados_${new Date().toISOString().slice(0, 10)}.xlsx`);
           }}
         />
       )}
@@ -207,16 +214,20 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
         <div className={`transition-all duration-300 ${selectedLead ? 'hidden md:block md:flex-1 md:min-w-0' : 'w-full'}`}>
           <LeadTable
             leads={filteredLeads}
-            selectedIds={selectedIds}
+            selectedIds={selectedLeadKeys}
             onSelect={setSelectedLead}
-            onToggleSelection={(id) => {
-              setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+            onToggleSelection={(leadKey) => {
+              setSelectedLeadKeys((prev) => prev.includes(leadKey)
+                ? prev.filter((key) => key !== leadKey)
+                : [...prev, leadKey]);
             }}
-            onToggleAll={(ids) => setSelectedIds(ids)}
-            onDelete={() => {}} // no-op: delete replaced by cancel flow
+            onToggleAll={(leadKeys) => setSelectedLeadKeys(leadKeys)}
+            onDelete={() => {}}
             loading={leadsLoading}
             hasActiveFilters={activeFilterCount > 0}
+            onNewLead={onOpenCreateForm}
           />
+
           {hasMore && (
             <div className="mt-4 text-center">
               <button
@@ -230,7 +241,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
                     Cargando...
                   </span>
                 ) : (
-                  'Cargar más leads'
+                  'Cargar mas leads'
                 )}
               </button>
             </div>
@@ -251,14 +262,14 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
               aria-label="Cerrar detalle del lead"
               className="md:hidden w-full mb-2 py-2 text-sm font-semibold text-gray-500 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
             >
-              ← Volver a la lista
+              Volver a la lista
             </button>
             <LeadDetail
               lead={selectedLead}
-              onStatusChange={(status) => updateLeadStatus(selectedLead.id, status)}
-              onNotesChange={(notes) => updateLeadNotes(selectedLead.id, notes)}
-              onTagsChange={(tags) => updateLeadTags(selectedLead.id, tags)}
-              onAssign={(userId) => assignLead(selectedLead.id, userId)}
+              onStatusChange={(status) => updateLeadStatus(getLeadKey(selectedLead), status)}
+              onNotesChange={(notes) => updateLeadNotes(getLeadKey(selectedLead), notes)}
+              onTagsChange={(nextTags) => updateLeadTags(getLeadKey(selectedLead), nextTags)}
+              onAssign={(userId) => assignLead(getLeadKey(selectedLead), userId)}
               onCancel={handleRequestCancelSingle}
               siblingLeads={filteredLeads}
             />
@@ -283,7 +294,7 @@ export function LeadsPage({ showCreateForm = false, onOpenCreateForm, onCloseCre
         isOpen={!!cancellationTarget}
         leadName={cancellationLeadName}
         isBulk={cancellationTarget?.type === 'bulk'}
-        bulkCount={cancellationTarget?.ids.length ?? 0}
+        bulkCount={cancellationTarget?.leadKeys.length ?? 0}
         onConfirm={handleConfirmCancellation}
         onClose={() => setCancellationTarget(null)}
       />
