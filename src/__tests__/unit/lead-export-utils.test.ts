@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Lead } from '../../types/domain';
-import { buildLeadExportEntries, buildLeadExportRow } from '../../services/LeadExportUtils';
+import { buildLeadExportEntries, buildLeadExportRow, buildLeadRawDataEntries } from '../../services/LeadExportUtils';
 
 function makeLead(overrides: Partial<Lead> = {}): Lead {
   return {
@@ -68,5 +68,21 @@ describe('buildLeadExportEntries', () => {
     const entries = buildLeadExportEntries(lead);
 
     expect(entries.some((entry) => entry.label === 'Data: calculator.score_total' && entry.value === '90')).toBe(true);
+  });
+});
+
+describe('buildLeadRawDataEntries', () => {
+  it('returns flattened raw data entries for calculator payloads', () => {
+    const lead = makeLead({
+      data: {
+        calculator: { score_total: 91 },
+        data: { calculadora: { m2_totales: 22000 } },
+      },
+    });
+
+    const entries = buildLeadRawDataEntries(lead);
+
+    expect(entries).toContainEqual({ key: 'calculator.score_total', value: '91' });
+    expect(entries).toContainEqual({ key: 'data.calculadora.m2_totales', value: '22000' });
   });
 });

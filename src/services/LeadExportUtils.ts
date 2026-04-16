@@ -214,3 +214,12 @@ export function buildLeadExportEntries(lead: Lead): Array<{ label: string; value
     value: String(raw),
   }));
 }
+
+export function buildLeadRawDataEntries(lead: Lead): Array<{ key: string; value: string }> {
+  return Object.entries(buildLeadExportRow(lead))
+    .filter(([label, raw]) => label.startsWith('Data: ') && raw !== null && raw !== undefined && raw !== '')
+    .map(([label, raw]) => ({
+      key: label.replace(/^Data:\s*/, ''),
+      value: String(raw),
+    }));
+}

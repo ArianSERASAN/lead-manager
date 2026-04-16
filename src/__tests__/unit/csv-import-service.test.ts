@@ -6,6 +6,9 @@ import {
   generateSlug,
   generateFieldId,
   buildMissingFieldDefinitions,
+  buildOfficialImportTemplateRows,
+  getOfficialImportColumn,
+  isOfficialCustomFieldName,
 } from '../../services/CSVImportService';
 
 describe('generateSlug', () => {
@@ -183,5 +186,47 @@ describe('buildMissingFieldDefinitions', () => {
     const result = buildMissingFieldDefinitions(headers, mapping, {}, existingSchema, 'u');
     expect(result[0].order).toBe(6);
     expect(result[1].order).toBe(7);
+  });
+
+  it('creates official template field definitions with stable slugs and sections', () => {
+    const headers = ['Empresa', 'CEO', 'CIF', 'Score Total'];
+    const mapping = autoMapHeaders(headers);
+    const result = buildMissingFieldDefinitions(headers, mapping, {}, [], 'user1');
+
+    expect(result.map((field) => field.name)).toEqual(['ceo', 'cif', 'score_total']);
+    expect(result.find((field) => field.name === 'ceo')?.section).toBe('Contacto');
+    expect(result.find((field) => field.name === 'score_total')?.type).toBe('number');
+    expect(result.find((field) => field.name === 'ceo')?.official).toBe(true);
+    expect(result.find((field) => field.name === 'cif')?.official).toBe(true);
+  });
+});
+
+describe('getOfficialImportColumn', () => {
+  it('detects official template headers and aliases', () => {
+    expect(getOfficialImportColumn('CIF')?.customField).toBe('cif');
+    expect(getOfficialImportColumn('Telefono')?.leadField).toBe('phone');
+    expect(getOfficialImportColumn('LinkedIn CEO')?.customField).toBe('linkedin_ceo');
+  });
+});
+
+describe('isOfficialCustomFieldName', () => {
+  it('returns true only for official custom field slugs', () => {
+    expect(isOfficialCustomFieldName('score_total')).toBe(true);
+    expect(isOfficialCustomFieldName('linkedin_ceo')).toBe(true);
+    expect(isOfficialCustomFieldName('campo_nuevo_inventado')).toBe(false);
+  });
+});
+
+describe('buildOfficialImportTemplateRows', () => {
+  it('returns section, header, and sample rows for the official template', () => {
+    const [sectionRow, headerRow, sampleRow] = buildOfficialImportTemplateRows();
+
+    expect(sectionRow[0]).toBe('Empresa');
+    expect(headerRow[0]).toBe('Empresa');
+    expect(headerRow).toContain('Score Total');
+    expect(sampleRow[0]).toBe('Empresa Ejemplo');
+    expect(sampleRow[headerRow.indexOf('Email')]).toBe('ana@empresa-ejemplo.com');
+    expect(headerRow).toHaveLength(sectionRow.length);
+    expect(sampleRow).toHaveLength(headerRow.length);
   });
 });

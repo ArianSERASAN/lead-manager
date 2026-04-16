@@ -12,6 +12,10 @@ import {
   buildMissingFieldDefinitions,
   STANDARD_FIELD_LABELS,
   checkDuplicatesInBatch,
+  downloadOfficialImportTemplate,
+  generateSlug,
+  getOfficialImportColumn,
+  isOfficialCustomFieldName,
   type DuplicateMatch,
 } from '../../services/CSVImportService';
 import { saveFieldSchema } from '../../services/FieldSchemaService';
@@ -39,6 +43,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [importResult, setImportResult] = useState({ imported: 0, errors: 0 });
   const [showAutoMapped, setShowAutoMapped] = useState(false);
+  const [showUnknownFields, setShowUnknownFields] = useState(false);
   const [duplicates, setDuplicates] = useState<Map<string, DuplicateMatch>>(new Map());
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [checkingDuplicates, setCheckingDuplicates] = useState(false);
@@ -86,6 +91,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     const mapping = autoMapHeaders(result.headers);
     setAutoMapping(mapping);
     setColumnSections(result.columnSections);
+    setShowUnknownFields(false);
     setStep('review');
 
     // Check duplicates in background
@@ -124,16 +130,24 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     if (!userId || !userName) return;
     setStep('importing');
 
-    // 1. Auto-create missing FieldDefinitions in Firestore
-    const newFieldDefs: FieldDefinition[] = buildMissingFieldDefinitions(
+    // 1. Only keep official fields in schema (unknown columns stay as ad-hoc lead data)
+    const candidateFieldDefs: FieldDefinition[] = buildMissingFieldDefinitions(
       headers,
       autoMapping,
       columnSections,
       existingSchema,
       userId
     );
-    if (newFieldDefs.length > 0) {
-      await saveFieldSchema([...existingSchema, ...newFieldDefs]);
+    const newOfficialFieldDefs = candidateFieldDefs.filter((field) => isOfficialCustomFieldName(field.name));
+    const normalizedExistingSchema = existingSchema.map((field) => (
+      isOfficialCustomFieldName(field.name) && !field.official
+        ? { ...field, official: true }
+        : field
+    ));
+    const schemaNeedsNormalization = normalizedExistingSchema.some((field, index) => field !== existingSchema[index]);
+
+    if (schemaNeedsNormalization || newOfficialFieldDefs.length > 0) {
+      await saveFieldSchema([...normalizedExistingSchema, ...newOfficialFieldDefs]);
     }
 
     // 2. Map, validate, and optionally skip duplicates
@@ -164,6 +178,7 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
     setColumnSections({});
     setParseErrors([]);
     setShowAutoMapped(false);
+    setShowUnknownFields(false);
     setDuplicates(new Map());
     setSkipDuplicates(true);
     onClose();
@@ -377,14 +392,27 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                   <div className="flex items-center gap-2 px-4 py-3 border-b border-amber-100">
                     <AlertCircle size={15} className="text-amber-500" />
                     <span className="text-sm font-semibold text-amber-800">
-                      Campos nuevos a crear en la ficha
+                      Columnas no previstas detectadas (se verán en ficha, sin crear campos en Configuración)
                     </span>
-                    <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
-                      {newFieldHeaders.length}
-                    </span>
+                    <div className="ml-auto flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-amber-600 bg-amber-100 px-2 py-0.5 rounded-full">
+                        {newFieldHeaders.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowUnknownFields((value) => !value)}
+                        className="p-0.5 text-amber-500 hover:text-amber-700 transition-colors"
+                        title={showUnknownFields ? 'Ocultar detalle' : 'Ver detalle'}
+                      >
+                        {showUnknownFields ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                      </button>
+                    </div>
                   </div>
                   <div className="px-4 py-3 space-y-3">
-                    {Object.entries(newFieldsBySection).map(([section, sectionHeaders]) => (
+                    <p className="text-xs text-amber-700">
+                      Se guardarán como datos adicionales por lead y quedarán visibles en la ficha completa.
+                    </p>
+                    {showUnknownFields && Object.entries(newFieldsBySection).map(([section, sectionHeaders]) => (
                       <div key={section}>
                         <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1.5">
                           {section}
@@ -456,10 +484,31 @@ export function CSVImport({ isOpen, onClose, onSuccess, userId, userName }: CSVI
                 )}
               </div>
               {newFieldHeaders.length > 0 && (
-                <p className="text-xs text-gray-400 mt-4 text-center max-w-xs">
-                  Se han creado <strong className="text-gray-600">{newFieldHeaders.length} campos nuevos</strong>{' '}
-                  en la ficha del lead, organizados por sección.
+                <p className="text-xs text-gray-400 mt-4 text-center max-w-md">
+                  Se detectaron <strong className="text-gray-600">{newFieldHeaders.length} columnas no previstas</strong>.
+                  Se importaron igualmente y se muestran en cada ficha como datos adicionales, sin crear ruido en Configuración.
                 </p>
+              )}
+              {(officialMissingFieldEntries.length > 0 || duplicatePreviewCount > 0 || invalidCount > 0) && (
+                <div className="mt-4 w-full max-w-md rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-left">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
+                    Resumen de esta importación
+                  </p>
+                  <div className="space-y-1 text-sm text-gray-600">
+                    {officialMissingFieldEntries.length > 0 && (
+                      <p>Campos oficiales creados: <span className="font-semibold text-gray-900">{officialMissingFieldEntries.length}</span></p>
+                    )}
+                    {newFieldHeaders.length > 0 && (
+                      <p>Columnas adicionales importadas: <span className="font-semibold text-gray-900">{newFieldHeaders.length}</span></p>
+                    )}
+                    {invalidCount > 0 && (
+                      <p>Filas vacías descartadas: <span className="font-semibold text-gray-900">{invalidCount}</span></p>
+                    )}
+                    {duplicatePreviewCount > 0 && skipDuplicates && (
+                      <p>Duplicados omitidos: <span className="font-semibold text-gray-900">{duplicatePreviewCount}</span></p>
+                    )}
+                  </div>
+                </div>
               )}
             </div>
           )}

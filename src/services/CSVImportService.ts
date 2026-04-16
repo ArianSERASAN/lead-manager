@@ -130,6 +130,161 @@ const HEADER_MAP: Record<string, string> = {
   comentarios: 'notes', descripcion: 'notes',
 };
 
+export const OFFICIAL_IMPORT_COLUMNS: OfficialImportColumn[] = [
+  { header: 'Empresa', section: 'Empresa', order: 1, type: 'text', leadField: 'company' },
+  { header: 'CIF', section: 'Empresa', order: 2, type: 'text', customField: 'cif' },
+  { header: 'Sector', section: 'Empresa', order: 3, type: 'text', leadField: 'sector' },
+  { header: 'Facturación', section: 'Empresa', order: 4, type: 'number', customField: 'facturacion' },
+  { header: 'Empleados', section: 'Empresa', order: 5, type: 'number', customField: 'empleados' },
+  { header: 'Sede', section: 'Empresa', order: 6, type: 'text', leadField: 'localidad' },
+  { header: 'Web', section: 'Empresa', order: 7, type: 'url', customField: 'web' },
+  { header: 'CEO', section: 'Contacto', order: 8, type: 'text', leadField: 'name', customField: 'ceo' },
+  { header: 'Cargo', section: 'Contacto', order: 9, type: 'text', leadField: 'cargo' },
+  { header: 'LinkedIn CEO', section: 'Contacto', order: 10, type: 'url', customField: 'linkedin_ceo', aliases: ['linkedin ceo', 'linkedin del ceo'] },
+  { header: 'Facilities/COO', section: 'Contacto', order: 11, type: 'text', customField: 'facilities_coo', aliases: ['facilities/coo', 'facilities coo'] },
+  { header: 'Email', section: 'Contacto', order: 12, type: 'email', leadField: 'email' },
+  { header: 'Teléfono', section: 'Contacto', order: 13, type: 'phone', leadField: 'phone', aliases: ['telefono'] },
+  { header: 'Nº Activos', section: 'Activos e Inmueble', order: 14, type: 'number', customField: 'numero_activos', aliases: ['n activos', 'num activos', 'numero activos'] },
+  { header: 'm² Totales', section: 'Activos e Inmueble', order: 15, type: 'number', customField: 'm2_totales', aliases: ['m2 totales', 'm² totales'] },
+  { header: 'Régimen', section: 'Activos e Inmueble', order: 16, type: 'text', customField: 'regimen', aliases: ['regimen'] },
+  { header: 'Año Construcción', section: 'Activos e Inmueble', order: 17, type: 'number', customField: 'ano_construccion', aliases: ['ano construccion'] },
+  { header: 'Cert. Energética', section: 'Activos e Inmueble', order: 18, type: 'text', customField: 'cert_energetica', aliases: ['cert energetica', 'cert. energetica'] },
+  { header: 'Instalaciones', section: 'Activos e Inmueble', order: 19, type: 'textarea', customField: 'instalaciones' },
+  { header: 'Score Total', section: 'Scoring Comercial', order: 20, type: 'number', customField: 'score_total' },
+  { header: 'Score Obsolescencia', section: 'Scoring Comercial', order: 21, type: 'number', customField: 'score_obsolescencia' },
+  { header: 'Score Potencial', section: 'Scoring Comercial', order: 22, type: 'number', customField: 'score_potencial' },
+  { header: 'Score Control', section: 'Scoring Comercial', order: 23, type: 'number', customField: 'score_control' },
+  { header: 'Score Contacto', section: 'Scoring Comercial', order: 24, type: 'number', customField: 'score_contacto' },
+  { header: 'Score Tamaño', section: 'Scoring Comercial', order: 25, type: 'number', customField: 'score_tamano', aliases: ['score tamano'] },
+  { header: 'Score ESG', section: 'Scoring Comercial', order: 26, type: 'number', customField: 'score_esg' },
+  { header: 'Tier', section: 'Scoring Comercial', order: 27, type: 'text', customField: 'tier' },
+  { header: 'Temperatura', section: 'Scoring Comercial', order: 28, type: 'text', customField: 'temperatura' },
+  { header: 'Hook Inicial', section: 'Prospección', order: 29, type: 'textarea', customField: 'hook_inicial', aliases: ['hook inicial', 'hook'] },
+  { header: 'Problema Identificado', section: 'Prospección', order: 30, type: 'textarea', customField: 'problema_identificado', aliases: ['problema identificado'] },
+  { header: 'Propuesta Concreta', section: 'Prospección', order: 31, type: 'textarea', customField: 'propuesta_concreta', aliases: ['propuesta concreta'] },
+  { header: 'PDF Generado', section: 'Prospección', order: 32, type: 'url', customField: 'pdf_generado', aliases: ['pdf generado'] },
+];
+
+export const OFFICIAL_CUSTOM_FIELD_NAMES: string[] = OFFICIAL_IMPORT_COLUMNS
+  .map((column) => column.customField)
+  .filter((value): value is string => Boolean(value));
+
+const OFFICIAL_CUSTOM_FIELD_SET = new Set(OFFICIAL_CUSTOM_FIELD_NAMES);
+
+export function isOfficialCustomFieldName(name: string): boolean {
+  return OFFICIAL_CUSTOM_FIELD_SET.has(name);
+}
+
+const OFFICIAL_IMPORT_MAP = new Map<string, OfficialImportColumn>();
+for (const column of OFFICIAL_IMPORT_COLUMNS) {
+  OFFICIAL_IMPORT_MAP.set(normalize(column.header), column);
+  for (const alias of column.aliases || []) {
+    OFFICIAL_IMPORT_MAP.set(normalize(alias), column);
+  }
+}
+
+export function getOfficialImportColumn(header: string): OfficialImportColumn | null {
+  return OFFICIAL_IMPORT_MAP.get(normalize(header)) || null;
+}
+
+export function getOfficialImportSections(): Array<{
+  section: string;
+  columns: OfficialImportColumn[];
+}> {
+  const sections: Array<{ section: string; columns: OfficialImportColumn[] }> = [];
+  for (const column of OFFICIAL_IMPORT_COLUMNS) {
+    const existingSection = sections.find((entry) => entry.section === column.section);
+    if (existingSection) {
+      existingSection.columns.push(column);
+    } else {
+      sections.push({ section: column.section, columns: [column] });
+    }
+  }
+  return sections;
+}
+
+const OFFICIAL_TEMPLATE_EXAMPLE_VALUES: Record<string, string> = {
+  Empresa: 'Empresa Ejemplo',
+  CIF: 'B12345678',
+  Sector: 'Logistica',
+  Facturación: '12500000',
+  Empleados: '85',
+  Sede: 'Madrid',
+  Web: 'https://empresa-ejemplo.com',
+  CEO: 'Ana Lopez',
+  Cargo: 'CEO',
+  'LinkedIn CEO': 'https://linkedin.com/in/ana-lopez',
+  'Facilities/COO': 'Carlos Martin',
+  Email: 'ana@empresa-ejemplo.com',
+  Teléfono: '600123123',
+  'Nº Activos': '12',
+  'm² Totales': '18500',
+  Régimen: 'Propiedad',
+  'Año Construcción': '2006',
+  'Cert. Energética': 'B',
+  Instalaciones: 'Climatizacion, BMS, alumbrado LED',
+  'Score Total': '87',
+  'Score Obsolescencia': '24',
+  'Score Potencial': '18',
+  'Score Control': '14',
+  'Score Contacto': '12',
+  'Score Tamaño': '11',
+  'Score ESG': '8',
+  Tier: 'A',
+  Temperatura: 'Caliente',
+  'Hook Inicial': 'Ahorro energetico en activos logisticos',
+  'Problema Identificado': 'Equipos HVAC con baja eficiencia',
+  'Propuesta Concreta': 'Auditoria tecnica y plan de renovacion',
+  'PDF Generado': 'https://empresa-ejemplo.com/propuesta.pdf',
+};
+
+export function buildOfficialImportTemplateRows(): string[][] {
+  const sections = getOfficialImportSections();
+  const sectionRow: string[] = [];
+  const headerRow: string[] = [];
+  const exampleRow: string[] = [];
+
+  for (const { section, columns } of sections) {
+    columns.forEach((column, index) => {
+      sectionRow.push(index === 0 ? section : '');
+      headerRow.push(column.header);
+      exampleRow.push(OFFICIAL_TEMPLATE_EXAMPLE_VALUES[column.header] || '');
+    });
+  }
+
+  return [sectionRow, headerRow, exampleRow];
+}
+
+export function downloadOfficialImportTemplate(
+  fileName = 'plantilla_importacion_leads.xlsx'
+): void {
+  const workbook = XLSX.utils.book_new();
+  const rows = buildOfficialImportTemplateRows();
+  const sheet = XLSX.utils.aoa_to_sheet(rows);
+  const sections = getOfficialImportSections();
+  const merges: XLSX.Range[] = [];
+  const columns: Array<{ wch: number }> = [];
+
+  let columnIndex = 0;
+  for (const { columns: sectionColumns } of sections) {
+    if (sectionColumns.length > 1) {
+      merges.push({
+        s: { r: 0, c: columnIndex },
+        e: { r: 0, c: columnIndex + sectionColumns.length - 1 },
+      });
+    }
+    for (const column of sectionColumns) {
+      columns.push({ wch: Math.max(column.header.length + 4, 16) });
+      columnIndex += 1;
+    }
+  }
+
+  sheet['!merges'] = merges;
+  sheet['!cols'] = columns;
+  XLSX.utils.book_append_sheet(workbook, sheet, 'Importacion');
+  XLSX.writeFile(workbook, fileName);
+}
+
 // Labels for display in the review step
 export const STANDARD_FIELD_LABELS: Record<string, string> = {
   name: 'Nombre del lead',
@@ -192,7 +347,8 @@ export function buildMissingFieldDefinitions(
       id: generateFieldId(),
       name: slug,
       label: header,
-      type: 'text',
+      type: officialColumn?.type || 'text',
+      official: Boolean(officialColumn?.customField && slug === officialColumn.customField),
       visible: true,
       required: false,
       section,
