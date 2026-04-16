@@ -184,6 +184,17 @@ for (const column of OFFICIAL_IMPORT_COLUMNS) {
   }
 }
 
+export const OFFICIAL_CUSTOM_FIELD_NAMES = Array.from(new Set(
+  OFFICIAL_IMPORT_COLUMNS
+    .map((column) => column.customField || '')
+    .filter(Boolean)
+));
+
+export function isOfficialCustomFieldName(name: string): boolean {
+  const slug = generateSlug(name);
+  return Boolean(slug) && OFFICIAL_CUSTOM_FIELD_NAMES.includes(slug);
+}
+
 export function getOfficialImportColumn(header: string): OfficialImportColumn | null {
   return OFFICIAL_IMPORT_MAP.get(normalize(header)) || null;
 }

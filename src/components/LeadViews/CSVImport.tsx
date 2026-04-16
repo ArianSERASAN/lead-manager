@@ -15,6 +15,7 @@ import {
   downloadOfficialImportTemplate,
   generateSlug,
   getOfficialImportColumn,
+  isOfficialCustomFieldName,
   type DuplicateMatch,
   type OfficialImportColumn,
 } from '../../services/CSVImportService';
