@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, ArrowUp, ArrowDown, CornerDownLeft, X } from 'lucide-react';
 import { useGlobalSearch } from '../../hooks/useGlobalSearch';
 import { ScoreBadge } from '../Scoring/ScoreBadge';
+import { getLeadCollection, getLeadKey } from '../../lib/leads';
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
   nuevo: { label: 'Nuevo', cls: 'bg-emerald-50 text-emerald-700' },
@@ -47,7 +48,7 @@ export function GlobalSearch() {
     const lead = results[index];
     if (!lead) return;
     close();
-    navigate(`/leads/${lead._collection || 'leads'}/${lead.id}`);
+    navigate(`/leads/${getLeadCollection(lead)}/${lead.id}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
