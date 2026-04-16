@@ -1,130 +1,143 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { collection, onSnapshot, query, orderBy, limit, startAfter, getDocs, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
-import { Lead } from '../../types/domain';
-import { calculateLeadScore, isLeadStale } from '../../lib/scoring-engine';
-import { getTimestampSeconds } from '../../utils/format';
+import { Lead, LeadCollection, toJSDate } from '../../types/domain';
+import { LEAD_COLLECTIONS, getLeadKey, normalizeLeadSnapshot } from '../../lib/leads';
 
 const PAGE_SIZE = 50;
-const COLLECTION_NAME = 'leads';
+
+const EMPTY_COLLECTION_STATE: Record<LeadCollection, Lead[]> = {
+  leads: [],
+  leads_descargas: [],
+  solicitudes_contacto: [],
+};
+
+function mergeCollectionLeads(leadsByCollection: Record<LeadCollection, Lead[]>): Lead[] {
+  const merged = LEAD_COLLECTIONS
+    .flatMap((name) => leadsByCollection[name])
+    .sort((a, b) => toJSDate(b.createdAt).getTime() - toJSDate(a.createdAt).getTime());
+
+  const seen = new Set<string>();
+  return merged.filter((lead) => {
+    const key = getLeadKey(lead);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 export function useLeads() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [cursor, setCursor] = useState<QueryDocumentSnapshot | null>(null);
+
+  const cursorsRef = useRef<Record<LeadCollection, QueryDocumentSnapshot | null>>({
+    leads: null,
+    leads_descargas: null,
+    solicitudes_contacto: null,
+  });
+  const hasMoreByCollectionRef = useRef<Record<LeadCollection, boolean>>({
+    leads: false,
+    leads_descargas: false,
+    solicitudes_contacto: false,
+  });
+  const leadsByCollectionRef = useRef<Record<LeadCollection, Lead[]>>({ ...EMPTY_COLLECTION_STATE });
   const initialLoad = useRef(true);
 
   useEffect(() => {
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      orderBy('createdAt', 'desc'),
-      limit(PAGE_SIZE)
-    );
+    const pendingCollections = new Set<LeadCollection>(LEAD_COLLECTIONS);
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const mapped = snapshot.docs.map(doc => mapDocToLead(doc));
-      setLeads(mapped);
-      setHasMore(snapshot.docs.length >= PAGE_SIZE);
+    const recomputeState = () => {
+      setLeads(mergeCollectionLeads(leadsByCollectionRef.current));
+      setHasMore(LEAD_COLLECTIONS.some((name) => hasMoreByCollectionRef.current[name]));
+    };
 
-      if (snapshot.docs.length > 0) {
-        setCursor(snapshot.docs[snapshot.docs.length - 1]);
-      }
-
-      if (initialLoad.current) {
-        setLoading(false);
-        initialLoad.current = false;
-      }
-    }, (err) => {
-      console.error('[useLeads] Error:', err);
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore || !cursor) return;
-    setLoadingMore(true);
-
-    try {
+    const unsubscribers = LEAD_COLLECTIONS.map((collectionName) => {
       const q = query(
-        collection(db, COLLECTION_NAME),
+        collection(db, collectionName),
         orderBy('createdAt', 'desc'),
-        startAfter(cursor),
         limit(PAGE_SIZE)
       );
 
-      const snapshot = await getDocs(q);
-      const newLeads = snapshot.docs.map(doc => mapDocToLead(doc));
+      return onSnapshot(q, (snapshot) => {
+        leadsByCollectionRef.current[collectionName] = snapshot.docs.map((doc) => (
+          normalizeLeadSnapshot(
+            { id: doc.id, data: () => doc.data() },
+            collectionName
+          )
+        ));
+        cursorsRef.current[collectionName] = snapshot.docs.length > 0
+          ? snapshot.docs[snapshot.docs.length - 1]
+          : null;
+        hasMoreByCollectionRef.current[collectionName] = snapshot.docs.length >= PAGE_SIZE;
 
-      if (newLeads.length > 0) {
-        setLeads(prev => {
-          const existingIds = new Set(prev.map(l => l.id));
-          const unique = newLeads.filter(l => !existingIds.has(l.id));
-          return [...prev, ...unique];
-        });
-        setCursor(snapshot.docs[snapshot.docs.length - 1]);
-      }
+        pendingCollections.delete(collectionName);
+        recomputeState();
 
-      setHasMore(snapshot.docs.length >= PAGE_SIZE);
+        if (initialLoad.current && pendingCollections.size === 0) {
+          setLoading(false);
+          initialLoad.current = false;
+        }
+      }, (err) => {
+        console.error(`[useLeads] Error (${collectionName}):`, err);
+        pendingCollections.delete(collectionName);
+        if (initialLoad.current && pendingCollections.size === 0) {
+          setLoading(false);
+          initialLoad.current = false;
+        }
+      });
+    });
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+
+    try {
+      await Promise.all(LEAD_COLLECTIONS.map(async (collectionName) => {
+        const cursor = cursorsRef.current[collectionName];
+        const collectionHasMore = hasMoreByCollectionRef.current[collectionName];
+        if (!cursor || !collectionHasMore) return;
+
+        const q = query(
+          collection(db, collectionName),
+          orderBy('createdAt', 'desc'),
+          startAfter(cursor),
+          limit(PAGE_SIZE)
+        );
+
+        const snapshot = await getDocs(q);
+        const nextPage = snapshot.docs.map((doc) => (
+          normalizeLeadSnapshot(
+            { id: doc.id, data: () => doc.data() },
+            collectionName
+          )
+        ));
+
+        const existing = leadsByCollectionRef.current[collectionName];
+        const seen = new Set(existing.map((lead) => getLeadKey(lead)));
+        const uniqueNext = nextPage.filter((lead) => !seen.has(getLeadKey(lead)));
+        leadsByCollectionRef.current[collectionName] = [...existing, ...uniqueNext];
+
+        cursorsRef.current[collectionName] = snapshot.docs.length > 0
+          ? snapshot.docs[snapshot.docs.length - 1]
+          : null;
+        hasMoreByCollectionRef.current[collectionName] = snapshot.docs.length >= PAGE_SIZE;
+      }));
+
+      setLeads(mergeCollectionLeads(leadsByCollectionRef.current));
+      setHasMore(LEAD_COLLECTIONS.some((name) => hasMoreByCollectionRef.current[name]));
     } catch (err) {
       console.error('[useLeads] Error loading more:', err);
     } finally {
       setLoadingMore(false);
     }
-  }, [cursor, loadingMore, hasMore]);
+  }, [loadingMore, hasMore]);
 
   return { leads, loading, hasMore, loadMore, loadingMore };
-}
-
-function mapDocToLead(doc: QueryDocumentSnapshot): Lead {
-  const data = doc.data();
-
-  const lead: Lead = {
-    id: doc.id,
-    name: data.name || data.nombre || '—',
-    email: data.email || '—',
-    phone: data.phone || data.telefono || '',
-    company: data.company || data.empresa || '',
-    source: data.source || 'landing',
-    status: data.status || 'nuevo',
-    createdAt: data.createdAt || data.fecha || new Date(),
-    updatedAt: data.updatedAt || data.createdAt || new Date(),
-    notes: data.notes || data.notas || '',
-    tags: data.tags || [],
-    score: 0,
-    resource: data.recurso || data.resource || '',
-    message: data.mensaje || data.message || '',
-    apellidos: data.apellidos || '',
-    sector: data.sector || '',
-    cargo: data.cargo || '',
-    servicios: data.servicios || [],
-    tipoInmueble: data.tipoInmueble || data.tipo_inmueble || data.buildingType || '',
-    superficie: data.superficie !== undefined ? String(data.superficie) : (data.surface !== undefined ? String(data.surface) : ''),
-    referenciaCatastral: data.referenciaCatastral || data.referencia_catastral || data.catastro || '',
-    localidad: data.localidad || data.locality || '',
-    direccion: data.direccion || data['dirección'] || data.address || '',
-    customFields: data.customFields || {},
-    data: data,
-    _collection: COLLECTION_NAME,
-    enrichment: data.enrichment,
-    enrichedAt: data.enrichedAt,
-    assignedTo: data.assignedTo,
-    assignedAt: data.assignedAt,
-    movedToStatusAt: data.movedToStatusAt,
-    cancellationReason: data.cancellationReason,
-    closedAt: data.closedAt,
-    closedBy: data.closedBy,
-    closedByName: data.closedByName,
-    stateHistory: data.stateHistory,
-  };
-
-  const { score, breakdown } = calculateLeadScore(lead);
-  lead.score = score;
-  lead.scoreBreakdown = breakdown;
-  lead.isStale = isLeadStale(lead);
-
-  return lead;
 }

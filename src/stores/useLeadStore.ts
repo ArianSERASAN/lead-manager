@@ -5,28 +5,18 @@ import {
   query,
   orderBy,
   limit,
-  startAfter,
-  getDocs,
   getDoc,
   doc,
   QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { Lead, FilterState, LeadStatus, LeadSource, toJSDate } from '../types/domain';
-import { calculateLeadScore, isLeadStale, ScoringWeights } from '../lib/scoring-engine';
+import { Lead, FilterState, LeadStatus, LeadSource, LeadCollection, toJSDate } from '../types/domain';
+import { ScoringWeights } from '../lib/scoring-engine';
 import { daysSince } from '../utils/format';
 import { useMemo, useState, useEffect } from 'react';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
+import { LEAD_COLLECTIONS, getLeadKey, normalizeLeadSnapshot } from '../lib/leads';
 
 const PAGE_SIZE = 50;
-const COLLECTION_NAME = 'leads';
-
-// ---------------------------------------------------------------------------
-// Filter types
-// ---------------------------------------------------------------------------
 
 export interface LeadFilters {
   searchQuery: string;
@@ -54,26 +44,23 @@ const DEFAULT_FILTERS: LeadFilters = {
   staleDays: null,
 };
 
-// ---------------------------------------------------------------------------
-// Store interface
-// ---------------------------------------------------------------------------
+const EMPTY_COLLECTION_STATE: Record<LeadCollection, Lead[]> = {
+  leads: [],
+  leads_descargas: [],
+  solicitudes_contacto: [],
+};
 
 interface LeadStore {
-  // Data
   leads: Lead[];
   loading: boolean;
   hasMore: boolean;
   loadingMore: boolean;
-
-  // Filters
   filters: LeadFilters;
 
-  // Internal (not for direct use by components)
   _cursor: QueryDocumentSnapshot | null;
   _unsub: (() => void) | null;
   _scoringWeights: ScoringWeights | null;
 
-  // Actions
   subscribe: () => () => void;
   loadMore: () => Promise<void>;
   setFilter: <K extends keyof LeadFilters>(key: K, value: LeadFilters[K]) => void;
@@ -82,69 +69,19 @@ interface LeadStore {
   getCurrentFilterState: () => FilterState;
 }
 
-// ---------------------------------------------------------------------------
-// Map Firestore doc → Lead (ported from useLeads.ts)
-// ---------------------------------------------------------------------------
+function mergeCollectionLeads(leadsByCollection: Record<LeadCollection, Lead[]>): Lead[] {
+  const merged = LEAD_COLLECTIONS
+    .flatMap((name) => leadsByCollection[name])
+    .sort((a, b) => toJSDate(b.createdAt).getTime() - toJSDate(a.createdAt).getTime());
 
-function mapDocToLead(doc: QueryDocumentSnapshot, weights?: ScoringWeights | null): Lead {
-  const data = doc.data();
-
-  const lead: Lead = {
-    id: doc.id,
-    name: data.name || data.nombre || '—',
-    email: data.email || '—',
-    phone: data.phone || data.telefono || '',
-    company: data.company || data.empresa || '',
-    source: data.source || 'landing',
-    status: data.status || 'nuevo',
-    createdAt: data.createdAt || data.fecha || new Date(),
-    updatedAt: data.updatedAt || data.createdAt || new Date(),
-    notes: data.notes || data.notas || '',
-    tags: data.tags || [],
-    score: 0,
-    resource: data.recurso || data.resource || '',
-    message: data.mensaje || data.message || '',
-    apellidos: data.apellidos || '',
-    sector: data.sector || '',
-    cargo: data.cargo || '',
-    servicios: data.servicios || [],
-    tipoInmueble: data.tipoInmueble || data.tipo_inmueble || data.buildingType || '',
-    superficie:
-      data.superficie !== undefined
-        ? String(data.superficie)
-        : data.surface !== undefined
-          ? String(data.surface)
-          : '',
-    referenciaCatastral: data.referenciaCatastral || data.referencia_catastral || data.catastro || '',
-    localidad: data.localidad || data.locality || '',
-    direccion: data.direccion || data['dirección'] || data.address || '',
-    customFields: data.customFields || {},
-    data: data,
-    _collection: COLLECTION_NAME,
-    enrichment: data.enrichment,
-    enrichedAt: data.enrichedAt,
-    assignedTo: data.assignedTo,
-    assignedAt: data.assignedAt,
-    movedToStatusAt: data.movedToStatusAt,
-    cancellationReason: data.cancellationReason,
-    closedAt: data.closedAt,
-    closedBy: data.closedBy,
-    closedByName: data.closedByName,
-    stateHistory: data.stateHistory,
-    attachments: data.attachments || [],
-  };
-
-  const { score, breakdown } = calculateLeadScore(lead, weights || undefined);
-  lead.score = score;
-  lead.scoreBreakdown = breakdown;
-  lead.isStale = isLeadStale(lead);
-
-  return lead;
+  const seen = new Set<string>();
+  return merged.filter((lead) => {
+    const key = getLeadKey(lead);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
-
-// ---------------------------------------------------------------------------
-// Zustand store
-// ---------------------------------------------------------------------------
 
 export const useLeadStore = create<LeadStore>((set, get) => ({
   leads: [],
@@ -157,11 +94,9 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   _scoringWeights: null,
 
   subscribe: () => {
-    // If already subscribed, return existing unsub
     const existing = get()._unsub;
     if (existing) return existing;
 
-    // Fetch scoring config (non-blocking)
     getDoc(doc(db, 'settings', 'scoring')).then((snap) => {
       if (snap.exists()) {
         const data = snap.data();
@@ -169,75 +104,76 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
       }
     }).catch(() => {});
 
-    const q = query(
-      collection(db, COLLECTION_NAME),
-      orderBy('createdAt', 'desc'),
-      limit(PAGE_SIZE)
-    );
-
+    const leadsByCollection: Record<LeadCollection, Lead[]> = { ...EMPTY_COLLECTION_STATE };
+    const hasMoreByCollection: Record<LeadCollection, boolean> = {
+      leads: false,
+      leads_descargas: false,
+      solicitudes_contacto: false,
+    };
+    const pendingCollections = new Set<LeadCollection>(LEAD_COLLECTIONS);
     let initialLoad = true;
 
-    const unsub = onSnapshot(
-      q,
-      (snapshot) => {
-        const weights = get()._scoringWeights;
-        const mapped = snapshot.docs.map((d) => mapDocToLead(d, weights));
-        const newCursor = snapshot.docs.length > 0 ? snapshot.docs[snapshot.docs.length - 1] : null;
+    const recomputeState = () => {
+      set({
+        leads: mergeCollectionLeads(leadsByCollection),
+        hasMore: LEAD_COLLECTIONS.some((name) => hasMoreByCollection[name]),
+      });
+    };
 
-        set({
-          leads: mapped,
-          hasMore: snapshot.docs.length >= PAGE_SIZE,
-          _cursor: newCursor,
-          ...(initialLoad ? { loading: false } : {}),
-        });
+    const unsubscribers = LEAD_COLLECTIONS.map((collectionName) => {
+      const q = query(
+        collection(db, collectionName),
+        orderBy('createdAt', 'desc'),
+        limit(PAGE_SIZE)
+      );
 
-        initialLoad = false;
-      },
-      (err) => {
-        console.error('[LeadStore] Subscription error:', err);
-        set({ loading: false });
-      }
-    );
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          const weights = get()._scoringWeights;
+          leadsByCollection[collectionName] = snapshot.docs.map((d) => (
+            normalizeLeadSnapshot(
+              {
+                id: d.id,
+                data: () => d.data(),
+              },
+              collectionName,
+              weights || undefined
+            )
+          ));
+          hasMoreByCollection[collectionName] = snapshot.docs.length >= PAGE_SIZE;
+
+          pendingCollections.delete(collectionName);
+          recomputeState();
+
+          if (initialLoad && pendingCollections.size === 0) {
+            set({ loading: false });
+            initialLoad = false;
+          }
+        },
+        (err) => {
+          console.error(`[LeadStore] Subscription error (${collectionName}):`, err);
+          pendingCollections.delete(collectionName);
+          if (initialLoad && pendingCollections.size === 0) {
+            set({ loading: false });
+            initialLoad = false;
+          }
+        }
+      );
+    });
+
+    const unsub = () => {
+      unsubscribers.forEach((fn) => fn());
+    };
 
     set({ _unsub: unsub });
     return unsub;
   },
 
+  // Store pagination is currently handled by useLeads (list page).
+  // Dashboard/Kanban/Historial consume the live subscribed store snapshot.
   loadMore: async () => {
-    const { loadingMore, hasMore, _cursor } = get();
-    if (loadingMore || !hasMore || !_cursor) return;
-
-    set({ loadingMore: true });
-
-    try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        orderBy('createdAt', 'desc'),
-        startAfter(_cursor),
-        limit(PAGE_SIZE)
-      );
-
-      const snapshot = await getDocs(q);
-      const weights = get()._scoringWeights;
-      const newLeads = snapshot.docs.map((d) => mapDocToLead(d, weights));
-
-      if (newLeads.length > 0) {
-        set((state) => {
-          const existingIds = new Set(state.leads.map((l) => l.id));
-          const unique = newLeads.filter((l) => !existingIds.has(l.id));
-          return {
-            leads: [...state.leads, ...unique],
-            _cursor: snapshot.docs[snapshot.docs.length - 1],
-          };
-        });
-      }
-
-      set({ hasMore: snapshot.docs.length >= PAGE_SIZE });
-    } catch (err) {
-      console.error('[LeadStore] Error loading more:', err);
-    } finally {
-      set({ loadingMore: false });
-    }
+    return;
   },
 
   setFilter: (key, value) => {
@@ -280,15 +216,10 @@ export const useLeadStore = create<LeadStore>((set, get) => ({
   },
 }));
 
-// ---------------------------------------------------------------------------
-// Pure filter function (ported from useFilterLogic.ts)
-// ---------------------------------------------------------------------------
-
 export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearch: string): Lead[] {
-  // Pre-compute searchable text
   const searchIndex = new Map(
     leads.map((lead) => [
-      lead.id,
+      getLeadKey(lead),
       [lead.name, lead.email, lead.phone || '', lead.company || '', lead.message || '', lead.notes || '', lead.resource || '']
         .join(' ')
         .toLowerCase(),
@@ -296,28 +227,21 @@ export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearc
   );
 
   return leads.filter((lead) => {
-    // Exclude cancelled leads from main view (they go to history)
     if (lead.status === 'cancelado') return false;
 
-    // Tab filter
     if (filters.activeTab === 'descargas' && lead.source !== 'web-download') return false;
     if (filters.activeTab === 'contactos' && lead.source !== 'web-contact') return false;
     if (filters.activeTab === 'landing' && lead.source !== 'landing') return false;
 
-    // Search using pre-computed index
     if (debouncedSearch) {
       const searchLower = debouncedSearch.toLowerCase();
-      const indexed = searchIndex.get(lead.id) || '';
+      const indexed = searchIndex.get(getLeadKey(lead)) || '';
       if (!indexed.includes(searchLower)) return false;
     }
 
-    // Status filter
     if (filters.statusFilter && lead.status !== filters.statusFilter) return false;
-
-    // Source filter
     if (filters.activeTab === 'all' && filters.sourceFilter && lead.source !== filters.sourceFilter) return false;
 
-    // Date filter
     if (filters.dateFilter) {
       const leadDate = toJSDate(lead.createdAt);
       const today = new Date();
@@ -340,12 +264,10 @@ export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearc
       }
     }
 
-    // Tags filter (match any)
     if (filters.tags.length > 0) {
       if (!filters.tags.some((tag) => lead.tags?.includes(tag))) return false;
     }
 
-    // Assigned to filter
     if (filters.assignedTo.length > 0) {
       if (filters.assignedTo.includes('unassigned')) {
         const specificUsers = filters.assignedTo.filter((id) => id !== 'unassigned');
@@ -357,10 +279,8 @@ export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearc
       }
     }
 
-    // Score range
     if (lead.score < filters.scoreMin || lead.score > filters.scoreMax) return false;
 
-    // Stale days
     if (filters.staleDays !== null) {
       const days = daysSince(lead.updatedAt || lead.createdAt);
       if (days < filters.staleDays) return false;
@@ -370,11 +290,6 @@ export function applyFilters(leads: Lead[], filters: LeadFilters, debouncedSearc
   });
 }
 
-// ---------------------------------------------------------------------------
-// Derived hooks (used by components)
-// ---------------------------------------------------------------------------
-
-/** Debounce helper hook */
 function useDebouncedValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
   useEffect(() => {
@@ -384,7 +299,6 @@ function useDebouncedValue<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-/** Returns filtered leads based on current store filters. */
 export function useFilteredLeads(): Lead[] {
   const leads = useLeadStore((s) => s.leads);
   const filters = useLeadStore((s) => s.filters);
@@ -393,7 +307,6 @@ export function useFilteredLeads(): Lead[] {
   return useMemo(() => applyFilters(leads, filters, debouncedSearch), [leads, filters, debouncedSearch]);
 }
 
-/** Returns the count of active filters. */
 export function useActiveFilterCount(): number {
   const f = useLeadStore((s) => s.filters);
   return useMemo(() => {
@@ -410,19 +323,11 @@ export function useActiveFilterCount(): number {
   }, [f]);
 }
 
-/**
- * Bootstraps the Zustand lead store's Firestore subscription.
- * Must be called once from a top-level authenticated component (e.g. AppContent).
- * Cleans up the subscription on unmount.
- */
 export function useLeadSubscription(): void {
   useEffect(() => {
     const unsub = useLeadStore.getState().subscribe();
     return () => {
       unsub();
-      // Clear _unsub so that a subsequent subscribe() call (e.g. React StrictMode
-      // double-invokes effects in dev) creates a fresh Firestore subscription
-      // instead of returning the now-dead unsub and leaving loading=true forever.
       useLeadStore.setState({ _unsub: null });
     };
   }, []);
